@@ -35,9 +35,28 @@ const toNumber = (v) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-const computeNetAfterImpactFund = (t) => {
-  const netBefore = Number.isFinite(Number(t.totalAmount)) ? Number(t.totalAmount) : (toNumber(t.amount) - toNumber(t.brokerageAmount) - toNumber(t.additionalCharges));
-  return netBefore * 0.98;
+const displayNetTotal = (t) => {
+  if (Number.isFinite(Number(t.totalAmount))) return Number(t.totalAmount);
+  return toNumber(t.amount) - toNumber(t.brokerageAmount) - toNumber(t.additionalCharges);
+};
+
+const formatBrokerageRate = (t) => {
+  const type = String(t?.brokerageType || 'percentage').toLowerCase();
+  const value = toNumber(t?.brokerageValue);
+  const amount = toNumber(t?.brokerageAmount);
+  if (amount === 0 && value === 0) return '-';
+  if (type === 'percentage') {
+    if (value === 0) return '-';
+    return `${value}%`;
+  }
+  if (value === 0) return '-';
+  return formatMoney(value);
+};
+
+const formatMoneyOrDash = (v) => {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n === 0) return '-';
+  return formatMoney(n);
 };
 
 const defaultTransactionForm = {
@@ -343,17 +362,14 @@ const PendingRequests = () => {
     {
       key: 'brokerageDisplay',
       label: 'Brokerage',
-      render: (_, t) => {
-        if (t.brokerageType === 'percentage') return `${t.brokerageValue || 0}%`;
-        return formatMoney(t.brokerageValue);
-      }
+      render: (_, t) => formatBrokerageRate(t)
     },
-    { key: 'brokerageAmount', label: 'Brokerage Amount', render: (v) => formatMoney(v) },
-    { key: 'additionalCharges', label: 'Additional Charges', render: (v) => formatMoney(v) },
+    { key: 'brokerageAmount', label: 'Brokerage Amount', render: (v) => formatMoneyOrDash(v) },
+    { key: 'additionalCharges', label: 'Additional Charges', render: (v) => formatMoneyOrDash(v) },
     {
       key: 'totalAmount',
       label: 'Total (Net)',
-      render: (_, t) => formatMoney(computeNetAfterImpactFund(t))
+      render: (_, t) => formatMoney(displayNetTotal(t))
     }
   ];
 

@@ -15,9 +15,28 @@ const computeNetTotal = (t) => {
   return amount - brokerageAmount - additionalCharges;
 };
 
-const computeNetAfterImpactFund = (t) => {
-  const netBefore = Number.isFinite(Number(t.totalAmount)) ? Number(t.totalAmount) : computeNetTotal(t);
-  return netBefore * 0.98;
+const displayNetTotal = (t) => {
+  if (Number.isFinite(Number(t.totalAmount))) return Number(t.totalAmount);
+  return computeNetTotal(t);
+};
+
+const formatBrokerageRate = (t) => {
+  const type = String(t?.brokerageType || 'percentage').toLowerCase();
+  const value = toNumber(t?.brokerageValue);
+  const amount = toNumber(t?.brokerageAmount);
+  if (amount === 0 && value === 0) return '-';
+  if (type === 'percentage') {
+    if (value === 0) return '-';
+    return `${value}%`;
+  }
+  if (value === 0) return '-';
+  return formatMoney(value);
+};
+
+const formatMoneyOrDash = (v) => {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n === 0) return '-';
+  return formatMoney(n);
 };
 
 const TransactionTable = ({ transactions, onDelete, onEdit, isLoading = false, title = 'Transaction Details', additionalFilters = null, hideFilters = [] }) => {
@@ -29,17 +48,14 @@ const TransactionTable = ({ transactions, onDelete, onEdit, isLoading = false, t
     {
       key: 'brokerageDisplay',
       label: 'Brokerage',
-      render: (_, t) => {
-        if (t.brokerageType === 'percentage') return `${t.brokerageValue || 0}%`;
-        return formatMoney(t.brokerageValue);
-      }
+      render: (_, t) => formatBrokerageRate(t)
     },
-    { key: 'brokerageAmount', label: 'Brokerage Amount', render: (v) => formatMoney(v) },
-    { key: 'additionalCharges', label: 'Additional Charges', render: (v) => formatMoney(v) },
+    { key: 'brokerageAmount', label: 'Brokerage Amount', render: (v) => formatMoneyOrDash(v) },
+    { key: 'additionalCharges', label: 'Additional Charges', render: (v) => formatMoneyOrDash(v) },
     {
       key: 'totalAmount',
       label: 'Total (Net)',
-      render: (_, t) => formatMoney(computeNetAfterImpactFund(t))
+      render: (_, t) => formatMoney(displayNetTotal(t))
     }
   ];
 
@@ -81,7 +97,7 @@ const TransactionTable = ({ transactions, onDelete, onEdit, isLoading = false, t
       headerSummary={{
         columnKey: 'totalAmount',
         label: 'Total (net)',
-        aggregate: (rows) => rows.reduce((s, t) => s + computeNetAfterImpactFund(t), 0),
+        aggregate: (rows) => rows.reduce((s, t) => s + displayNetTotal(t), 0),
         format: formatMoney
       }}
       sortCompare={compareTransactions}
@@ -90,4 +106,3 @@ const TransactionTable = ({ transactions, onDelete, onEdit, isLoading = false, t
 };
 
 export default TransactionTable;
-

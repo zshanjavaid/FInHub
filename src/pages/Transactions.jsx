@@ -13,6 +13,7 @@ import ImportTransactionsModal from '../components/ImportTransactionsModal';
 import Modal, { modalActionsClass, modalScrollTableWrapClass, modalScrollTableInnerClass } from '../components/Modal';
 import { tableElementClass, tableHeadCellClass, tableBodyCellClass } from '../constants/tableStyles';
 import { fetchProjects } from '../store/projects/projectsSlice';
+import { fetchExpenses } from '../store/expenses/expensesSlice';
 import {
   createTransaction,
   editTransaction,
@@ -52,6 +53,7 @@ const Transactions = () => {
 
   const projects = useSelector((state) => state.projects.items);
   const transactions = useSelector((state) => state.transactions.items);
+  const expenses = useSelector((state) => state.expenses.items);
   const isLoading = useSelector((state) => state.transactions.isLoading);
   const error = useSelector((state) => state.transactions.error);
 
@@ -238,6 +240,7 @@ const Transactions = () => {
   useEffect(() => {
     dispatch(fetchProjects());
     dispatch(fetchTransactions());
+    dispatch(fetchExpenses());
   }, [dispatch]);
 
   const eligibleProjectsForTx = useMemo(
@@ -555,6 +558,7 @@ const Transactions = () => {
         onClose={() => setIsImportOpen(false)}
         projects={projects}
         transactions={transactions}
+        expenses={expenses}
         clientOptions={allClientOptions.length ? allClientOptions : clientOptions}
         user={user}
       />

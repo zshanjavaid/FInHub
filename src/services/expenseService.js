@@ -47,6 +47,11 @@ export const saveExpense = async (expenseData) => {
       createdAt: new Date().toISOString()
     };
 
+    if (expenseData.client) baseData.client = String(expenseData.client).trim();
+    if (expenseData.project) baseData.project = String(expenseData.project).trim();
+    if (expenseData.monthKey) baseData.monthKey = String(expenseData.monthKey).slice(0, 7);
+    if (expenseData.isMonthlyBrokerage) baseData.isMonthlyBrokerage = true;
+
     if (shouldCreateRecurring) {
       const startDate = (expenseData.date || '').toString().slice(0, 10);
       const ids = [];

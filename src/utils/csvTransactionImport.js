@@ -1,4 +1,6 @@
 import { normalizeDateToYYYYMMDD } from './date';
+import { computeProjectBrokerageDollars } from './project';
+import { isApproved } from '../constants/app';
 
 /** Normalize text for fuzzy broker / project matching. */
 export const normalizeMatchText = (value) =>
@@ -220,16 +222,9 @@ const toNumber = (v) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-const computeBrokerageAmount = ({ amount, brokerageType, brokerageValue }) => {
-  const a = toNumber(amount);
-  const b = toNumber(brokerageValue);
-  if (String(brokerageType || 'percentage').toLowerCase() === 'percentage') return (a * b) / 100;
-  return b;
-};
-
 /**
- * Same field shape as manual Add Transaction — never writes extra CSV metadata
- * and never mutates existing documents.
+ * CSV import stores the bank amount as-is.
+ * Brokerage is handled once per project/month as an expense — not on each transaction.
  */
 export const buildImportedTransactionData = ({
   client,
@@ -240,70 +235,163 @@ export const buildImportedTransactionData = ({
   createdBy = null
 }) => {
   const gross = toNumber(amount);
-  const brokerageType = projectRow?.brokerageType || 'percentage';
-  const brokerageValue = toNumber(projectRow?.brokerageValue);
-  const brokerageAmount = Number(
-    computeBrokerageAmount({ amount: gross, brokerageType, brokerageValue }).toFixed(2)
-  );
-  const additionalCharges = 0;
-  const totalAmount = Number((gross - brokerageAmount - additionalCharges).toFixed(2));
-
   const data = {
     client: String(client || '').trim(),
     project: String(project || '').trim(),
     date: normalizeDateToYYYYMMDD(date) || String(date || '').slice(0, 10),
     amount: gross,
-    brokerageType,
-    brokerageValue,
-    brokerageAmount,
-    additionalCharges,
-    totalAmount
+    brokerageType: projectRow?.brokerageType || 'percentage',
+    brokerageValue: 0,
+    brokerageAmount: 0,
+    additionalCharges: 0,
+    totalAmount: gross
   };
 
   if (createdBy) data.createdBy = createdBy;
   return data;
 };
 
+export const monthKeyFromYmd = (dateYmd) => {
+  const d = normalizeDateToYYYYMMDD(dateYmd) || String(dateYmd || '').slice(0, 10);
+  return d.length >= 7 ? d.slice(0, 7) : '';
+};
+
+export const brokerageExpenseMonthKey = (expense) => {
+  if (expense?.monthKey) return String(expense.monthKey).slice(0, 7);
+  return monthKeyFromYmd(expense?.date);
+};
+
+export const isMonthlyBrokerageExpense = (expense, { client, project, monthKey }) => {
+  if (!expense) return false;
+  const mk = brokerageExpenseMonthKey(expense);
+  if (!mk || mk !== monthKey) return false;
+
+  const eClient = (expense.client || '').trim().toLowerCase();
+  const eProject = (expense.project || '').trim().toLowerCase();
+  const c = (client || '').trim().toLowerCase();
+  const p = (project || '').trim().toLowerCase();
+
+  if (expense.isMonthlyBrokerage && eClient === c && eProject === p) return true;
+
+  if (String(expense.expenseType || '').toLowerCase() === 'brokerage' && eClient === c && eProject === p) {
+    return true;
+  }
+
+  return false;
+};
+
+export const findExistingMonthlyBrokerage = (expenses = [], { client, project, monthKey }) =>
+  (expenses || []).find((e) => isMonthlyBrokerageExpense(e, { client, project, monthKey })) || null;
+
+/** First day of YYYY-MM as expense date. */
+export const monthStartDate = (monthKey) => {
+  const mk = String(monthKey || '').slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(mk)) return '';
+  return `${mk}-01`;
+};
+
+export const buildMonthlyBrokerageExpenseData = ({
+  client,
+  project,
+  monthKey,
+  amount,
+  createdBy = null
+}) => {
+  const data = {
+    expenseName: `Brokerage – ${project}`,
+    date: monthStartDate(monthKey),
+    expenseType: 'brokerage',
+    amount: Number(Number(amount).toFixed(2)),
+    comment: `Monthly brokerage for ${client} / ${project} (${monthKey})`,
+    client: String(client || '').trim(),
+    project: String(project || '').trim(),
+    monthKey: String(monthKey || '').slice(0, 7),
+    isMonthlyBrokerage: true
+  };
+  if (createdBy) data.createdBy = createdBy;
+  return data;
+};
+
 /**
- * Classify CSV rows vs existing transactions by date+amount occupancy.
- * Read-only against existing data — never updates or deletes.
- * - Within existing count → auto skip
- * - Beyond existing count → ask (possible intentional duplicate)
- * - No existing → import (ready) once project is mapped
+ * Monthly brokerage for import:
+ * 1) Project hours × rate × brokerage settings when available
+ * 2) Else fixed brokerage value
+ * 3) Else percentage of that month's imported transaction total
+ */
+export const computeImportMonthlyBrokerageAmount = (projectRow, monthGrossAmount = 0) => {
+  const fromProject = Number(computeProjectBrokerageDollars(projectRow).toFixed(2));
+  if (fromProject > 0) return fromProject;
+
+  const type = String(projectRow?.brokerageType || 'percentage').trim().toLowerCase();
+  const val = toNumber(projectRow?.brokerageValue);
+  if (!(val > 0)) return 0;
+
+  if (type === 'fixed') return Number(val.toFixed(2));
+
+  const gross = toNumber(monthGrossAmount);
+  if (!(gross > 0)) return 0;
+  return Number((gross * (val / 100)).toFixed(2));
+};
+
+/**
+ * Classify CSV rows vs existing transactions by date+amount.
+ * - Pending match → auto-skip (already awaiting approval; not shown on Transactions)
+ * - Approved match → ask cancel / override / keep_both
+ * - No match → ready to import
  */
 export const classifyCsvRowsAgainstExisting = ({ csvRows = [], existingTransactions = [] }) => {
-  const existingCounts = new Map();
+  const pendingByKey = new Map();
+  const approvedByKey = new Map();
+
   (existingTransactions || []).forEach((t) => {
     const date = normalizeDateToYYYYMMDD(t?.date);
     const amount = Number(t?.amount);
     if (!date || !Number.isFinite(amount)) return;
     const key = dupeKey(date, amount);
-    existingCounts.set(key, (existingCounts.get(key) || 0) + 1);
+    const bucket = isApproved(t) ? approvedByKey : pendingByKey;
+    const arr = bucket.get(key) || [];
+    arr.push(t);
+    bucket.set(key, arr);
   });
 
-  const usedCounts = new Map();
+  const usedPending = new Map();
+  const usedApproved = new Map();
+
   return (csvRows || []).map((row) => {
     const date = row.date;
     const amount = row.amount;
     if (!date || !Number.isFinite(amount)) {
-      return { ...row, importStatus: 'invalid', reason: 'Missing date or amount' };
+      return { ...row, importStatus: 'invalid', reason: 'Missing date or amount', existingMatchId: null };
     }
+
     const key = dupeKey(date, amount);
-    const existing = existingCounts.get(key) || 0;
-    const used = usedCounts.get(key) || 0;
-    if (used < existing) {
-      usedCounts.set(key, used + 1);
-      return { ...row, importStatus: 'skip', reason: 'Already in your data — left unchanged' };
+    const pendingMatches = pendingByKey.get(key) || [];
+    const approvedMatches = approvedByKey.get(key) || [];
+
+    const pendingUsed = usedPending.get(key) || 0;
+    if (pendingUsed < pendingMatches.length) {
+      usedPending.set(key, pendingUsed + 1);
+      return {
+        ...row,
+        importStatus: 'skip',
+        existingMatchId: pendingMatches[pendingUsed]?.id || null,
+        reason: 'Already pending approval'
+      };
     }
-    usedCounts.set(key, used + 1);
-    if (existing > 0) {
+
+    const approvedUsed = usedApproved.get(key) || 0;
+    if (approvedUsed < approvedMatches.length) {
+      usedApproved.set(key, approvedUsed + 1);
+      const existing = approvedMatches[approvedUsed];
       return {
         ...row,
         importStatus: 'ask',
-        reason: `Same date and amount already exists. Add another row?`
+        existingMatchId: existing?.id || null,
+        reason: 'Same date and amount already exists'
       };
     }
-    return { ...row, importStatus: 'ready', reason: '' };
+
+    return { ...row, importStatus: 'ready', reason: '', existingMatchId: null };
   });
 };
 

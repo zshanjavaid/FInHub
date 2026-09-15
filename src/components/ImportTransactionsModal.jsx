@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { FiUploadCloud, FiShield, FiFileText, FiCheck, FiAlertTriangle, FiClock } from 'react-icons/fi';
+import { FiUploadCloud, FiFileText, FiCheck, FiAlertTriangle, FiClock } from 'react-icons/fi';
 import Modal, { modalActionsClass, modalScrollTableWrapClass, modalScrollTableInnerClass } from './Modal';
 import Button from './Button';
 import SearchableDropdown from './SearchableDropdown';
@@ -9,7 +9,8 @@ import { tableElementClass, tableHeadCellClass, tableBodyCellClass } from '../co
 import { formatMoney } from '../utils/format';
 import { prepareProjectForFirestore } from '../utils/project';
 import { createProject } from '../store/projects/projectsSlice';
-import { createTransactionsBulk } from '../store/transactions/transactionsSlice';
+import { createTransactionsBulk, editTransaction } from '../store/transactions/transactionsSlice';
+import { createExpense, fetchExpenses } from '../store/expenses/expensesSlice';
 import { PROJECT_TYPE_OPTIONS } from '../constants/projectTypes';
 import { isApproved } from '../constants/app';
 import {
@@ -19,7 +20,11 @@ import {
   classifyCsvRowsAgainstExisting,
   uniqueCsvProjectNames,
   normalizeMatchText,
-  buildImportedTransactionData
+  buildImportedTransactionData,
+  monthKeyFromYmd,
+  findExistingMonthlyBrokerage,
+  buildMonthlyBrokerageExpenseData,
+  computeImportMonthlyBrokerageAmount
 } from '../utils/csvTransactionImport';
 
 const findLatestProject = (projects, broker, projectName) => {
@@ -64,6 +69,7 @@ const ImportTransactionsModal = ({
   onClose,
   projects = [],
   transactions = [],
+  expenses = [],
   clientOptions = [],
   user = null
 }) => {
@@ -78,6 +84,7 @@ const ImportTransactionsModal = ({
   const [brokerSource, setBrokerSource] = useState('');
   const [projectMap, setProjectMap] = useState({});
   const [askDecisions, setAskDecisions] = useState({});
+  const [selectedAskKeys, setSelectedAskKeys] = useState(() => new Set());
   const [isImporting, setIsImporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
@@ -93,6 +100,7 @@ const ImportTransactionsModal = ({
     setBrokerSource('');
     setProjectMap({});
     setAskDecisions({});
+    setSelectedAskKeys(new Set());
     setIsImporting(false);
     setIsDragging(false);
     setIsProjectModalOpen(false);
@@ -104,6 +112,10 @@ const ImportTransactionsModal = ({
   useEffect(() => {
     if (!isOpen) resetState();
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) dispatch(fetchExpenses());
+  }, [isOpen, dispatch]);
 
   const classifiedRows = useMemo(
     () => classifyCsvRowsAgainstExisting({ csvRows: rawRows, existingTransactions: transactions }),
@@ -151,14 +163,15 @@ const ImportTransactionsModal = ({
 
       if (decision === 'ask') {
         const userChoice = askDecisions[row.rowKey];
-        if (userChoice === 'include') decision = 'ready';
-        else if (userChoice === 'skip') decision = 'skip';
+        if (userChoice === 'keep_both') decision = 'ready';
+        else if (userChoice === 'override') decision = 'override';
         else decision = 'ask';
       }
 
       const match = resolveProjectMatch(projects, broker, mappedProject);
+      const needsProjectGate = decision === 'ready' || decision === 'override';
 
-      if (decision === 'ready') {
+      if (needsProjectGate) {
         if (!mappedProject) {
           decision = 'needs_project';
           reason = 'Map or create a project for this description';
@@ -168,11 +181,14 @@ const ImportTransactionsModal = ({
         } else if (match.kind !== 'approved') {
           decision = 'needs_project';
           reason = 'Project not found — create it or pick an existing one';
+        } else if (decision === 'override' && !row.existingMatchId) {
+          decision = 'ask';
+          reason = 'Could not find the existing row to override';
         }
       }
 
       const previewTx =
-        decision === 'ready' && match.kind === 'approved'
+        (decision === 'ready' || decision === 'override') && match.kind === 'approved'
           ? buildImportedTransactionData({
               client: broker,
               project: mappedProject,
@@ -187,22 +203,99 @@ const ImportTransactionsModal = ({
         mappedProject,
         decision,
         reason,
-        previewTx
+        previewTx,
+        projectRow: match.kind === 'approved' ? match.project : null
       };
     });
   }, [classifiedRows, projectMap, askDecisions, projects, broker]);
 
   const counts = useMemo(() => {
-    const c = { ready: 0, skip: 0, ask: 0, needs_project: 0, pending_project: 0, invalid: 0 };
+    const c = {
+      ready: 0,
+      skip: 0,
+      ask: 0,
+      override: 0,
+      needs_project: 0,
+      pending_project: 0,
+      invalid: 0
+    };
     previewRows.forEach((r) => {
       c[r.decision] = (c[r.decision] || 0) + 1;
     });
     return c;
   }, [previewRows]);
 
+  const brokeragePlan = useMemo(() => {
+    const groups = new Map();
+    previewRows.forEach((row) => {
+      if (row.decision !== 'ready' && row.decision !== 'override') return;
+      if (!row.mappedProject || !row.projectRow) return;
+      const monthKey = monthKeyFromYmd(row.date);
+      if (!monthKey) return;
+      const planKey = `${broker}|${row.mappedProject}|${monthKey}`;
+      const prev = groups.get(planKey) || {
+        key: planKey,
+        client: broker,
+        project: row.mappedProject,
+        monthKey,
+        projectRow: row.projectRow,
+        monthGross: 0
+      };
+      prev.monthGross += Number(row.amount) || 0;
+      prev.projectRow = row.projectRow;
+      groups.set(planKey, prev);
+    });
+
+    return [...groups.values()]
+      .map((g) => {
+        const existing = findExistingMonthlyBrokerage(expenses, {
+          client: g.client,
+          project: g.project,
+          monthKey: g.monthKey
+        });
+        if (existing) {
+          return {
+            key: g.key,
+            client: g.client,
+            project: g.project,
+            monthKey: g.monthKey,
+            amount: Number(existing.amount) || 0,
+            status: 'exists'
+          };
+        }
+
+        const amount = computeImportMonthlyBrokerageAmount(g.projectRow, g.monthGross);
+        if (!(amount > 0)) {
+          return {
+            key: g.key,
+            client: g.client,
+            project: g.project,
+            monthKey: g.monthKey,
+            amount: 0,
+            status: 'zero'
+          };
+        }
+
+        return {
+          key: g.key,
+          client: g.client,
+          project: g.project,
+          monthKey: g.monthKey,
+          amount,
+          status: 'new'
+        };
+      })
+      .filter((x) => x.status === 'new' || x.status === 'exists');
+  }, [previewRows, expenses, broker]);
+
+  const newBrokerageExpenses = useMemo(
+    () => brokeragePlan.filter((b) => b.status === 'new'),
+    [brokeragePlan]
+  );
+
   const canImport =
     Boolean(broker) &&
-    counts.ready > 0 &&
+    (counts.ready > 0 || counts.override > 0) &&
     counts.ask === 0 &&
     counts.needs_project === 0 &&
     counts.pending_project === 0 &&
@@ -213,6 +306,7 @@ const ImportTransactionsModal = ({
     setParseError('');
     setSubmitError('');
     setAskDecisions({});
+    setSelectedAskKeys(new Set());
     setProjectMap({});
     setFileName(file.name || '');
 
@@ -298,23 +392,40 @@ const ImportTransactionsModal = ({
   };
 
   const buildTransactionPayloads = () => {
-    const out = [];
+    const creates = [];
+    const overrides = [];
     previewRows.forEach((row) => {
-      if (row.decision !== 'ready') return;
+      if (row.decision !== 'ready' && row.decision !== 'override') return;
       const match = resolveProjectMatch(projects, broker, row.mappedProject);
       if (match.kind !== 'approved') return;
-      out.push(
-        buildImportedTransactionData({
-          client: broker,
-          project: row.mappedProject,
-          date: row.date,
-          amount: row.amount,
-          projectRow: match.project,
-          createdBy: user?.uid || null
-        })
-      );
+      const data = buildImportedTransactionData({
+        client: broker,
+        project: row.mappedProject,
+        date: row.date,
+        amount: row.amount,
+        projectRow: match.project,
+        createdBy: user?.uid || null
+      });
+      if (row.decision === 'override' && row.existingMatchId) {
+        overrides.push({
+          transactionId: row.existingMatchId,
+          transactionData: {
+            client: data.client,
+            project: data.project,
+            date: data.date,
+            amount: data.amount,
+            brokerageType: data.brokerageType,
+            brokerageValue: data.brokerageValue,
+            brokerageAmount: data.brokerageAmount,
+            additionalCharges: data.additionalCharges,
+            totalAmount: data.totalAmount
+          }
+        });
+      } else if (row.decision === 'ready') {
+        creates.push(data);
+      }
     });
-    return out;
+    return { creates, overrides };
   };
 
   const onConfirmImport = async () => {
@@ -322,12 +433,30 @@ const ImportTransactionsModal = ({
     setIsImporting(true);
     setSubmitError('');
     try {
-      const payload = buildTransactionPayloads();
-      if (!payload.length) {
+      const { creates, overrides } = buildTransactionPayloads();
+      if (!creates.length && !overrides.length) {
         setSubmitError('Nothing to import.');
         return;
       }
-      await dispatch(createTransactionsBulk(payload)).unwrap();
+
+      for (const item of overrides) {
+        await dispatch(editTransaction(item)).unwrap();
+      }
+      if (creates.length) {
+        await dispatch(createTransactionsBulk(creates)).unwrap();
+      }
+
+      for (const item of newBrokerageExpenses) {
+        const expenseData = buildMonthlyBrokerageExpenseData({
+          client: item.client,
+          project: item.project,
+          monthKey: item.monthKey,
+          amount: item.amount,
+          createdBy: user?.uid || null
+        });
+        await dispatch(createExpense(expenseData)).unwrap();
+      }
+
       onClose();
     } catch (e) {
       setSubmitError(e?.message || 'Failed to import transactions.');
@@ -348,33 +477,80 @@ const ImportTransactionsModal = ({
     ].sort((a, b) => a.localeCompare(b));
   }, [approvedProjects, broker]);
 
-  const askRows = useMemo(
-    () => previewRows.filter((r) => r.importStatus === 'ask'),
-    [previewRows]
+  const askRows = useMemo(() => {
+    const rows = previewRows.filter((r) => r.importStatus === 'ask');
+    return [...rows].sort((a, b) => {
+      const aDecided = askDecisions[a.rowKey] === 'override' || askDecisions[a.rowKey] === 'keep_both';
+      const bDecided = askDecisions[b.rowKey] === 'override' || askDecisions[b.rowKey] === 'keep_both';
+      if (aDecided !== bDecided) return aDecided ? -1 : 1;
+      return 0;
+    });
+  }, [previewRows, askDecisions]);
+
+  const undecidedAskKeys = useMemo(
+    () => askRows.filter((r) => !askDecisions[r.rowKey]).map((r) => r.rowKey),
+    [askRows, askDecisions]
   );
+
+  const allUndecidedSelected =
+    undecidedAskKeys.length > 0 && undecidedAskKeys.every((k) => selectedAskKeys.has(k));
+
+  const toggleAskSelected = (rowKey) => {
+    setSelectedAskKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowKey)) next.delete(rowKey);
+      else next.add(rowKey);
+      return next;
+    });
+  };
+
+  const toggleSelectAllAsk = () => {
+    setSelectedAskKeys((prev) => {
+      if (allUndecidedSelected) {
+        const next = new Set(prev);
+        undecidedAskKeys.forEach((k) => next.delete(k));
+        return next;
+      }
+      const next = new Set(prev);
+      undecidedAskKeys.forEach((k) => next.add(k));
+      return next;
+    });
+  };
+
+  const applyAskDecision = (rowKeys, choice) => {
+    const keys = (rowKeys || []).filter(Boolean);
+    if (!keys.length) return;
+    setAskDecisions((prev) => {
+      const next = { ...prev };
+      keys.forEach((k) => {
+        next[k] = choice;
+      });
+      return next;
+    });
+    setSelectedAskKeys((prev) => {
+      const next = new Set(prev);
+      keys.forEach((k) => next.delete(k));
+      return next;
+    });
+  };
+
   const importPreviewRows = useMemo(
-    () => previewRows.filter((r) => r.decision === 'ready'),
+    () => previewRows.filter((r) => r.decision === 'ready' || r.decision === 'override'),
     [previewRows]
   );
+
+  const actionLabel = () => {
+    const parts = [];
+    if (counts.ready > 0) parts.push(`Add ${counts.ready}`);
+    if (counts.override > 0) parts.push(`Override ${counts.override}`);
+    if (newBrokerageExpenses.length > 0) parts.push(`${newBrokerageExpenses.length} brokerage`);
+    return parts.length ? parts.join(' · ') : 'Import';
+  };
 
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} title="Import transactions" panelClassName="max-w-5xl">
         <div className="space-y-4 min-w-0">
-          <div className="rounded-xl border border-primary-200/70 bg-gradient-to-br from-primary-50 via-white to-emerald-50/40 px-3.5 py-3 sm:px-4 shadow-card">
-            <div className="flex items-start gap-3">
-              <div className="shrink-0 w-10 h-10 rounded-xl bg-primary-100 border border-primary-200/80 flex items-center justify-center">
-                <FiShield className="w-5 h-5 text-primary-700" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-900">Your existing data stays safe</p>
-                <p className="text-xs sm:text-sm text-slate-600 mt-0.5 leading-relaxed">
-                  Import only <span className="font-semibold text-slate-800">adds new rows</span>. Matching date + amount rows are skipped. Nothing already saved is edited or deleted.
-                </p>
-              </div>
-            </div>
-          </div>
-
           <div className="rounded-xl border border-slate-200/80 bg-white shadow-card relative z-30">
             <div className="px-3.5 py-2.5 sm:px-4 border-b border-slate-100 bg-slate-50/80 flex items-center gap-2 rounded-t-xl">
               <div className="h-1 w-8 rounded-full bg-primary-500" />
@@ -529,6 +705,7 @@ const ImportTransactionsModal = ({
             <>
               <div className="flex flex-wrap gap-1.5">
                 <StatChip label="New" value={counts.ready} tone="success" />
+                <StatChip label="Override" value={counts.override} tone="warn" />
                 <StatChip label="Skip" value={counts.skip} tone="muted" />
                 <StatChip label="Decide" value={counts.ask} tone="warn" />
                 {counts.needs_project > 0 ? (
@@ -537,51 +714,144 @@ const ImportTransactionsModal = ({
                 {counts.pending_project > 0 ? (
                   <StatChip label="Pending" value={counts.pending_project} tone="warn" />
                 ) : null}
+                {newBrokerageExpenses.length > 0 ? (
+                  <StatChip label="Brokerage" value={newBrokerageExpenses.length} tone="success" />
+                ) : null}
               </div>
 
               {askRows.length > 0 ? (
                 <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 shadow-card overflow-hidden">
-                  <div className="px-3.5 py-2.5 sm:px-4 border-b border-amber-100 flex items-center gap-2">
-                    <div className="h-1 w-8 rounded-full bg-amber-500" />
-                    <p className="text-sm font-bold text-amber-950">Same date & amount already exists</p>
+                  <div className="px-3.5 py-2.5 sm:px-4 border-b border-amber-100 flex flex-col sm:flex-row sm:items-center gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="h-1 w-8 rounded-full bg-amber-500 shrink-0" />
+                      <p className="text-sm font-bold text-amber-950">Same date & amount already exists</p>
+                    </div>
+                    {selectedAskKeys.size > 0 ? (
+                      <div className="flex flex-wrap gap-1.5 sm:ml-auto">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => applyAskDecision([...selectedAskKeys], 'override')}
+                        >
+                          Override selected ({selectedAskKeys.size})
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => applyAskDecision([...selectedAskKeys], 'keep_both')}
+                        >
+                          Keep both selected ({selectedAskKeys.size})
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                   <div className="p-3 sm:p-3.5 space-y-2">
-                    {askRows.map((row) => (
-                      <div
-                        key={row.rowKey}
-                        className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 rounded-xl border border-amber-200/70 bg-white px-3 py-2.5"
-                      >
-                        <div className="flex-1 min-w-0 text-sm text-slate-700">
-                          <span className="font-semibold text-slate-900">{row.date}</span>
-                          <span className="text-slate-400 mx-1.5">·</span>
-                          <span className="font-semibold tabular-nums">{formatMoney(row.amount)}</span>
-                          {row.mappedProject ? (
-                            <>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-amber-900/80">
+                      <label className="inline-flex items-center gap-2 font-semibold text-amber-950 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={allUndecidedSelected}
+                          onChange={toggleSelectAllAsk}
+                          disabled={undecidedAskKeys.length === 0}
+                          className="rounded border-amber-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        Select all undecided
+                      </label>
+                      <span className="sm:ml-auto">
+                        Override replaces that row. Keep both adds another transaction.
+                      </span>
+                    </div>
+                    {askRows.map((row) => {
+                      const choice = askDecisions[row.rowKey];
+                      const decided = choice === 'override' || choice === 'keep_both';
+                      const checked = selectedAskKeys.has(row.rowKey);
+                      return (
+                        <div
+                          key={row.rowKey}
+                          className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 rounded-xl border px-3 py-2.5 ${
+                            decided
+                              ? 'border-primary-200 bg-primary-50/40'
+                              : 'border-amber-200/70 bg-white'
+                          }`}
+                        >
+                          <label className="flex items-start sm:items-center gap-2 flex-1 min-w-0 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={decided}
+                              onChange={() => toggleAskSelected(row.rowKey)}
+                              className="mt-0.5 sm:mt-0 rounded border-slate-300 text-primary-600 focus:ring-primary-500 disabled:opacity-40"
+                            />
+                            <span className="min-w-0 text-sm text-slate-700">
+                              <span className="font-semibold text-slate-900">{row.date}</span>
                               <span className="text-slate-400 mx-1.5">·</span>
-                              <span className="truncate">{row.mappedProject}</span>
-                            </>
-                          ) : null}
+                              <span className="font-semibold tabular-nums">{formatMoney(row.amount)}</span>
+                              {row.mappedProject ? (
+                                <>
+                                  <span className="text-slate-400 mx-1.5">·</span>
+                                  <span className="truncate">{row.mappedProject}</span>
+                                </>
+                              ) : null}
+                              {decided ? (
+                                <span className="ml-2 inline-flex px-1.5 py-0.5 rounded-full border border-primary-200 bg-white text-primary-800 text-[10px] font-bold">
+                                  {choice === 'override' ? 'Override' : 'Keep both'}
+                                </span>
+                              ) : null}
+                            </span>
+                          </label>
+                          <div className="flex flex-wrap gap-1.5 shrink-0 sm:pl-0 pl-6">
+                            <Button
+                              size="sm"
+                              variant={choice === 'override' ? 'primary' : 'secondary'}
+                              onClick={() => applyAskDecision([row.rowKey], 'override')}
+                            >
+                              Override
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={choice === 'keep_both' ? 'primary' : 'secondary'}
+                              onClick={() => applyAskDecision([row.rowKey], 'keep_both')}
+                            >
+                              Keep both
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex gap-1.5 shrink-0">
-                          <Button
-                            size="sm"
-                            variant={askDecisions[row.rowKey] === 'include' ? 'primary' : 'secondary'}
-                            onClick={() =>
-                              setAskDecisions((prev) => ({ ...prev, [row.rowKey]: 'include' }))
-                            }
-                          >
-                            Add
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant={askDecisions[row.rowKey] === 'skip' ? 'primary' : 'secondary'}
-                            onClick={() =>
-                              setAskDecisions((prev) => ({ ...prev, [row.rowKey]: 'skip' }))
-                            }
-                          >
-                            Skip
-                          </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
+              {brokeragePlan.length > 0 ? (
+                <div className="rounded-xl border border-slate-200/80 bg-white shadow-card overflow-hidden relative z-0">
+                  <div className="px-3.5 py-2.5 sm:px-4 border-b border-slate-100 bg-slate-50/80 flex items-center gap-2">
+                    <div className="h-1 w-8 rounded-full bg-primary-500 shrink-0" />
+                    <p className="text-sm font-bold text-slate-800">Monthly brokerage expenses</p>
+                  </div>
+                  <div className="p-3 sm:p-3.5 space-y-2">
+                    <p className="text-xs text-slate-500">
+                      One brokerage expense per project per month. Already-added months are left as-is.
+                    </p>
+                    {brokeragePlan.map((item) => (
+                      <div
+                        key={item.key}
+                        className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 rounded-xl border border-slate-200/80 bg-slate-50/60 px-3 py-2.5 text-sm"
+                      >
+                        <div className="flex-1 min-w-0 text-slate-700">
+                          <span className="font-semibold text-slate-900">{item.project}</span>
+                          <span className="text-slate-400 mx-1.5">·</span>
+                          <span>{item.monthKey}</span>
+                          <span className="text-slate-400 mx-1.5">·</span>
+                          <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
                         </div>
+                        {item.status === 'new' ? (
+                          <span className="inline-flex px-2 py-0.5 rounded-full border border-primary-200 bg-primary-50 text-primary-800 text-[10px] sm:text-xs font-bold">
+                            Will add
+                          </span>
+                        ) : (
+                          <span className="inline-flex px-2 py-0.5 rounded-full border border-slate-200 bg-white text-slate-600 text-[10px] sm:text-xs font-bold">
+                            Already added
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -593,47 +863,35 @@ const ImportTransactionsModal = ({
                   <div className="px-3.5 py-2.5 sm:px-4 border-b border-slate-100 bg-slate-50/80 flex items-center gap-2">
                     <div className="h-1 w-8 rounded-full bg-primary-500 shrink-0" />
                     <p className="text-sm font-bold text-slate-800">
-                      Preview ({importPreviewRows.length} to add)
+                      Preview ({importPreviewRows.length})
                     </p>
                   </div>
                   <div className={`${modalScrollTableWrapClass} border-0 rounded-none shadow-none`}>
                     <div className={`${modalScrollTableInnerClass} overflow-x-auto`}>
-                      <table className={`${tableElementClass} min-w-[36rem]`}>
+                      <table className={`${tableElementClass} min-w-[32rem]`}>
                         <thead className="bg-slate-100 border-b border-slate-200">
                           <tr>
                             <th className={tableHeadCellClass('text-left')}>Broker</th>
                             <th className={tableHeadCellClass('text-left')}>Project</th>
                             <th className={tableHeadCellClass('text-left')}>Date</th>
                             <th className={tableHeadCellClass('text-right')}>Amount</th>
-                            <th className={tableHeadCellClass('text-right')}>Brokerage</th>
-                            <th className={tableHeadCellClass('text-right')}>Total (Net)</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {importPreviewRows.map((row, idx) => {
-                            const tx = row.previewTx;
-                            const netAfterImpact = tx ? Number(tx.totalAmount) * 0.98 : null;
-                            return (
-                              <tr key={row.rowKey} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
-                                <td className={`${tableBodyCellClass('text-left')} font-semibold text-slate-800`}>
-                                  {broker || '—'}
-                                </td>
-                                <td className={`${tableBodyCellClass('text-left')} max-w-[10rem] truncate`} title={row.mappedProject}>
-                                  {row.mappedProject || '—'}
-                                </td>
-                                <td className={tableBodyCellClass('text-left')}>{row.date || '—'}</td>
-                                <td className={`${tableBodyCellClass('text-right')} tabular-nums font-semibold`}>
-                                  {formatMoney(row.amount)}
-                                </td>
-                                <td className={`${tableBodyCellClass('text-right')} tabular-nums`}>
-                                  {tx ? formatMoney(tx.brokerageAmount) : '—'}
-                                </td>
-                                <td className={`${tableBodyCellClass('text-right')} tabular-nums font-semibold text-primary-800`}>
-                                  {netAfterImpact != null ? formatMoney(netAfterImpact) : '—'}
-                                </td>
-                              </tr>
-                            );
-                          })}
+                          {importPreviewRows.map((row, idx) => (
+                            <tr key={row.rowKey} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                              <td className={`${tableBodyCellClass('text-left')} font-semibold text-slate-800`}>
+                                {broker || '—'}
+                              </td>
+                              <td className={`${tableBodyCellClass('text-left')} max-w-[10rem] truncate`} title={row.mappedProject}>
+                                {row.mappedProject || '—'}
+                              </td>
+                              <td className={tableBodyCellClass('text-left')}>{row.date || '—'}</td>
+                              <td className={`${tableBodyCellClass('text-right')} tabular-nums font-semibold`}>
+                                {formatMoney(row.amount)}
+                              </td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>
@@ -641,7 +899,7 @@ const ImportTransactionsModal = ({
                 </div>
               ) : (
                 <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-4 py-8 text-center shadow-card">
-                  <p className="text-sm font-semibold text-slate-700">Nothing new to import yet</p>
+                  <p className="text-sm font-semibold text-slate-700">Nothing to import yet</p>
                   <p className="text-xs text-slate-500 mt-1">
                     Resolve project mapping or duplicate decisions above.
                   </p>
@@ -658,14 +916,14 @@ const ImportTransactionsModal = ({
 
           <div className={modalActionsClass}>
             <Button variant="secondary" onClick={onClose} className="w-full sm:flex-1" disabled={isImporting}>
-              Cancel
+              Close
             </Button>
             <Button
               onClick={onConfirmImport}
               className="w-full sm:flex-1"
               disabled={!canImport || isImporting}
             >
-              {isImporting ? 'Importing…' : `Add ${counts.ready} new transaction${counts.ready === 1 ? '' : 's'}`}
+              {isImporting ? 'Importing…' : actionLabel()}
             </Button>
           </div>
         </div>
