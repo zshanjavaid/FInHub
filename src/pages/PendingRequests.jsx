@@ -551,7 +551,7 @@ const PendingRequests = () => {
       </div>
 
       <TransactionFormModal
-        key={editingTransactionId || 'new'}
+        key={editingTransactionId ? `tx-${editingTransactionId}` : 'pending-tx-new'}
         isOpen={!!editingTransactionId}
         onClose={closeEditTransaction}
         title="Edit Transaction"
@@ -566,7 +566,7 @@ const PendingRequests = () => {
       />
 
       <ExpenseFormModal
-        key={editingExpenseId || 'new'}
+        key={editingExpenseId ? `expense-${editingExpenseId}` : 'pending-expense-new'}
         isOpen={!!editingExpenseId}
         onClose={closeEditExpense}
         title="Edit Expense"
@@ -576,7 +576,7 @@ const PendingRequests = () => {
       />
 
       <ProjectFormModal
-        key={editingProjectId || 'new'}
+        key={editingProjectId ? `project-${editingProjectId}` : 'pending-project-new'}
         isOpen={!!editingProjectId}
         onClose={closeEditProject}
         title="Edit Project"

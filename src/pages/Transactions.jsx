@@ -9,6 +9,7 @@ import BarChart from '../components/BarChart';
 import LineChartChartJS from '../components/LineChartChartJS';
 import TransactionTable from '../components/TransactionTable';
 import TransactionFormModal from '../components/TransactionFormModal';
+import ImportTransactionsModal from '../components/ImportTransactionsModal';
 import Modal, { modalActionsClass, modalScrollTableWrapClass, modalScrollTableInnerClass } from '../components/Modal';
 import { tableElementClass, tableHeadCellClass, tableBodyCellClass } from '../constants/tableStyles';
 import { fetchProjects } from '../store/projects/projectsSlice';
@@ -65,6 +66,7 @@ const Transactions = () => {
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState('');
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   const filteredTransactions = useMemo(() => {
     let list = filterByDateRange(transactions || [], dateFrom, dateTo, (t) => t.date);
@@ -244,6 +246,7 @@ const Transactions = () => {
   );
 
   const clientOptions = useClientOptions(eligibleProjectsForTx);
+  const allClientOptions = useClientOptions(projects);
 
   const projectOptions = useMemo(() => {
     const list = eligibleProjectsForTx;
@@ -458,6 +461,9 @@ const Transactions = () => {
         title="Transactions"
         actions={
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full">
+            <Button variant="secondary" onClick={() => setIsImportOpen(true)}>
+              Import CSV
+            </Button>
             <Button
               variant="secondary"
               onClick={openGenerateModal}
@@ -542,6 +548,15 @@ const Transactions = () => {
         transactions={transactions}
         editingTransactionId={editingTransactionId}
         editingTransaction={editingTransaction}
+      />
+
+      <ImportTransactionsModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        projects={projects}
+        transactions={transactions}
+        clientOptions={allClientOptions.length ? allClientOptions : clientOptions}
+        user={user}
       />
 
       <Modal isOpen={isGenerateOpen} onClose={closeGenerateModal} title="Generate transactions" panelClassName="max-w-3xl">
