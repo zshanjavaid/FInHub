@@ -57,7 +57,7 @@ const BarChart = ({ data, labels, title = 'Bar Chart' }) => {
     responsive: true,
     maintainAspectRatio: false,
     layout: {
-      padding: { top: compact ? 4 : 8, right: compact ? 4 : 8, bottom: 2, left: 2 }
+      padding: { top: 0, right: compact ? 4 : 8, bottom: 2, left: 2 }
     },
     plugins: {
       legend: {

@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { FiBarChart2 } from 'react-icons/fi';
 import { computeRollingWindowStats } from '../utils/projectRollingStats';
 import ProjectInwardCostBar from './ProjectInwardCostBar';
+import LineChartChartJS from './LineChartChartJS';
+import { MONTH_NAMES, normalizeDateToYYYYMMDD } from '../utils/date';
 import {
   chartCardClass,
   chartCardHeaderClass,
@@ -16,8 +18,79 @@ const StatValue = ({ value, valueClassName = 'text-slate-900', title }) => (
   </div>
 );
 
-const ProjectInsightsSummaryCard = ({ projects = [], transactions = [] }) => {
-  const { rangeLabel, onboardCurr, endedCurr } = useMemo(() => computeRollingWindowStats(projects), [projects]);
+const buildMonthlyTrend = (projects = [], dateFrom = '', dateTo = '') => {
+  const from = normalizeDateToYYYYMMDD(dateFrom);
+  const to = normalizeDateToYYYYMMDD(dateTo);
+
+  if (from && to && from.slice(0, 4) === to.slice(0, 4)) {
+    const year = Number(from.slice(0, 4));
+    const counts = new Array(12).fill(0);
+    (projects || []).forEach((p) => {
+      const ymd = normalizeDateToYYYYMMDD(p?.date);
+      if (!ymd || Number(ymd.slice(0, 4)) !== year) return;
+      const m = Number(ymd.slice(5, 7));
+      if (m >= 1 && m <= 12) counts[m - 1] += 1;
+    });
+    return { labels: MONTH_NAMES, values: counts, titleYear: year };
+  }
+
+  if (from && to && from <= to) {
+    const labels = [];
+    const values = [];
+    const cursor = new Date(Number(from.slice(0, 4)), Number(from.slice(5, 7)) - 1, 1);
+    const end = new Date(Number(to.slice(0, 4)), Number(to.slice(5, 7)) - 1, 1);
+    const countByMonth = new Map();
+    (projects || []).forEach((p) => {
+      const ymd = normalizeDateToYYYYMMDD(p?.date);
+      if (!ymd) return;
+      const key = ymd.slice(0, 7);
+      countByMonth.set(key, (countByMonth.get(key) || 0) + 1);
+    });
+    while (cursor <= end) {
+      const y = cursor.getFullYear();
+      const m = cursor.getMonth();
+      const key = `${y}-${String(m + 1).padStart(2, '0')}`;
+      labels.push(`${MONTH_NAMES[m]} ${String(y).slice(-2)}`);
+      values.push(countByMonth.get(key) || 0);
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    return { labels, values, titleYear: null };
+  }
+
+  const year = new Date().getFullYear();
+  const counts = new Array(12).fill(0);
+  (projects || []).forEach((p) => {
+    const ymd = normalizeDateToYYYYMMDD(p?.date);
+    if (!ymd || Number(ymd.slice(0, 4)) !== year) return;
+    const m = Number(ymd.slice(5, 7));
+    if (m >= 1 && m <= 12) counts[m - 1] += 1;
+  });
+  return { labels: MONTH_NAMES, values: counts, titleYear: year };
+};
+
+/**
+ * Charts use the same filtered projects/transactions as the table (broker, type, status, dates).
+ */
+const ProjectInsightsSummaryCard = ({
+  projects = [],
+  transactions = [],
+  dateFrom = '',
+  dateTo = ''
+}) => {
+  const { rangeLabel, onboardCurr, endedCurr } = useMemo(
+    () => computeRollingWindowStats(projects),
+    [projects]
+  );
+
+  const monthlyTrend = useMemo(
+    () => buildMonthlyTrend(projects, dateFrom, dateTo),
+    [projects, dateFrom, dateTo]
+  );
+
+  const hasMonthlyCount = monthlyTrend.values.some((n) => n > 0);
+  const trendTitle = monthlyTrend.titleYear
+    ? `Monthly Trends · ${monthlyTrend.titleYear}`
+    : 'Monthly Trends';
 
   return (
     <div className="space-y-4 sm:space-y-6 min-w-0">
@@ -31,7 +104,7 @@ const ProjectInsightsSummaryCard = ({ projects = [], transactions = [] }) => {
               <div className="min-w-0">
                 <h3 className={chartCardTitleClass}>3-month project activity</h3>
                 <p className={chartCardSubtitleClass}>
-                  Onboard and ended project counts for the current window.
+                  Onboard and ended project counts for the current window (uses filtered projects).
                 </p>
               </div>
             </div>
@@ -83,7 +156,36 @@ const ProjectInsightsSummaryCard = ({ projects = [], transactions = [] }) => {
         </div>
       </div>
 
-      <ProjectInwardCostBar projects={projects} transactions={transactions} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
+        <div className="min-w-0">
+          <ProjectInwardCostBar
+            projects={projects}
+            transactions={transactions}
+            dateFrom={dateFrom || null}
+            dateTo={dateTo || null}
+            showDateFilter={false}
+          />
+        </div>
+        <div className="min-w-0">
+          {hasMonthlyCount ? (
+            <LineChartChartJS
+              data={[{ label: 'Projects', values: monthlyTrend.values, color: '#10b981' }]}
+              labels={monthlyTrend.labels}
+              title={trendTitle}
+            />
+          ) : (
+            <div className={`${chartCardClass} border-t-4 border-t-primary-500`}>
+              <div className={`${chartCardHeaderClass} min-w-0`}>
+                <h3 className={chartCardTitleClass}>{trendTitle}</h3>
+                <p className={chartCardSubtitleClass}>Project count by month for the current filters.</p>
+              </div>
+              <div className="px-3 py-8 sm:px-4 sm:py-10 text-center text-xs sm:text-sm text-slate-500">
+                No projects for these filters.
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

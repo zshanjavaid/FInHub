@@ -90,6 +90,7 @@ const ImportTransactionsModal = ({
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [projectInitialValues, setProjectInitialValues] = useState(null);
   const [creatingForCsvName, setCreatingForCsvName] = useState('');
+  const [openMappingKey, setOpenMappingKey] = useState('');
 
   const resetState = () => {
     setFileName('');
@@ -106,6 +107,7 @@ const ImportTransactionsModal = ({
     setIsProjectModalOpen(false);
     setProjectInitialValues(null);
     setCreatingForCsvName('');
+    setOpenMappingKey('');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -133,7 +135,10 @@ const ImportTransactionsModal = ({
       let changed = false;
       csvProjectNames.forEach((name) => {
         const key = normalizeMatchText(name);
-        if (next[key]) return;
+        const current = next[key];
+        const currentOk = current && resolveProjectMatch(projects, broker, current).kind === 'approved';
+        if (currentOk) return;
+
         const approvedMatch = findMatchingProject({
           description: name,
           broker,
@@ -628,18 +633,29 @@ const ImportTransactionsModal = ({
                 <div className="h-1 w-8 rounded-full bg-primary-500" />
                 <p className="text-sm font-bold text-slate-800">Project mapping</p>
               </div>
-              <div className="p-3.5 sm:p-4 space-y-2.5 relative z-10">
+              <div className="p-3.5 sm:p-4 space-y-2.5 relative isolate">
                 <p className="text-xs text-slate-500">
                   Only approved projects can be imported. Pending projects must be approved first.
                 </p>
-                {csvProjectNames.map((name) => {
+                {csvProjectNames.map((name, idx) => {
                   const key = normalizeMatchText(name);
                   const mapped = projectMap[key] || '';
-                  const displayKind = resolveProjectMatch(projects, broker, mapped || name).kind;
+                  const mappedMatch = mapped ? resolveProjectMatch(projects, broker, mapped) : { kind: 'missing' };
+                  const autoMatch = !mapped
+                    ? findMatchingProject({ description: name, broker, projects: approvedProjects })
+                    : null;
+                  const displayKind = mapped
+                    ? mappedMatch.kind
+                    : autoMatch
+                      ? 'approved'
+                      : resolveProjectMatch(projects, broker, name).kind;
+                  const isDropdownOpen = openMappingKey === key;
+                  const stackZ = isDropdownOpen ? 80 : csvProjectNames.length - idx + 5;
                   return (
                     <div
                       key={key}
-                      className={`flex flex-col sm:flex-row sm:items-end gap-2 rounded-xl border p-2.5 sm:p-3 relative z-10 ${
+                      style={{ zIndex: stackZ }}
+                      className={`flex flex-col sm:flex-row sm:items-end gap-2 rounded-xl border p-2.5 sm:p-3 relative ${
                         displayKind === 'pending'
                           ? 'border-amber-200/80 bg-gradient-to-r from-amber-50/90 to-white'
                           : 'border-slate-200/80 bg-gradient-to-r from-slate-50/80 to-white'
@@ -675,11 +691,17 @@ const ImportTransactionsModal = ({
                           )}
                         </div>
                       </div>
-                      <div className="flex-1 min-w-0 relative z-20">
+                      <div className="flex-1 min-w-0 relative">
                         <SearchableDropdown
                           label="Project"
                           value={mapped}
-                          onChange={(v) => setProjectMap((prev) => ({ ...prev, [key]: v }))}
+                          onChange={(v) => {
+                            const exact = projectOptionsForBroker.find(
+                              (opt) => opt.toLowerCase() === String(v || '').trim().toLowerCase()
+                            );
+                            setProjectMap((prev) => ({ ...prev, [key]: exact || v }));
+                          }}
+                          onOpenChange={(open) => setOpenMappingKey(open ? key : '')}
                           options={projectOptionsForBroker}
                           placeholder="Select approved project..."
                         />

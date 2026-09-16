@@ -40,7 +40,7 @@ ChartJS.register(
   Legend
 );
 
-const LineChartChartJS = ({ data, labels, title = 'Line Chart' }) => {
+const LineChartChartJS = ({ data, labels, title = 'Line Chart', headerRight = null }) => {
   const compact = useCompactChart();
 
   const chartData = {
@@ -76,7 +76,7 @@ const LineChartChartJS = ({ data, labels, title = 'Line Chart' }) => {
     responsive: true,
     maintainAspectRatio: false,
     layout: {
-      padding: { top: compact ? 4 : 8, right: compact ? 4 : 8, bottom: 2, left: 2 }
+      padding: { top: 0, right: compact ? 4 : 8, bottom: 2, left: 2 }
     },
     interaction: {
       intersect: false,
@@ -147,6 +147,7 @@ const LineChartChartJS = ({ data, labels, title = 'Line Chart' }) => {
           <FiTrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
         </div>
         <h3 className={`${chartCardTitleClass} min-w-0 flex-1 truncate sm:whitespace-normal`}>{title}</h3>
+        {headerRight ? <div className="shrink-0 text-right ml-auto">{headerRight}</div> : null}
       </div>
       <div className={chartPlotWrapClass}>
         <div className={chartPlotHeightClass}>

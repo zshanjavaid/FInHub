@@ -10,4 +10,4 @@ export const buildLegendFont = (compact) => ({
   weight: '600'
 });
 
-export const buildLegendPadding = (compact) => (compact ? 10 : 16);
+export const buildLegendPadding = (compact) => (compact ? 4 : 6);

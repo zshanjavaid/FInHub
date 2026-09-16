@@ -12,6 +12,6 @@ export const chartCardSubtitleClass = 'text-xs sm:text-sm text-slate-500 mt-0.5 
 export const chartCardIconWrapClass =
   'flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl shrink-0';
 
-export const chartPlotWrapClass = 'p-3 sm:p-4 md:p-5 min-w-0';
+export const chartPlotWrapClass = 'px-3 pt-1 pb-3 sm:px-4 sm:pt-1.5 sm:pb-4 md:px-5 md:pt-2 md:pb-5 min-w-0';
 
 export const chartPlotHeightClass = 'h-[220px] min-h-[200px] sm:h-[280px] md:h-[360px] w-full';

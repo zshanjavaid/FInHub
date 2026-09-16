@@ -31,7 +31,7 @@ const Projects = () => {
   const isLoading = useSelector((state) => state.projects.isLoading);
   const error = useSelector((state) => state.projects.error);
 
-  const dateFilter = useDateFilter({ defaultMode: 'range' });
+  const dateFilter = useDateFilter({ defaultMode: 'yearly' });
   const { effectiveDateFrom: dateFrom, effectiveDateTo: dateTo } = dateFilter;
   const [selectedBroker, setSelectedBroker] = useState('');
   const [selectedProjectType, setSelectedProjectType] = useState('');
@@ -74,6 +74,19 @@ const Projects = () => {
     () => (filteredProjects || []).filter(isApproved),
     [filteredProjects]
   );
+
+  const filteredTransactionsForCharts = useMemo(() => {
+    let list = filterByDateRange(transactions || [], dateFrom, dateTo, (t) => t.date);
+    list = list.filter(isApproved);
+    if (selectedBroker) list = list.filter((t) => (t.client || '').trim() === selectedBroker);
+    if (selectedProjectType) {
+      const keys = new Set(
+        approvedForTable.map((p) => `${(p.client || '').trim()}|${(p.project || '').trim()}`)
+      );
+      list = list.filter((t) => keys.has(`${(t.client || '').trim()}|${(t.project || '').trim()}`));
+    }
+    return list;
+  }, [transactions, dateFrom, dateTo, selectedBroker, selectedProjectType, approvedForTable]);
 
   useEffect(() => {
     document.title = 'Projects | FinHub';
@@ -160,8 +173,6 @@ const Projects = () => {
     <PageContainer>
       <PageHeader title="Projects" actions={<Button onClick={openAddModal}>Add Project</Button>} />
 
-      <ProjectInsightsSummaryCard projects={projects} transactions={transactions} />
-
       <FilterBar dateFilter={dateFilter}>
         <SearchableDropdown
           label="Broker"
@@ -204,6 +215,13 @@ const Projects = () => {
       </FilterBar>
 
       <ErrorAlert message={error} />
+
+      <ProjectInsightsSummaryCard
+        projects={approvedForTable}
+        transactions={filteredTransactionsForCharts}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+      />
 
       <ProjectTable
         projects={approvedForTable}

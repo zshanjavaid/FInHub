@@ -12,6 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getTargetAmount, setTargetAmount } from '../services/settingsService';
 import { formatMoney } from '../utils/format';
 import { normalizeDateToYYYYMMDD, MONTH_NAMES } from '../utils/date';
+import { computeNextMonthEstimatedAmount } from '../utils/nextMonthEstimate';
 import { isApproved } from '../constants/app';
 import { isDashboardActiveProject, DASHBOARD_ACTIVE_PROJECT_TYPES, PROJECT_TYPE_COLORS } from '../constants/projectTypes';
 import { useClientOptions } from '../hooks/useClientOptions';
@@ -355,6 +356,17 @@ const Dashboard = () => {
     [chartData, inwardPct, expensePct]
   );
 
+  const nextMonthEstimate = useMemo(
+    () =>
+      computeNextMonthEstimatedAmount({
+        projects,
+        transactions,
+        selectedBroker,
+        selectedProject
+      }),
+    [projects, transactions, selectedBroker, selectedProject]
+  );
+
   return (
     <PageContainer>
       <PageHeader title="Overview" actions={<Button onClick={openAddModal}>Add Transaction</Button>} />
@@ -442,6 +454,16 @@ const Dashboard = () => {
             data={chartSeries}
             labels={chartData.labels}
             title="Monthly Trends"
+            headerRight={
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-slate-500 leading-tight">
+                  Next Month Estimated Amount
+                </p>
+                <p className="mt-0.5 text-sm sm:text-base font-bold tabular-nums text-emerald-600">
+                  {formatMoney(nextMonthEstimate.estimated)}
+                </p>
+              </div>
+            }
           />
           <BarChart
             data={chartSeries}

@@ -194,23 +194,89 @@ export const matchBrokerFromHints = ({ filename = '', bankDescriptions = [], bro
   return best;
 };
 
-export const findMatchingProject = ({ description, broker, projects = [] }) => {
+/** Strip trailing codes like -1234 / 1234 so Bernard-1234 can match Bernard Nickels… */
+const stripMatchNoise = (value) =>
+  String(value || '')
+    .replace(/[-_]?\d{2,}(?=\s|$)/g, ' ')
+    .replace(/\b\d+\b/g, ' ')
+    .trim();
+
+const scoreProjectMatch = (description, projectName) => {
+  const rawDesc = String(description || '').trim();
+  const cleanedDesc = stripMatchNoise(rawDesc) || rawDesc;
+  const descNorm = normalizeMatchText(cleanedDesc);
+  const projNorm = normalizeMatchText(projectName);
+  if (!descNorm || !projNorm) return 0;
+
+  if (normalizeMatchText(rawDesc) === projNorm || descNorm === projNorm) return 100;
+  if (projNorm.includes(descNorm) || descNorm.includes(projNorm)) {
+    const shorter = Math.min(descNorm.length, projNorm.length);
+    const longer = Math.max(descNorm.length, projNorm.length);
+    return Math.round(85 + (shorter / longer) * 14);
+  }
+
+  const alphaOnly = (t) => /^[a-z]+$/i.test(t) && t.length > 1;
+  const descTokens = tokenize(cleanedDesc).filter(alphaOnly);
+  const projTokens = tokenize(projectName).filter(alphaOnly);
+  if (!descTokens.length || !projTokens.length) return 0;
+
+  let tokenHits = 0;
+  descTokens.forEach((dt) => {
+    const hit = projTokens.some(
+      (pt) =>
+        pt === dt ||
+        pt.includes(dt) ||
+        dt.includes(pt) ||
+        (dt.length >= 3 && pt.startsWith(dt.slice(0, Math.min(4, dt.length))))
+    );
+    if (hit) tokenHits += 1;
+  });
+  // Score against description tokens so "Bernard" vs long project name still ranks high
+  const tokenScore = (tokenHits / descTokens.length) * 80;
+
+  const compactDesc = descNorm.replace(/\s+/g, '');
+  const compactProj = projNorm.replace(/\s+/g, '');
+  let prefix = 0;
+  const maxPrefix = Math.min(compactDesc.length, compactProj.length);
+  while (prefix < maxPrefix && compactDesc[prefix] === compactProj[prefix]) prefix += 1;
+  const prefixScore = maxPrefix > 0 ? (prefix / maxPrefix) * 55 : 0;
+
+  // First meaningful word exact match (Bernard ↔ Bernard Nickels…)
+  const firstDesc = descTokens[0];
+  const firstProj = projTokens[0];
+  const firstWordBonus =
+    firstDesc && firstProj && (firstDesc === firstProj || firstProj.startsWith(firstDesc) || firstDesc.startsWith(firstProj))
+      ? 35
+      : 0;
+
+  return Math.round(Math.max(tokenScore + firstWordBonus * 0.5, prefixScore + firstWordBonus, tokenScore));
+};
+
+/**
+ * Auto-match CSV Description to the best project name (exact, partial, or highest similarity).
+ */
+export const findMatchingProject = ({ description, broker, projects = [], minScore = 40 } = {}) => {
   const desc = String(description || '').trim();
   if (!desc) return null;
-  const descNorm = normalizeMatchText(desc);
+
   const list = (projects || []).filter((p) => {
     if (!broker) return true;
     return (p.client || '').trim().toLowerCase() === broker.trim().toLowerCase();
   });
+  if (!list.length) return null;
 
-  const exact = list.find((p) => normalizeMatchText(p.project) === descNorm);
-  if (exact) return exact;
-
-  const contains = list.find((p) => {
-    const pn = normalizeMatchText(p.project);
-    return pn && (pn.includes(descNorm) || descNorm.includes(pn));
+  let best = null;
+  let bestScore = 0;
+  list.forEach((p) => {
+    const score = scoreProjectMatch(desc, p.project);
+    if (score > bestScore) {
+      bestScore = score;
+      best = p;
+    }
   });
-  return contains || null;
+
+  if (!best || bestScore < minScore) return null;
+  return best;
 };
 
 const amountKey = (amount) => Number(Number(amount).toFixed(2));
@@ -336,7 +402,7 @@ export const computeImportMonthlyBrokerageAmount = (projectRow, monthGrossAmount
 /**
  * Classify CSV rows vs existing transactions by date+amount.
  * - Pending match → auto-skip (already awaiting approval; not shown on Transactions)
- * - Approved match → ask cancel / override / keep_both
+ * - Approved match → ask override / keep_both
  * - No match → ready to import
  */
 export const classifyCsvRowsAgainstExisting = ({ csvRows = [], existingTransactions = [] }) => {

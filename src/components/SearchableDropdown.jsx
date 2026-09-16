@@ -17,12 +17,18 @@ const SearchableDropdown = ({
   placeholder = "Type or select...",
   leftIcon = null,
   className = '',
-  layout = 'full'
+  layout = 'full',
+  onOpenChange = null
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
+
+  const setOpen = (open) => {
+    setIsOpen(open);
+    onOpenChange?.(open);
+  };
 
   const filteredOptions = useMemo(() => {
     if (searchTerm === '') {
@@ -38,6 +44,7 @@ const SearchableDropdown = ({
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsOpen(false);
         setSearchTerm('');
+        onOpenChange?.(false);
       }
     };
 
@@ -45,37 +52,37 @@ const SearchableDropdown = ({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [onOpenChange]);
 
   const handleInputChange = (e) => {
     const newValue = e.target.value;
     setSearchTerm(newValue);
     onChange(newValue);
-    setIsOpen(true);
+    setOpen(true);
   };
 
   const handleInputFocus = () => {
-    setIsOpen(true);
+    setOpen(true);
     setSearchTerm('');
   };
 
   const handleSelectOption = (option) => {
     onChange(option);
     setSearchTerm('');
-    setIsOpen(false);
+    setOpen(false);
     inputRef.current?.blur();
   };
 
   const handleClear = () => {
     onChange('');
     setSearchTerm('');
-    setIsOpen(false);
+    setOpen(false);
   };
 
   const handleInputBlur = () => {
     setTimeout(() => {
       if (!dropdownRef.current?.contains(document.activeElement)) {
-        setIsOpen(false);
+        setOpen(false);
         setSearchTerm('');
       }
     }, 200);
@@ -119,7 +126,7 @@ const SearchableDropdown = ({
       </div>
 
       {isOpen && filteredOptions.length > 0 && (
-        <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-panel max-h-60 overflow-auto top-full py-1">
+        <div className="absolute z-[200] w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-panel max-h-60 overflow-auto top-full py-1">
           {placeholder.includes('All') && (
             <button
               type="button"

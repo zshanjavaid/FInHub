@@ -36,10 +36,19 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 const MAX_BARS = 14;
 
-const ProjectInwardCostBar = ({ projects = [], transactions = [] }) => {
+const ProjectInwardCostBar = ({
+  projects = [],
+  transactions = [],
+  dateFrom: dateFromProp = null,
+  dateTo: dateToProp = null,
+  showDateFilter = true
+}) => {
   const compact = useCompactChart();
   const chartDateFilter = useDateFilter({ defaultMode: 'month' });
-  const { effectiveDateFrom, effectiveDateTo, dateMode } = chartDateFilter;
+  const controlled = dateFromProp != null || dateToProp != null;
+  const effectiveDateFrom = controlled ? dateFromProp || '' : chartDateFilter.effectiveDateFrom;
+  const effectiveDateTo = controlled ? dateToProp || '' : chartDateFilter.effectiveDateTo;
+  const dateMode = controlled ? 'range' : chartDateFilter.dateMode;
 
   const { chartData, tooltipRowDetails, truncated } = useMemo(() => {
     const from = effectiveDateFrom || null;
@@ -196,9 +205,11 @@ const ProjectInwardCostBar = ({ projects = [], transactions = [] }) => {
               </p>
             </div>
           </div>
-          <div className="shrink-0 w-full min-w-0 lg:w-auto lg:max-w-[min(100%,42rem)] lg:ml-auto">
-            <DateFilterControls {...chartDateFilter} className="xl:items-end" />
-          </div>
+          {showDateFilter && !controlled ? (
+            <div className="shrink-0 w-full min-w-0 lg:w-auto lg:max-w-[min(100%,42rem)] lg:ml-auto">
+              <DateFilterControls {...chartDateFilter} className="xl:items-end" />
+            </div>
+          ) : null}
         </div>
       </div>
       <div className="px-3 py-3 sm:px-4 md:px-6 sm:py-4 md:py-5 bg-slate-100/60 min-w-0">
