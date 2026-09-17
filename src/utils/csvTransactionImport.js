@@ -279,7 +279,15 @@ export const findMatchingProject = ({ description, broker, projects = [], minSco
   return best;
 };
 
-const amountKey = (amount) => Number(Number(amount).toFixed(2));
+/**
+ * Duplicate match key for amount: ignore cents so a manual rounded entry (300)
+ * matches a bank/CSV amount like 300.45 on the same date.
+ */
+const amountKey = (amount) => {
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n);
+};
 
 export const dupeKey = (dateYmd, amount) => `${dateYmd}|${amountKey(amount)}`;
 

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../contexts/AuthContext';
 import { createProject, editProject, fetchProjects, removeProject } from '../store/projects/projectsSlice';
-import { fetchTransactions } from '../store/transactions/transactionsSlice';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
 import FilterBar from '../components/FilterBar';
@@ -21,13 +20,13 @@ import { getTaxFormDefaultsFromProject, prepareProjectForFirestore } from '../ut
 
 const PROJECT_STATUS_FILTER_LABELS = ['All', 'Active', 'Inactive'];
 
-const normalizeProjectStatus = (p) => (p?.projectStatus || 'active').trim();
+const normalizeProjectStatus = (p) =>
+  String(p?.projectStatus || 'active').trim().toLowerCase();
 
 const Projects = () => {
   const dispatch = useDispatch();
   const { user } = useAuth();
   const projects = useSelector((state) => state.projects.items);
-  const transactions = useSelector((state) => state.transactions.items);
   const isLoading = useSelector((state) => state.projects.isLoading);
   const error = useSelector((state) => state.projects.error);
 
@@ -70,23 +69,15 @@ const Projects = () => {
     return list;
   }, [projects, dateFrom, dateTo, selectedBroker, selectedProjectType, statusFilter]);
 
+  const projectsForActivity = useMemo(
+    () => (projects || []).filter(isApproved),
+    [projects]
+  );
+
   const approvedForTable = useMemo(
     () => (filteredProjects || []).filter(isApproved),
     [filteredProjects]
   );
-
-  const filteredTransactionsForCharts = useMemo(() => {
-    let list = filterByDateRange(transactions || [], dateFrom, dateTo, (t) => t.date);
-    list = list.filter(isApproved);
-    if (selectedBroker) list = list.filter((t) => (t.client || '').trim() === selectedBroker);
-    if (selectedProjectType) {
-      const keys = new Set(
-        approvedForTable.map((p) => `${(p.client || '').trim()}|${(p.project || '').trim()}`)
-      );
-      list = list.filter((t) => keys.has(`${(t.client || '').trim()}|${(t.project || '').trim()}`));
-    }
-    return list;
-  }, [transactions, dateFrom, dateTo, selectedBroker, selectedProjectType, approvedForTable]);
 
   useEffect(() => {
     document.title = 'Projects | FinHub';
@@ -94,7 +85,6 @@ const Projects = () => {
 
   useEffect(() => {
     dispatch(fetchProjects());
-    dispatch(fetchTransactions());
   }, [dispatch]);
 
   const clientOptions = useClientOptions(projects);
@@ -216,12 +206,7 @@ const Projects = () => {
 
       <ErrorAlert message={error} />
 
-      <ProjectInsightsSummaryCard
-        projects={approvedForTable}
-        transactions={filteredTransactionsForCharts}
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-      />
+      <ProjectInsightsSummaryCard activityProjects={projectsForActivity} />
 
       <ProjectTable
         projects={approvedForTable}

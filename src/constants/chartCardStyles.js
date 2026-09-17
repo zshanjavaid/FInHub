@@ -14,4 +14,5 @@ export const chartCardIconWrapClass =
 
 export const chartPlotWrapClass = 'px-3 pt-1 pb-3 sm:px-4 sm:pt-1.5 sm:pb-4 md:px-5 md:pt-2 md:pb-5 min-w-0';
 
-export const chartPlotHeightClass = 'h-[220px] min-h-[200px] sm:h-[280px] md:h-[360px] w-full';
+export const chartPlotHeightClass =
+  'w-full h-full min-h-[220px] sm:min-h-[280px] md:min-h-[360px]';

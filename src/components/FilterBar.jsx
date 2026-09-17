@@ -9,7 +9,7 @@ const FilterBar = ({ children, dateFilter = null, className = "", stats = null }
         <div className="flex flex-col sm:flex-row flex-1 gap-4 min-w-0 w-full [&>*]:flex-1 [&>*]:min-w-0">
           {children}
         </div>
-        {dateFilter ? <DateFilterControls {...dateFilter} className="w-full md:flex-1 md:min-w-[14rem]" /> : null}
+        {dateFilter ? <DateFilterControls {...dateFilter} className="w-full md:flex-[1.35] md:min-w-0" /> : null}
       </div>
     </div>
   </div>

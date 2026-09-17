@@ -136,6 +136,26 @@ export const filterByDateRange = (list, dateFrom, dateTo, getDate) => {
 };
 
 /**
+ * True when contract end date is strictly before today (end date has passed).
+ */
+export const isProjectPastContractEnding = (project, today = new Date()) => {
+  const ymd = normalizeDateToYYYYMMDD(project?.contractEnding);
+  if (!ymd) return false;
+  const todayYmd = normalizeDateToYYYYMMDD(today);
+  if (!todayYmd) return false;
+  return todayYmd > ymd;
+};
+
+/**
+ * Active (or unset) projects whose End Date has passed should become inactive.
+ */
+export const needsAutoInactiveStatus = (project, today = new Date()) => {
+  const status = String(project?.projectStatus || 'active').trim().toLowerCase();
+  if (status === 'inactive') return false;
+  return isProjectPastContractEnding(project, today);
+};
+
+/**
  * Project row alert: from `monthsBefore` before contract end through the end date,
  * and for active projects stays on after end date (overdue) until end date or status changes.
  */

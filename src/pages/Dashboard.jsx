@@ -17,8 +17,8 @@ import { isApproved } from '../constants/app';
 import { isDashboardActiveProject, DASHBOARD_ACTIVE_PROJECT_TYPES, PROJECT_TYPE_COLORS } from '../constants/projectTypes';
 import { useClientOptions } from '../hooks/useClientOptions';
 import { useDateFilter } from '../hooks/useDateFilter';
-import LineChartChartJS from '../components/LineChartChartJS';
 import BarChart from '../components/BarChart';
+import ActiveProjectsYearComparisonChart from '../components/ActiveProjectsYearComparisonChart';
 import PageHeader from '../components/PageHeader';
 import PageContainer from '../components/PageContainer';
 import Button from '../components/Button';
@@ -367,6 +367,23 @@ const Dashboard = () => {
     [projects, transactions, selectedBroker, selectedProject]
   );
 
+  const projectsForAnnualChart = useMemo(() => {
+    let list = (projects || []).filter(isApproved);
+    if (selectedProject) {
+      const c = (selectedProject.client || '').trim().toLowerCase();
+      const p = (selectedProject.project || '').trim().toLowerCase();
+      list = list.filter(
+        (row) =>
+          (row.client || '').trim().toLowerCase() === c &&
+          (row.project || '').trim().toLowerCase() === p
+      );
+    } else if (selectedBroker) {
+      const b = selectedBroker.trim().toLowerCase();
+      list = list.filter((row) => (row.client || '').trim().toLowerCase() === b);
+    }
+    return list;
+  }, [projects, selectedBroker, selectedProject]);
+
   return (
     <PageContainer>
       <PageHeader title="Overview" actions={<Button onClick={openAddModal}>Add Transaction</Button>} />
@@ -449,11 +466,13 @@ const Dashboard = () => {
 
         <ErrorAlert messages={[projectsError, transactionsError, expensesError].filter(Boolean)} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
-          <LineChartChartJS
+        <ActiveProjectsYearComparisonChart projects={projectsForAnnualChart} />
+
+        <div className="min-w-0">
+          <BarChart
             data={chartSeries}
             labels={chartData.labels}
-            title="Monthly Trends"
+            title="Monthly Comparison"
             headerRight={
               <div className="min-w-0">
                 <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-slate-500 leading-tight">
@@ -464,11 +483,6 @@ const Dashboard = () => {
                 </p>
               </div>
             }
-          />
-          <BarChart
-            data={chartSeries}
-            labels={chartData.labels}
-            title="Monthly Comparison"
           />
         </div>
 

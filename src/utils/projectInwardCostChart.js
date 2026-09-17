@@ -64,7 +64,7 @@ export function buildProjectInwardCostChartRows(projects, transactions, dateFrom
     inwardByKey.set(k, (inwardByKey.get(k) || 0) + transactionNetInwardForChart(t));
   }
 
-  const keys = new Set([...inwardByKey.keys(), ...latestByKey.keys()]);
+  const keys = new Set(latestByKey.keys());
   const rows = [];
   for (const k of keys) {
     const inward = inwardByKey.get(k) || 0;

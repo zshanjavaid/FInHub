@@ -1,0 +1,248 @@
+/**
+ * react-datepicker theme — WageWise-style calendar, FinHub primary/slate tokens.
+ */
+
+.react-datepicker-wrapper {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.react-datepicker__input-container {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.react-datepicker__input-container input {
+  width: 100% !important;
+  box-sizing: border-box;
+  outline: none;
+  color: #1e293b;
+  background-color: #ffffff;
+}
+
+.react-datepicker__input-container input::placeholder {
+  color: #94a3b8;
+  opacity: 1;
+}
+
+.react-datepicker__input-container input:focus {
+  outline: none;
+}
+
+.react-datepicker-popper {
+  z-index: 9999;
+}
+
+.react-datepicker-popper-elevated {
+  z-index: 10050 !important;
+}
+
+.react-datepicker {
+  font-family: inherit;
+  font-size: 0.875rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background-color: #ffffff;
+  color: #1e293b;
+  box-shadow:
+    0 10px 40px -10px rgba(0, 0, 0, 0.2),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(16, 185, 129, 0.08);
+}
+
+.react-datepicker__header {
+  background-color: #f8fafc;
+  border-color: #e2e8f0;
+  border-top-left-radius: 0.75rem;
+  border-top-right-radius: 0.75rem;
+  padding-top: 12px;
+}
+
+.react-datepicker__current-month,
+.react-datepicker__day-name,
+.react-datepicker__month-text,
+.react-datepicker__quarter-text,
+.react-datepicker__year-text {
+  color: #1e293b;
+}
+
+.react-datepicker__month-dropdown-container,
+.react-datepicker__year-dropdown-container {
+  margin: 0 4px 8px;
+}
+
+.react-datepicker__month-read-view,
+.react-datepicker__year-read-view {
+  color: #1e293b;
+}
+
+.react-datepicker__month-dropdown,
+.react-datepicker__year-dropdown {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+}
+
+.react-datepicker__month-option,
+.react-datepicker__year-option {
+  color: #1e293b;
+}
+
+.react-datepicker__month-option:hover,
+.react-datepicker__year-option:hover {
+  background-color: #ecfdf5;
+}
+
+.react-datepicker__month-option--selected,
+.react-datepicker__year-option--selected {
+  background-color: #10b981;
+  color: #ffffff;
+}
+
+.react-datepicker__day {
+  color: #1e293b;
+  border-radius: 0.5rem;
+}
+
+.react-datepicker__day:hover {
+  background-color: #ecfdf5;
+  color: #047857;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected.react-datepicker__day--selected {
+  background-color: #10b981 !important;
+  color: #ffffff !important;
+}
+
+.react-datepicker__day--selected:hover {
+  background-color: #059669 !important;
+  color: #ffffff !important;
+}
+
+.react-datepicker__day--keyboard-selected:not(.react-datepicker__day--selected) {
+  background-color: #d1fae5;
+  color: #047857;
+}
+
+.react-datepicker__day--today:not(.react-datepicker__day--selected) {
+  font-weight: 700;
+  color: #047857;
+  background-color: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.react-datepicker__day--outside-month {
+  color: #94a3b8;
+}
+
+.react-datepicker__day--disabled {
+  color: #cbd5e1;
+}
+
+.react-datepicker__navigation {
+  top: 10px;
+}
+
+.react-datepicker__navigation-icon::before {
+  border-color: rgba(30, 41, 59, 0.7);
+}
+
+.react-datepicker__navigation:hover .react-datepicker__navigation-icon::before {
+  border-color: #1e293b;
+}
+
+/* Month/Year picker (showMonthYearPicker) */
+.react-datepicker .react-datepicker__month .react-datepicker__month-text,
+.react-datepicker .react-datepicker__month .react-datepicker__quarter-text {
+  color: #1e293b;
+  line-height: 2;
+  border-radius: 0.5rem;
+}
+
+.react-datepicker .react-datepicker__month .react-datepicker__month-text:hover,
+.react-datepicker .react-datepicker__month .react-datepicker__quarter-text:hover {
+  background-color: #ecfdf5;
+  color: #047857;
+}
+
+.react-datepicker .react-datepicker__month .react-datepicker__month-text--selected,
+.react-datepicker .react-datepicker__month .react-datepicker__quarter-text--selected,
+.react-datepicker .react-datepicker__month .react-datepicker__month-text--in-range,
+.react-datepicker .react-datepicker__month .react-datepicker__quarter-text--in-range,
+.react-datepicker .react-datepicker__month .react-datepicker__month-text--selected:hover,
+.react-datepicker .react-datepicker__month .react-datepicker__quarter-text--selected:hover,
+.react-datepicker .react-datepicker__month .react-datepicker__month-text--in-range:hover,
+.react-datepicker .react-datepicker__month .react-datepicker__quarter-text--in-range:hover,
+.react-datepicker .react-datepicker__month .react-datepicker__month-text--selected.react-datepicker__month-text--today,
+.react-datepicker .react-datepicker__month .react-datepicker__quarter-text--selected.react-datepicker__quarter-text--today {
+  background-color: #10b981 !important;
+  color: #ffffff !important;
+}
+
+.react-datepicker .react-datepicker__month .react-datepicker__month-text--today:not(.react-datepicker__month-text--selected),
+.react-datepicker .react-datepicker__month .react-datepicker__quarter-text--today:not(.react-datepicker__quarter-text--selected) {
+  font-weight: 600;
+  color: #047857 !important;
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.react-datepicker .react-datepicker__month .react-datepicker__month-text--keyboard-selected:not(.react-datepicker__month-text--selected),
+.react-datepicker .react-datepicker__month .react-datepicker__quarter-text--keyboard-selected:not(.react-datepicker__quarter-text--selected) {
+  background-color: #d1fae5;
+  color: #047857 !important;
+}
+
+.react-datepicker__month-text--disabled,
+.react-datepicker__quarter-text--disabled {
+  color: #cbd5e1;
+}
+
+.react-datepicker-popper .react-datepicker__triangle {
+  stroke: #e2e8f0;
+}
+
+.react-datepicker-popper[data-placement^='bottom'] .react-datepicker__triangle {
+  fill: #ffffff;
+  color: #ffffff;
+}
+
+.react-datepicker-popper[data-placement^='top'] .react-datepicker__triangle {
+  fill: #ffffff;
+  color: #ffffff;
+}
+
+/* Match FinHub InputField / filter controls */
+.finhub-datepicker-input {
+  width: 100%;
+  min-width: 0;
+  height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: #1e293b;
+  background-color: #ffffff;
+  border: 2px solid #cbd5e1;
+  border-radius: 0.75rem;
+  cursor: pointer;
+}
+
+.finhub-datepicker-input:hover {
+  border-color: #94a3b8;
+}
+
+.finhub-datepicker-input:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.filter-date-field .finhub-datepicker-input {
+  height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+}

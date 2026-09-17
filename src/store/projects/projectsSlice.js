@@ -5,11 +5,17 @@ import {
   saveProject as saveProjectService,
   updateProject as updateProjectService,
   deleteProject as deleteProjectService,
-  approveProject as approveProjectService
+  approveProject as approveProjectService,
+  inactivateExpiredProjects as inactivateExpiredProjectsService
 } from '../../services/projectService';
 
 export const fetchProjects = createAsyncThunk('projects/fetchAll', async () => {
-  return await getAllProjectsService();
+  const projects = await getAllProjectsService();
+  const inactivated = await inactivateExpiredProjectsService(projects);
+  if (inactivated > 0) {
+    return await getAllProjectsService();
+  }
+  return projects;
 });
 
 export const createProject = createAsyncThunk('projects/create', async (projectData, { dispatch }) => {

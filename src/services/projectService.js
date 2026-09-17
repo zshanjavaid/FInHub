@@ -1,6 +1,7 @@
 import { collection, addDoc, getDocs, getDoc, deleteDoc, doc, updateDoc, deleteField } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ENTRY_STATUS } from '../constants/app';
+import { needsAutoInactiveStatus } from '../utils/date';
 
 export const getAllProjects = async () => {
   try {
@@ -67,6 +68,26 @@ export const updateProject = async (projectId, projectData) => {
     console.error('Error updating project:', error);
     throw error;
   }
+};
+
+/**
+ * Sets projectStatus to inactive for active projects whose End Date (contractEnding) has passed.
+ * Returns how many were updated. Uses existing updateProject so inactiveAt is set.
+ */
+export const inactivateExpiredProjects = async (projects = []) => {
+  const due = (projects || []).filter((p) => p?.id && needsAutoInactiveStatus(p));
+  if (!due.length) return 0;
+
+  const results = await Promise.allSettled(
+    due.map((p) => updateProject(p.id, { projectStatus: 'inactive' }))
+  );
+
+  const failed = results.filter((r) => r.status === 'rejected');
+  if (failed.length) {
+    console.error('Failed to auto-inactivate some expired projects:', failed.map((r) => r.reason));
+  }
+
+  return results.filter((r) => r.status === 'fulfilled').length;
 };
 
 export const deleteProject = async (projectId) => {

@@ -35,13 +35,15 @@ import {
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const MAX_BARS = 14;
+import { shortenChartAxisLabel } from '../utils/chartLabels';
 
 const ProjectInwardCostBar = ({
   projects = [],
   transactions = [],
   dateFrom: dateFromProp = null,
   dateTo: dateToProp = null,
-  showDateFilter = true
+  showDateFilter = true,
+  className = ''
 }) => {
   const compact = useCompactChart();
   const chartDateFilter = useDateFilter({ defaultMode: 'month' });
@@ -55,10 +57,11 @@ const ProjectInwardCostBar = ({
     const to = effectiveDateTo || null;
     const rows = buildProjectInwardCostChartRows(projects, transactions, from, to);
     const slice = rows.slice(0, MAX_BARS);
-    const labels = slice.map((r) => r.label);
+    const labels = slice.map((r) => shortenChartAxisLabel(r.label));
     const inward = slice.map((r) => Number(r.inward.toFixed(2)));
     const totalCost = slice.map((r) => Number(r.costTotal.toFixed(2)));
     const tooltipRowDetails = slice.map((r) => ({
+      fullLabel: r.label,
       brokerage: r.brokerage,
       tax: r.tax,
       projectCost: r.projectCost
@@ -104,7 +107,7 @@ const ProjectInwardCostBar = ({
         intersect: false
       },
       layout: {
-        padding: { top: compact ? 4 : 8, right: compact ? 4 : 8, bottom: 2, left: 2 }
+        padding: { top: 0, right: compact ? 4 : 8, bottom: 2, left: 2 }
       },
       plugins: {
         legend: {
@@ -133,6 +136,11 @@ const ProjectInwardCostBar = ({
           boxPadding: 6,
           itemSort: (a, b) => b.datasetIndex - a.datasetIndex,
           callbacks: {
+            title: (items) => {
+              const idx = items[0]?.dataIndex;
+              if (idx == null || !tooltipRowDetails[idx]) return items[0]?.label || '';
+              return tooltipRowDetails[idx].fullLabel;
+            },
             label: (ctx) => {
               const v = ctx.parsed?.y;
               if (v == null || !Number.isFinite(v)) return `${ctx.dataset.label}: —`;
@@ -159,10 +167,10 @@ const ProjectInwardCostBar = ({
             color: themeMuted,
             font: buildAxisTickFont(compact),
             padding: compact ? 4 : 8,
-            maxRotation: compact ? 65 : 55,
+            maxRotation: compact ? 55 : 45,
             minRotation: 0,
             autoSkip: true,
-            maxTicksLimit: compact ? 5 : undefined
+            maxTicksLimit: compact ? 6 : undefined
           }
         },
         y: {
@@ -191,8 +199,8 @@ const ProjectInwardCostBar = ({
     chartData.datasets.some((d) => d.data.some((n) => n > 0));
 
   return (
-    <div className={`${chartCardClass} border-t-4 border-t-emerald-600 overflow-hidden`}>
-      <div className={chartCardHeaderClass}>
+    <div className={`${chartCardClass} border-t-4 border-t-emerald-600 overflow-hidden flex flex-col ${className}`}>
+      <div className={`${chartCardHeaderClass} shrink-0`}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
           <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
             <div className={`${chartCardIconWrapClass} bg-emerald-100 text-emerald-700`}>
@@ -212,18 +220,18 @@ const ProjectInwardCostBar = ({
           ) : null}
         </div>
       </div>
-      <div className="px-3 py-3 sm:px-4 md:px-6 sm:py-4 md:py-5 bg-slate-100/60 min-w-0">
+      <div className="px-3 py-3 sm:px-4 md:px-6 sm:py-4 md:py-5 bg-slate-100/60 min-w-0 flex-1 flex flex-col">
         {truncated ? (
-          <p className="text-[10px] sm:text-[11px] text-slate-500 mb-2">
+          <p className="text-[10px] sm:text-[11px] text-slate-500 mb-2 shrink-0">
             Showing the {MAX_BARS} largest projects by combined total.
           </p>
         ) : null}
         {hasData ? (
-          <div className={chartPlotHeightClass}>
+          <div className={`${chartPlotHeightClass} flex-1`}>
             <Bar data={chartData} options={options} />
           </div>
         ) : (
-          <p className="text-xs sm:text-sm text-slate-500 py-8 sm:py-10 text-center px-2">
+          <p className="text-xs sm:text-sm text-slate-500 py-8 sm:py-10 text-center px-2 flex-1 flex items-center justify-center">
             {dateMode !== 'all' && (effectiveDateFrom || effectiveDateTo)
               ? 'No data for this period. Try another range or clear the date filter.'
               : 'No approved transactions or cost data yet.'}

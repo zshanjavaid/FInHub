@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -37,85 +38,99 @@ ChartJS.register(
   Legend
 );
 
-const BarChart = ({ data, labels, title = 'Bar Chart' }) => {
+const BarChart = ({ data, labels, title = 'Bar Chart', fullLabels = null, headerRight = null }) => {
   const compact = useCompactChart();
+  const tipLabels = fullLabels && fullLabels.length === (labels || []).length ? fullLabels : labels;
 
-  const chartData = {
-    labels: labels,
-    datasets: data.map((dataset) => ({
-      label: dataset.label,
-      data: dataset.values,
-      backgroundColor: dataset.color || themePrimary,
-      borderColor: dataset.color || themePrimary,
-      borderWidth: 0,
-      borderRadius: { topLeft: 8, topRight: 8 },
-      borderSkipped: false
-    }))
-  };
+  const chartData = useMemo(
+    () => ({
+      labels,
+      datasets: (data || []).map((dataset) => ({
+        label: dataset.label,
+        data: dataset.values,
+        backgroundColor: dataset.color || themePrimary,
+        borderColor: dataset.color || themePrimary,
+        borderWidth: 0,
+        borderRadius: { topLeft: 8, topRight: 8 },
+        borderSkipped: false
+      }))
+    }),
+    [data, labels]
+  );
 
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    layout: {
-      padding: { top: 0, right: compact ? 4 : 8, bottom: 2, left: 2 }
-    },
-    plugins: {
-      legend: {
-        position: 'top',
-        align: compact ? 'center' : 'end',
-        labels: {
-          usePointStyle: true,
-          pointStyle: 'circle',
-          padding: buildLegendPadding(compact),
-          color: themeText,
-          font: buildLegendFont(compact),
-          boxWidth: compact ? 8 : 12
+  const options = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: {
+        padding: { top: 0, right: compact ? 4 : 8, bottom: 2, left: 2 }
+      },
+      plugins: {
+        legend: {
+          position: 'top',
+          align: compact ? 'center' : 'end',
+          labels: {
+            usePointStyle: true,
+            pointStyle: 'circle',
+            padding: buildLegendPadding(compact),
+            color: themeText,
+            font: buildLegendFont(compact),
+            boxWidth: compact ? 8 : 12
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(15, 23, 42, 0.92)',
+          titleColor: '#f8fafc',
+          bodyColor: '#e2e8f0',
+          padding: compact ? 10 : 14,
+          titleFont: { size: compact ? 11 : 13, weight: 'bold' },
+          bodyFont: { size: compact ? 11 : 13 },
+          borderColor: 'rgba(248, 250, 252, 0.12)',
+          borderWidth: 1,
+          cornerRadius: 12,
+          displayColors: true,
+          boxPadding: 6,
+          callbacks: {
+            title: (items) => {
+              const idx = items[0]?.dataIndex;
+              if (idx == null) return '';
+              return tipLabels[idx] || items[0]?.label || '';
+            }
+          }
         }
       },
-      tooltip: {
-        backgroundColor: 'rgba(15, 23, 42, 0.92)',
-        titleColor: '#f8fafc',
-        bodyColor: '#e2e8f0',
-        padding: compact ? 10 : 14,
-        titleFont: { size: compact ? 11 : 13, weight: 'bold' },
-        bodyFont: { size: compact ? 11 : 13 },
-        borderColor: 'rgba(248, 250, 252, 0.12)',
-        borderWidth: 1,
-        cornerRadius: 12,
-        displayColors: true,
-        boxPadding: 6
-      }
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: themeGrid,
-          drawBorder: false,
-          lineWidth: 1
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: themeGrid,
+            drawBorder: false,
+            lineWidth: 1
+          },
+          ticks: {
+            color: themeMuted,
+            font: buildAxisTickFont(compact),
+            padding: compact ? 6 : 12,
+            maxTicksLimit: compact ? 5 : 6
+          }
         },
-        ticks: {
-          color: themeMuted,
-          font: buildAxisTickFont(compact),
-          padding: compact ? 6 : 12,
-          maxTicksLimit: compact ? 5 : 6
-        }
-      },
-      x: {
-        grid: {
-          display: false
-        },
-        ticks: {
-          color: themeMuted,
-          font: buildAxisTickFont(compact),
-          padding: compact ? 6 : 12,
-          maxRotation: compact ? 60 : 45,
-          autoSkip: true,
-          maxTicksLimit: compact ? 6 : undefined
+        x: {
+          grid: {
+            display: false
+          },
+          ticks: {
+            color: themeMuted,
+            font: buildAxisTickFont(compact),
+            padding: compact ? 6 : 12,
+            maxRotation: compact ? 55 : 45,
+            autoSkip: true,
+            maxTicksLimit: compact ? 6 : undefined
+          }
         }
       }
-    }
-  };
+    }),
+    [compact, tipLabels]
+  );
 
   return (
     <div className={`${chartCardClass} border-t-4 border-t-primary-500`}>
@@ -124,6 +139,7 @@ const BarChart = ({ data, labels, title = 'Bar Chart' }) => {
           <FiBarChart2 className="w-4 h-4 sm:w-5 sm:h-5" />
         </div>
         <h3 className={`${chartCardTitleClass} min-w-0 flex-1 truncate sm:whitespace-normal`}>{title}</h3>
+        {headerRight ? <div className="shrink-0 text-right ml-auto">{headerRight}</div> : null}
       </div>
       <div className={chartPlotWrapClass}>
         <div className={chartPlotHeightClass}>

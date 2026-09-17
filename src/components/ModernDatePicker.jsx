@@ -1,104 +1,111 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { forwardRef, useId, useMemo } from 'react';
+import DatePicker from 'react-datepicker';
+import { format, isValid, parseISO } from 'date-fns';
 
-/** Full date for ts-date-picker. Month mode: parent `YYYY-MM` → first day of month. */
-const toPickerDisplayValue = (value, granularity) => {
+const PickerInput = forwardRef(function PickerInput(
+  { value, onClick, onChange, placeholder, className, ...rest },
+  ref
+) {
+  return (
+    <input
+      ref={ref}
+      type="text"
+      readOnly
+      value={value || ''}
+      onClick={onClick}
+      onChange={onChange}
+      placeholder={placeholder}
+      className={`finhub-datepicker-input ${className || ''}`.trim()}
+      {...rest}
+    />
+  );
+});
+
+const parseDayValue = (value) => {
   const v = typeof value === 'string' ? value.trim() : '';
-  if (!v) return '';
-  if (granularity === 'month') {
-    if (/^\d{4}-\d{2}$/.test(v)) return `${v}-01`;
-    if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
-    return '';
+  if (!v) return null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(v)) {
+    const d = parseISO(v.slice(0, 10));
+    return isValid(d) ? d : null;
   }
-  if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
-  return v;
+  return null;
 };
 
-/** Map picker output to parent: month mode emits `YYYY-MM`. */
-const fromPickerToModel = (raw, granularity) => {
-  const val = typeof raw === 'string' ? raw.trim() : '';
-  if (!val) return '';
-  const ymd = val.length >= 10 ? val.slice(0, 10) : val;
-  if (granularity === 'month') {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd.slice(0, 7);
-    if (/^\d{4}-\d{2}$/.test(val)) return val;
-    return '';
-  }
-  return ymd.length >= 10 ? ymd : val;
+const parseMonthValue = (value) => {
+  const v = typeof value === 'string' ? value.trim() : '';
+  if (!v) return null;
+  const ym = /^\d{4}-\d{2}$/.test(v) ? v : /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 7) : '';
+  if (!ym) return null;
+  const [y, m] = ym.split('-').map(Number);
+  if (!y || !m) return null;
+  const d = new Date(y, m - 1, 1);
+  return isValid(d) ? d : null;
 };
 
+/**
+ * WageWise-style react-datepicker, FinHub theme + existing API
+ * (label, value YYYY-MM-DD | YYYY-MM, onChange string, granularity day|month).
+ */
 const ModernDatePicker = ({
   label,
   value,
   onChange,
   placeholder = 'YYYY-MM-DD',
   className = '',
-  granularity = 'day'
+  granularity = 'day',
+  minDate,
+  maxDate,
+  popperPlacement = 'bottom-start',
+  popperClassName
 }) => {
-  const wrapperRef = useRef(null);
-  const inputId = useMemo(() => `ts-date-input-${crypto.randomUUID()}`, []);
+  const inputId = useId();
+  const isMonth = granularity === 'month';
 
-  const displayValue = useMemo(
-    () => toPickerDisplayValue(value, granularity),
-    [value, granularity]
+  const selected = useMemo(
+    () => (isMonth ? parseMonthValue(value) : parseDayValue(value)),
+    [value, isMonth]
   );
 
   const resolvedPlaceholder =
-    granularity === 'month' && placeholder === 'YYYY-MM-DD' ? 'YYYY-MM' : placeholder;
+    isMonth && placeholder === 'YYYY-MM-DD' ? 'Select month' : placeholder === 'YYYY-MM-DD' ? 'Select date' : placeholder;
 
-  useEffect(() => {
-    const picker = wrapperRef.current?.querySelector?.('ts-date-picker');
-    if (!picker) return;
-
-    const input = picker.querySelector('input');
-    if (!input) return;
-
-    const syncValue = (newVal) => {
-      if (newVal !== undefined && newVal !== null && newVal !== '') {
-        input.value = newVal;
-        input.setAttribute('value', newVal);
-      } else {
-        input.value = '';
-        input.removeAttribute('value');
-      }
-    };
-
-    syncValue(displayValue);
-
-    const handleInput = (e) => {
-      const val = e.target.value;
-      onChange?.(fromPickerToModel(val, granularity));
-    };
-
-    input.addEventListener('input', handleInput);
-    input.addEventListener('change', handleInput);
-
-    return () => {
-      input.removeEventListener('input', handleInput);
-      input.removeEventListener('change', handleInput);
-    };
-  }, [displayValue, onChange, granularity]);
+  const handleChange = (date) => {
+    if (!date) {
+      onChange?.('');
+      return;
+    }
+    onChange?.(isMonth ? format(date, 'yyyy-MM') : format(date, 'yyyy-MM-dd'));
+  };
 
   return (
-    <div className={`flex flex-col ${className}`}>
-      {label && (
+    <div className={`flex flex-col min-w-0 ${className}`}>
+      {label ? (
         <label
           htmlFor={inputId}
           className="text-sm font-semibold mb-2.5 text-slate-700 capitalize tracking-wide"
         >
           {label}
         </label>
-      )}
-      <div ref={wrapperRef}>
-        <ts-date-picker yearspan="30">
-          <input
-            id={inputId}
-            type="text"
-            placeholder={resolvedPlaceholder}
-            defaultValue={displayValue || ''}
-            data-value={displayValue || ''}
-          />
-        </ts-date-picker>
-      </div>
+      ) : null}
+      <DatePicker
+        id={inputId}
+        selected={selected}
+        onChange={handleChange}
+        dateFormat={isMonth ? 'MMMM yyyy' : 'MMM d, yyyy'}
+        showMonthYearPicker={isMonth}
+        showMonthDropdown={!isMonth}
+        showYearDropdown={!isMonth}
+        dropdownMode="select"
+        yearDropdownItemNumber={80}
+        scrollableYearDropdown={!isMonth}
+        minDate={minDate}
+        maxDate={maxDate}
+        placeholderText={resolvedPlaceholder}
+        popperPlacement={popperPlacement}
+        popperClassName={popperClassName || 'react-datepicker-popper-elevated'}
+        popperProps={{ strategy: 'fixed' }}
+        customInput={<PickerInput />}
+      />
     </div>
   );
 };

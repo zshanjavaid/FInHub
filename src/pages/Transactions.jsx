@@ -21,6 +21,7 @@ import {
   removeTransaction
 } from '../store/transactions/transactionsSlice';
 import { normalizeDateToYYYYMMDD, filterByDateRange, MONTH_NAMES } from '../utils/date';
+import { shortenChartAxisLabel } from '../utils/chartLabels';
 import { isApproved } from '../constants/app';
 import { useDateFilter } from '../hooks/useDateFilter';
 import { useClientOptions } from '../hooks/useClientOptions';
@@ -225,10 +226,12 @@ const Transactions = () => {
       const label = [t.client, t.project].filter(Boolean).join(' – ') || 'Other';
       byProject[label] = (byProject[label] || 0) + netAfterImpactFund;
     });
-    const labels = Object.keys(byProject).sort();
-    const values = labels.map((k) => byProject[k]);
+    const fullLabels = Object.keys(byProject).sort();
+    const labels = fullLabels.map((k) => shortenChartAxisLabel(k));
+    const values = fullLabels.map((k) => byProject[k]);
     return {
       labels,
+      fullLabels,
       data: [{ label: 'Amount', values, color: '#10b981' }]
     };
   }, [approvedForCharts]);
@@ -523,6 +526,7 @@ const Transactions = () => {
               <BarChart
                 data={projectChartData.data}
                 labels={projectChartData.labels}
+                fullLabels={projectChartData.fullLabels}
                 title="Transactions by Project"
               />
             )}
