@@ -129,23 +129,26 @@ export const wasProjectInactivatedInMonth = (project, monthStart, monthEnd) => {
 };
 
 /**
- * Projects filter (keep this simple — matches chart):
- * - Active: still active at range end (start ≤ to, End Date empty or after to)
- * - Inactive: End Date / completion falls inside [from, to]
- * - All: project existed in the range (started by to, not ended before from)
+ * Projects filter:
+ * - Active: still running during the range
+ *   · currently active (incl. red-alert / upcoming End Date) if timeline overlaps range
+ *   · or historically still active at range end (End Date after `to`)
+ * - Inactive: actually completed — End Date in range and no longer active
+ * - All: existed in the range
  *
- * Example: start Jan, end March → Active in Jan & Feb; Inactive/All in March; not Active in March.
+ * Example: start Jan, end March → Active in Jan & Feb; Inactive/All in March.
+ * Red-alert (End Date within ~2 months, still active) stays under Active + All.
  */
 export const projectMatchesStatusInRange = (project, statusFilter, dateFrom, dateTo) => {
   const start = normalizeDateToYYYYMMDD(project?.date);
   const end = projectLifecycleEndYmd(project);
   const from = normalizeDateToYYYYMMDD(dateFrom);
   const to = normalizeDateToYYYYMMDD(dateTo);
+  const effectivelyActive = getEffectiveProjectStatus(project) === 'active';
 
   if (!from && !to) {
-    const status = getEffectiveProjectStatus(project);
-    if (statusFilter === 'active') return status === 'active';
-    if (statusFilter === 'inactive') return status === 'inactive';
+    if (statusFilter === 'active') return effectivelyActive;
+    if (statusFilter === 'inactive') return !effectivelyActive;
     return true;
   }
 
@@ -157,8 +160,17 @@ export const projectMatchesStatusInRange = (project, statusFilter, dateFrom, dat
     Boolean(end) && (!from || end >= from) && (!to || end <= to);
   const existedInRange = (!from || !end || end >= from) && (!to || start <= to);
 
-  if (statusFilter === 'active') return stillActiveAtRangeEnd;
-  if (statusFilter === 'inactive') return completedInRange;
+  if (statusFilter === 'active') {
+    // Currently active (red-alert included): show whenever timeline overlaps the range.
+    // Historical inactive rows: only months before End Date (still active at range end).
+    if (effectivelyActive) return existedInRange;
+    return stillActiveAtRangeEnd;
+  }
+  if (statusFilter === 'inactive') {
+    // Don't treat upcoming End Dates as completed while still active
+    if (effectivelyActive) return false;
+    return completedInRange;
+  }
   return existedInRange;
 };
 

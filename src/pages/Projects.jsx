@@ -17,6 +17,7 @@ import PageContainer from '../components/PageContainer';
 import ProjectInsightsSummaryCard from '../components/ProjectInsightsSummaryCard';
 import { getTaxFormDefaultsFromProject, prepareProjectForFirestore } from '../utils/project';
 import { projectMatchesStatusInRange } from '../utils/transactionsEligibility';
+import { addMonthsLocalYmd } from '../utils/date';
 
 const PROJECT_STATUS_FILTER_LABELS = ['All', 'Active', 'Inactive'];
 
@@ -85,9 +86,7 @@ const Projects = () => {
 
   const openAddModal = () => {
     setEditingProjectId(null);
-    const d = new Date();
-    d.setMonth(d.getMonth() + 6);
-    const contractEndingDefault = d.toISOString().slice(0, 10);
+    const contractEndingDefault = addMonthsLocalYmd(6);
     setInitialValues({
       client: '',
       date: '',

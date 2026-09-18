@@ -51,6 +51,13 @@ export const saveExpense = async (expenseData) => {
     if (expenseData.project) baseData.project = String(expenseData.project).trim();
     if (expenseData.monthKey) baseData.monthKey = String(expenseData.monthKey).slice(0, 7);
     if (expenseData.isMonthlyBrokerage) baseData.isMonthlyBrokerage = true;
+    if (expenseData.brokerageType) {
+      baseData.brokerageType =
+        String(expenseData.brokerageType).trim().toLowerCase() === 'fixed' ? 'fixed' : 'percentage';
+    }
+    if (expenseData.brokerageValue !== undefined && expenseData.brokerageValue !== null && expenseData.brokerageValue !== '') {
+      baseData.brokerageValue = Number(expenseData.brokerageValue);
+    }
 
     if (shouldCreateRecurring) {
       const startDate = (expenseData.date || '').toString().slice(0, 10);

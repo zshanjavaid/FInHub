@@ -2,22 +2,14 @@ import { FiUser, FiFileText } from 'react-icons/fi';
 import DataTable from './DataTable';
 import { formatMoney } from '../utils/format';
 import { compareTransactions } from '../utils/tableSort';
+import {
+  transactionImpactFundAmount,
+  transactionNetAfterImpactFund
+} from '../utils/transactionNet';
 
 const toNumber = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
-};
-
-const computeNetTotal = (t) => {
-  const amount = toNumber(t.amount);
-  const brokerageAmount = toNumber(t.brokerageAmount);
-  const additionalCharges = toNumber(t.additionalCharges);
-  return amount - brokerageAmount - additionalCharges;
-};
-
-const displayNetTotal = (t) => {
-  if (Number.isFinite(Number(t.totalAmount))) return Number(t.totalAmount);
-  return computeNetTotal(t);
 };
 
 const formatBrokerageRate = (t) => {
@@ -30,7 +22,7 @@ const formatBrokerageRate = (t) => {
     return `${value}%`;
   }
   if (value === 0) return '-';
-  return formatMoney(value);
+  return `Fixed ${formatMoney(value)}`;
 };
 
 const formatMoneyOrDash = (v) => {
@@ -53,9 +45,21 @@ const TransactionTable = ({ transactions, onDelete, onEdit, isLoading = false, t
     { key: 'brokerageAmount', label: 'Brokerage Amount', render: (v) => formatMoneyOrDash(v) },
     { key: 'additionalCharges', label: 'Additional Charges', render: (v) => formatMoneyOrDash(v) },
     {
+      key: 'impactFund',
+      label: 'Impact Fund (2%)',
+      render: (_, t) => {
+        const amt = transactionImpactFundAmount(t);
+        return amt > 0 ? (
+          <span className="text-red-600 font-medium">{formatMoney(amt)}</span>
+        ) : (
+          '-'
+        );
+      }
+    },
+    {
       key: 'totalAmount',
       label: 'Total (Net)',
-      render: (_, t) => formatMoney(displayNetTotal(t))
+      render: (_, t) => formatMoney(transactionNetAfterImpactFund(t))
     }
   ];
 
@@ -97,7 +101,7 @@ const TransactionTable = ({ transactions, onDelete, onEdit, isLoading = false, t
       headerSummary={{
         columnKey: 'totalAmount',
         label: 'Total (net)',
-        aggregate: (rows) => rows.reduce((s, t) => s + displayNetTotal(t), 0),
+        aggregate: (rows) => rows.reduce((s, t) => s + transactionNetAfterImpactFund(t), 0),
         format: formatMoney
       }}
       sortCompare={compareTransactions}

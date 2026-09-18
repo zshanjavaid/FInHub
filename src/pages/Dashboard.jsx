@@ -7,12 +7,14 @@ import {
   fetchTransactions,
   removeTransaction
 } from '../store/transactions/transactionsSlice';
-import { fetchExpenses } from '../store/expenses/expensesSlice';
+import { fetchExpenses, createExpense } from '../store/expenses/expensesSlice';
+import { buildMonthlyBrokerageExpenseIfNeeded } from '../utils/ensureMonthlyBrokerageExpense';
 import { useAuth } from '../contexts/AuthContext';
 import { getTargetAmount, setTargetAmount } from '../services/settingsService';
 import { formatMoney } from '../utils/format';
 import { normalizeDateToYYYYMMDD, MONTH_NAMES } from '../utils/date';
 import { computeNextMonthEstimatedAmount } from '../utils/nextMonthEstimate';
+import { transactionNetAfterImpactFund } from '../utils/transactionNet';
 import { isApproved } from '../constants/app';
 import { isDashboardActiveProject, DASHBOARD_ACTIVE_PROJECT_TYPES, PROJECT_TYPE_COLORS } from '../constants/projectTypes';
 import { useClientOptions } from '../hooks/useClientOptions';
@@ -180,10 +182,27 @@ const Dashboard = () => {
       await dispatch(
         editTransaction({ transactionId: editingTransactionId, transactionData })
       ).unwrap();
+      const expenseData = buildMonthlyBrokerageExpenseIfNeeded({
+        transactionData,
+        projects,
+        transactions,
+        expenses,
+        excludeTxId: editingTransactionId,
+        createdBy: user?.uid || null
+      });
+      if (expenseData) await dispatch(createExpense(expenseData)).unwrap();
       setEditingTransactionId(null);
     } else {
       const payload = user?.uid ? { ...transactionData, createdBy: user.uid } : transactionData;
       await dispatch(createTransaction(payload)).unwrap();
+      const expenseData = buildMonthlyBrokerageExpenseIfNeeded({
+        transactionData: payload,
+        projects,
+        transactions,
+        expenses,
+        createdBy: user?.uid || null
+      });
+      if (expenseData) await dispatch(createExpense(expenseData)).unwrap();
     }
 
     setIsModalOpen(false);
@@ -216,10 +235,6 @@ const Dashboard = () => {
   };
 
   const chartData = useMemo(() => {
-    const toNumber = (v) => {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : 0;
-    };
     let labels = [];
     let monthlyInward = [];
     let monthlyExpense = [];
@@ -256,13 +271,7 @@ const Dashboard = () => {
           const d = new Date(tDate);
           const idx = monthsRange.findIndex((r) => r.year === d.getFullYear() && r.month === d.getMonth());
           if (idx === -1) return;
-          const amount = toNumber(transaction.amount);
-          const brokerageAmount = toNumber(transaction.brokerageAmount);
-          const additionalCharges = toNumber(transaction.additionalCharges);
-          const totalAmount = transaction.totalAmount !== undefined && transaction.totalAmount !== null
-            ? toNumber(transaction.totalAmount)
-            : amount - brokerageAmount - additionalCharges;
-          monthlyInward[idx] += totalAmount;
+          monthlyInward[idx] += transactionNetAfterImpactFund(transaction);
         });
 
         if (!selectedProject) {
@@ -288,13 +297,7 @@ const Dashboard = () => {
         const date = new Date(tDate);
         if (date.getFullYear() === currentYear) {
           const month = date.getMonth();
-          const amount = toNumber(transaction.amount);
-          const brokerageAmount = toNumber(transaction.brokerageAmount);
-          const additionalCharges = toNumber(transaction.additionalCharges);
-          const totalAmount = transaction.totalAmount !== undefined && transaction.totalAmount !== null
-            ? toNumber(transaction.totalAmount)
-            : amount - brokerageAmount - additionalCharges;
-          monthlyInward[month] += totalAmount;
+          monthlyInward[month] += transactionNetAfterImpactFund(transaction);
         }
       });
 

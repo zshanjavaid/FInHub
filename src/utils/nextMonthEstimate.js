@@ -2,6 +2,7 @@ import { isApproved } from '../constants/app';
 import { normalizeDateToYYYYMMDD } from './date';
 import { countExpectedPayoutsInRange } from './payoutSchedule';
 import { isProjectEligibleForAutoGenerateMonth } from './transactionsEligibility';
+import { transactionNetAfterImpactFund } from './transactionNet';
 
 const toNumber = (v) => {
   const n = Number(v);
@@ -11,11 +12,8 @@ const toNumber = (v) => {
 const projectKey = (client, project) =>
   `${String(client || '').trim().toLowerCase()}|${String(project || '').trim().toLowerCase()}`;
 
-/** Same net inward as Dashboard Monthly Trends (no Impact Fund haircut). */
-export const transactionNetInward = (t) => {
-  if (t?.totalAmount !== undefined && t?.totalAmount !== null) return toNumber(t.totalAmount);
-  return toNumber(t?.amount) - toNumber(t?.brokerageAmount) - toNumber(t?.additionalCharges);
-};
+/** Same net inward as Dashboard Monthly Comparison / Transactions table Total (Net). */
+export const transactionNetInward = (t) => transactionNetAfterImpactFund(t);
 
 const monthBounds = (year, monthIndex0) => {
   const lastDay = new Date(year, monthIndex0 + 1, 0).getDate();

@@ -1,26 +1,46 @@
 import { addMonths } from 'date-fns';
 
+/** Today's date as YYYY-MM-DD in the local timezone (avoids UTC off-by-one from toISOString). */
+export const todayLocalYmd = (date = new Date()) => {
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+/** Add calendar months in local time, return YYYY-MM-DD. */
+export const addMonthsLocalYmd = (months, from = new Date()) => {
+  const d = from instanceof Date ? new Date(from.getTime()) : new Date(from);
+  if (Number.isNaN(d.getTime())) return '';
+  d.setMonth(d.getMonth() + Number(months || 0));
+  return todayLocalYmd(d);
+};
+
 /** Normalize date to YYYY-MM-DD (handles Firestore Timestamp, serialized timestamp, Date, string) */
 export const normalizeDateToYYYYMMDD = (value) => {
   if (value == null || value === '') return '';
   if (typeof value === 'object' && typeof value.toDate === 'function') {
     const d = value.toDate();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return todayLocalYmd(d);
   }
   if (typeof value === 'object' && typeof value.seconds === 'number') {
     const d = new Date(value.seconds * 1000);
     if (Number.isNaN(d.getTime())) return '';
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return todayLocalYmd(d);
   }
   if (value instanceof Date) {
-    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+    return todayLocalYmd(value);
   }
   const str = String(value).trim();
-  if (str.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
-  if (/^\d{4}-\d{2}-\d{2}T/.test(str)) return str.slice(0, 10);
+  if (str.length >= 10 && /^\d{4}-\d{2}-\d{2}$/.test(str.slice(0, 10)) && str.length === 10) {
+    return str.slice(0, 10);
+  }
+  if (str.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(str) && !str.includes('T') && !str.includes(' ')) {
+    return str.slice(0, 10);
+  }
+  // ISO / other parseable strings: use local calendar date, not UTC slice
   const d = new Date(str);
   if (Number.isNaN(d.getTime())) return '';
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return todayLocalYmd(d);
 };
 
 /** Return { from, to } as YYYY-MM-DD for the current month */

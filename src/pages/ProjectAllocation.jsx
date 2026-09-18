@@ -4,6 +4,7 @@ import { FiDollarSign, FiTrendingUp, FiPieChart, FiMenu, FiArrowRight, FiArrowLe
 import { fetchProjects, createProject } from '../store/projects/projectsSlice';
 import { formatMoney } from '../utils/format';
 import { getProjectMonthlyAllocationAmount, prepareProjectForFirestore } from '../utils/project';
+import { addMonthsLocalYmd } from '../utils/date';
 import { isApproved } from '../constants/app';
 import { PROJECT_TYPE_OPTIONS } from '../constants/projectTypes';
 import { useAuth } from '../contexts/AuthContext';
@@ -201,9 +202,7 @@ const ProjectAllocation = () => {
   }, []);
 
   const openAddModal = () => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 6);
-    const contractEndingDefault = d.toISOString().slice(0, 10);
+    const contractEndingDefault = addMonthsLocalYmd(6);
     setInitialValues({
       client: '',
       date: '',

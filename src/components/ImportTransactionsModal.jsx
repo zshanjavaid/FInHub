@@ -26,6 +26,7 @@ import {
   buildMonthlyBrokerageExpenseData,
   computeImportMonthlyBrokerageAmount
 } from '../utils/csvTransactionImport';
+import { addMonthsLocalYmd, todayLocalYmd } from '../utils/date';
 
 const findLatestProject = (projects, broker, projectName) => {
   if (!broker || !projectName) return null;
@@ -269,7 +270,7 @@ const ImportTransactionsModal = ({
           };
         }
 
-        const amount = computeImportMonthlyBrokerageAmount(g.projectRow, g.monthGross);
+        const amount = computeImportMonthlyBrokerageAmount(g.projectRow, g.monthGross, g.monthKey);
         if (!(amount > 0)) {
           return {
             key: g.key,
@@ -287,7 +288,8 @@ const ImportTransactionsModal = ({
           project: g.project,
           monthKey: g.monthKey,
           amount,
-          status: 'new'
+          status: 'new',
+          projectRow: g.projectRow
         };
       })
       .filter((x) => x.status === 'new' || x.status === 'exists');
@@ -359,12 +361,10 @@ const ImportTransactionsModal = ({
       .filter((p) => (p.client || '').trim().toLowerCase() === broker.trim().toLowerCase())
       .sort((a, b) => String(b.createdAt || b.date || '').localeCompare(String(a.createdAt || a.date || '')))[0];
 
-    const d = new Date();
-    d.setMonth(d.getMonth() + 6);
     setCreatingForCsvName(csvName);
     setProjectInitialValues({
       client: broker,
-      date: new Date().toISOString().slice(0, 10),
+      date: todayLocalYmd(),
       project: csvName,
       projectType: latest?.projectType || 'Full time',
       projectStatus: 'active',
@@ -375,7 +375,7 @@ const ImportTransactionsModal = ({
       recruiterName: latest?.recruiterName || '',
       lead: latest?.lead || '',
       projectManager: latest?.projectManager || '',
-      contractEnding: d.toISOString().slice(0, 10),
+      contractEnding: addMonthsLocalYmd(6),
       brokerageType: latest?.brokerageType || 'percentage',
       brokerageValue: latest?.brokerageValue ?? '',
       taxType: latest?.taxType || 'percentage',
@@ -457,6 +457,8 @@ const ImportTransactionsModal = ({
           project: item.project,
           monthKey: item.monthKey,
           amount: item.amount,
+          brokerageType: item.projectRow?.brokerageType || 'percentage',
+          brokerageValue: item.projectRow?.brokerageValue ?? '',
           createdBy: user?.uid || null
         });
         await dispatch(createExpense(expenseData)).unwrap();

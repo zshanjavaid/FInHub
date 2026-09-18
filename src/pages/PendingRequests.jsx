@@ -375,7 +375,14 @@ const PendingRequests = () => {
   ];
 
   const expenseColumns = [
-    { key: 'expenseName', label: 'Expense Name' },
+    {
+      key: 'expenseName',
+      label: 'Expense Name',
+      render: (v) => {
+        const raw = String(v || '').trim();
+        return raw.replace(/^Brokerage\s*[–-]\s*/i, '') || raw || '-';
+      }
+    },
     { key: 'date', label: 'Date' },
     {
       key: 'expenseType',
@@ -387,6 +394,32 @@ const PendingRequests = () => {
         if (key === 'software_tool' && row.recurring && row.recurringMonths) {
           const period = RECURRING_MONTHS_LABELS[row.recurringMonths] ?? `${row.recurringMonths} months`;
           label = `Software Tool (${period})`;
+        }
+        if (key === 'brokerage') {
+          const stored = String(row?.brokerageType || '').trim().toLowerCase();
+          let kind = stored === 'fixed' || stored === 'percentage' ? stored : '';
+          let rateVal = row?.brokerageValue;
+          if (!kind) {
+            const c = String(row?.client || '').trim().toLowerCase();
+            const pName = String(row?.project || '').trim().toLowerCase();
+            const p = (projects || []).find(
+              (x) =>
+                String(x?.client || '').trim().toLowerCase() === c &&
+                String(x?.project || '').trim().toLowerCase() === pName
+            );
+            if (p) {
+              kind = String(p.brokerageType || 'percentage').trim().toLowerCase() === 'fixed' ? 'fixed' : 'percentage';
+              rateVal = p.brokerageValue;
+            }
+          }
+          if (kind) {
+            const n = Number(rateVal);
+            if (Number.isFinite(n) && n !== 0) {
+              label = kind === 'fixed' ? `Brokerage · Fixed ${formatMoney(n)}` : `Brokerage · ${n}%`;
+            } else {
+              label = `Brokerage · ${kind === 'fixed' ? 'Fixed' : 'Percentage'}`;
+            }
+          }
         }
         const colorClass = EXPENSE_TYPE_COLORS[key] || 'bg-gray-100 text-gray-800';
         return (

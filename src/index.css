@@ -32,85 +32,178 @@ body {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
-/* ——— FinHub loader ——— */
-@keyframes finhub-loader-bar {
-  0%,
-  100% {
-    transform: scaleY(0.45);
-    opacity: 0.55;
+/* ——— FinHub logo — icon style + next-level motion ——— */
+@keyframes finhub-logo-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes finhub-logo-bg {
+  0%, 100% { background-position: 0% 40%; }
+  50% { background-position: 100% 60%; }
+}
+
+@keyframes finhub-logo-shine {
+  0% { transform: translateX(-140%) skewX(-20deg); opacity: 0; }
+  20% { opacity: 0.65; }
+  45% { transform: translateX(140%) skewX(-20deg); opacity: 0; }
+  100% { transform: translateX(140%) skewX(-20deg); opacity: 0; }
+}
+
+@keyframes finhub-logo-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.045); }
+}
+
+@keyframes finhub-logo-col {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.75;
   }
   50% {
-    transform: scaleY(1);
+    transform: translateY(-1.5px);
     opacity: 1;
   }
 }
 
-@keyframes finhub-loader-ring {
-  0% {
-    transform: rotate(0deg) scale(1);
-    opacity: 0.55;
+@keyframes finhub-logo-peak {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0 transparent);
   }
   50% {
-    transform: rotate(180deg) scale(1.04);
-    opacity: 0.9;
-  }
-  100% {
-    transform: rotate(360deg) scale(1);
-    opacity: 0.55;
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 5px rgb(94 234 212 / 0.7));
   }
 }
 
-@keyframes finhub-loader-halo {
-  0%,
-  100% {
-    transform: scale(0.92);
-    opacity: 0.35;
+@keyframes finhub-logo-word {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(3px);
   }
-  50% {
-    transform: scale(1.08);
-    opacity: 0.7;
-  }
-}
-
-@keyframes finhub-loader-line {
-  0% {
-    stroke-dashoffset: 48;
-    opacity: 0.35;
-  }
-  40% {
-    stroke-dashoffset: 0;
+  to {
     opacity: 1;
-  }
-  70% {
-    stroke-dashoffset: 0;
-    opacity: 1;
-  }
-  100% {
-    stroke-dashoffset: -48;
-    opacity: 0.2;
+    transform: translateY(0);
+    filter: blur(0);
   }
 }
 
-.finhub-loader-bar {
+.finhub-logo-mark-wrap {
+  isolation: isolate;
+  animation: finhub-logo-breathe 3.6s ease-in-out infinite;
+}
+
+/* Conic energy ring behind the icon */
+.finhub-logo-ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: 26%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    #5eead4 18%,
+    transparent 32%,
+    #2dd4bf 52%,
+    transparent 64%,
+    #99f6e4 82%,
+    transparent 100%
+  );
+  animation: finhub-logo-spin 2.8s linear infinite;
+  opacity: 0.9;
+  z-index: 0;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  padding: 2px;
+  pointer-events: none;
+}
+
+.finhub-logo-icon {
+  box-shadow:
+    0 0 0 1px rgb(13 148 136 / 0.22),
+    0 10px 24px -10px rgb(4 47 46 / 0.55),
+    inset 0 1px 0 rgb(255 255 255 / 0.2);
+}
+
+.finhub-logo-bg {
+  background: linear-gradient(145deg, #5eead4 0%, #0d9488 42%, #0f766e 78%, #042f2e 100%);
+  background-size: 200% 200%;
+  animation: finhub-logo-bg 7s ease-in-out infinite;
+}
+
+.finhub-logo-shine {
+  background: linear-gradient(
+    105deg,
+    transparent 36%,
+    rgb(255 255 255 / 0.55) 50%,
+    transparent 64%
+  );
+  animation: finhub-logo-shine 3.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+.finhub-logo-col {
+  transform-box: fill-box;
   transform-origin: bottom center;
-  animation: finhub-loader-bar 1.05s ease-in-out infinite;
+  animation: finhub-logo-col 2.8s ease-in-out infinite;
 }
 
-.finhub-loader-ring {
-  border-style: solid;
-  border-width: 1.5px;
-  border-color: rgb(153 246 228 / 0.35);
-  border-top-color: rgb(13 148 136 / 0.9);
-  border-right-color: rgb(13 148 136 / 0.35);
-  animation: finhub-loader-ring 1.8s linear infinite;
+.finhub-logo-col--a { animation-delay: 0s; }
+.finhub-logo-col--b { animation-delay: 0.12s; }
+.finhub-logo-col--c { animation-delay: 0.24s; }
+
+.finhub-logo-peak,
+.finhub-logo-peak-core {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: finhub-logo-peak 2.6s ease-in-out infinite;
 }
 
-.finhub-loader-halo {
-  animation: finhub-loader-halo 1.6s ease-in-out infinite;
+.finhub-logo-peak-core {
+  animation-delay: 0.15s;
 }
 
-.finhub-loader-line path {
-  animation: finhub-loader-line 1.8s ease-in-out infinite;
+.finhub-logo-wordmark {
+  animation: finhub-logo-word 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.finhub-logo-tagline {
+  animation: finhub-logo-word 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+}
+
+.finhub-logo-mark-wrap:hover {
+  animation-duration: 1.8s;
+}
+
+.finhub-logo-mark-wrap:hover .finhub-logo-ring {
+  animation-duration: 1.2s;
+}
+
+.finhub-logo-mark-wrap:hover .finhub-logo-col,
+.finhub-logo-mark-wrap:hover .finhub-logo-peak,
+.finhub-logo-mark-wrap:hover .finhub-logo-peak-core {
+  animation-duration: 1.4s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .finhub-logo-mark-wrap,
+  .finhub-logo-ring,
+  .finhub-logo-bg,
+  .finhub-logo-shine,
+  .finhub-logo-col,
+  .finhub-logo-peak,
+  .finhub-logo-peak-core,
+  .finhub-logo-wordmark,
+  .finhub-logo-tagline {
+    animation: none !important;
+  }
+
+  .finhub-logo-col {
+    transform: none;
+    opacity: 1;
+  }
 }
 
 .finhub-nav-indicator {
@@ -209,22 +302,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .finhub-loader-bar,
-  .finhub-loader-ring,
-  .finhub-loader-halo,
-  .finhub-loader-line path,
   .finhub-btn-spinner {
     animation: none !important;
-  }
-
-  .finhub-loader-bar {
-    transform: scaleY(1);
-    opacity: 1;
-  }
-
-  .finhub-loader-line path {
-    stroke-dashoffset: 0;
-    opacity: 1;
   }
 
   .finhub-btn-fill {

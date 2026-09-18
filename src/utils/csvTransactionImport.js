@@ -369,10 +369,13 @@ export const buildMonthlyBrokerageExpenseData = ({
   project,
   monthKey,
   amount,
+  brokerageType = 'percentage',
+  brokerageValue = '',
   createdBy = null
 }) => {
+  const type = String(brokerageType || 'percentage').trim().toLowerCase() === 'fixed' ? 'fixed' : 'percentage';
   const data = {
-    expenseName: `Brokerage – ${project}`,
+    expenseName: String(project || '').trim() || 'Untitled project',
     date: monthStartDate(monthKey),
     expenseType: 'brokerage',
     amount: Number(Number(amount).toFixed(2)),
@@ -380,7 +383,9 @@ export const buildMonthlyBrokerageExpenseData = ({
     client: String(client || '').trim(),
     project: String(project || '').trim(),
     monthKey: String(monthKey || '').slice(0, 7),
-    isMonthlyBrokerage: true
+    isMonthlyBrokerage: true,
+    brokerageType: type,
+    brokerageValue: brokerageValue === '' || brokerageValue == null ? '' : Number(brokerageValue)
   };
   if (createdBy) data.createdBy = createdBy;
   return data;
@@ -388,23 +393,66 @@ export const buildMonthlyBrokerageExpenseData = ({
 
 /**
  * Monthly brokerage for import:
- * 1) Project hours × rate × brokerage settings when available
- * 2) Else fixed brokerage value
+ * 1) Fixed: prorated by Mon–Fri days in `monthKey` (start/end clipped to month)
+ * 2) Else project hours × rate × brokerage % when available
  * 3) Else percentage of that month's imported transaction total
  */
-export const computeImportMonthlyBrokerageAmount = (projectRow, monthGrossAmount = 0) => {
+export const computeImportMonthlyBrokerageAmount = (projectRow, monthGrossAmount = 0, monthKey = '') => {
+  const type = String(projectRow?.brokerageType || 'percentage').trim().toLowerCase();
+  const val = toNumber(projectRow?.brokerageValue);
+  const mk = String(monthKey || '').slice(0, 7);
+
+  if (type === 'fixed') {
+    if (!(val > 0)) return 0;
+    if (mk && /^\d{4}-\d{2}$/.test(mk)) {
+      return Number(computeProjectBrokerageDollars(projectRow, { monthKey: mk }).toFixed(2));
+    }
+    return Number(val.toFixed(2));
+  }
+
   const fromProject = Number(computeProjectBrokerageDollars(projectRow).toFixed(2));
   if (fromProject > 0) return fromProject;
 
-  const type = String(projectRow?.brokerageType || 'percentage').trim().toLowerCase();
-  const val = toNumber(projectRow?.brokerageValue);
   if (!(val > 0)) return 0;
-
-  if (type === 'fixed') return Number(val.toFixed(2));
-
   const gross = toNumber(monthGrossAmount);
   if (!(gross > 0)) return 0;
   return Number((gross * (val / 100)).toFixed(2));
+};
+
+/**
+ * Build a new monthly brokerage expense payload if one does not already exist
+ * for this client/project/month (same rule as CSV import).
+ */
+export const planNewMonthlyBrokerageExpense = ({
+  client,
+  project,
+  date,
+  projectRow = null,
+  expenses = [],
+  monthGrossAmount = 0,
+  createdBy = null
+}) => {
+  const c = String(client || '').trim();
+  const p = String(project || '').trim();
+  const monthKey = monthKeyFromYmd(date);
+  if (!c || !p || !monthKey || !projectRow) return null;
+
+  if (findExistingMonthlyBrokerage(expenses, { client: c, project: p, monthKey })) {
+    return null;
+  }
+
+  const amount = computeImportMonthlyBrokerageAmount(projectRow, monthGrossAmount, monthKey);
+  if (!(amount > 0)) return null;
+
+  return buildMonthlyBrokerageExpenseData({
+    client: c,
+    project: p,
+    monthKey,
+    amount,
+    brokerageType: projectRow.brokerageType || 'percentage',
+    brokerageValue: projectRow.brokerageValue ?? '',
+    createdBy
+  });
 };
 
 /**

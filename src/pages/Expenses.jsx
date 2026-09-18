@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
@@ -13,6 +14,7 @@ import {
   fetchExpenses,
   removeExpense
 } from '../store/expenses/expensesSlice';
+import { fetchProjects } from '../store/projects/projectsSlice';
 import { filterByDateRange } from '../utils/date';
 import { useDateFilter } from '../hooks/useDateFilter';
 import { isApproved } from '../constants/app';
@@ -30,20 +32,49 @@ const defaultForm = {
   recurringMonths: ''
 };
 
+const typeParamToLabel = (param) => {
+  const raw = String(param || '').trim().toLowerCase();
+  if (!raw) return '';
+  const fromValue = EXPENSE_TYPE_LABELS[raw];
+  if (fromValue) return fromValue;
+  const fromLabel = EXPENSE_TYPE_OPTIONS.find((l) => l.toLowerCase() === raw);
+  return fromLabel || '';
+};
+
 const Expenses = () => {
   const dispatch = useDispatch();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const expenses = useSelector((state) => state.expenses.items);
   const isLoading = useSelector((state) => state.expenses.isLoading);
   const error = useSelector((state) => state.expenses.error);
+  const projects = useSelector((state) => state.projects.items);
 
   const dateFilter = useDateFilter({ defaultToPreviousMonth: true });
   const { effectiveDateFrom: dateFrom, effectiveDateTo: dateTo } = dateFilter;
-  const [selectedType, setSelectedType] = useState('');
+  const [selectedType, setSelectedType] = useState(() => typeParamToLabel(searchParams.get('type')));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState(null);
   const [initialValues, setInitialValues] = useState(defaultForm);
+
+  useEffect(() => {
+    const fromUrl = typeParamToLabel(searchParams.get('type'));
+    setSelectedType((prev) => (prev === fromUrl ? prev : fromUrl));
+  }, [searchParams]);
+
+  const onTypeChange = (label) => {
+    setSelectedType(label || '');
+    const next = new URLSearchParams(searchParams);
+    if (label) {
+      const value = EXPENSE_TYPE_LABEL_TO_VALUE[label];
+      if (value) next.set('type', value);
+      else next.delete('type');
+    } else {
+      next.delete('type');
+    }
+    setSearchParams(next, { replace: true });
+  };
 
   const filteredExpenses = useMemo(() => {
     let list = filterByDateRange(expenses || [], dateFrom, dateTo, (e) => e.date);
@@ -60,11 +91,12 @@ const Expenses = () => {
   );
 
   useEffect(() => {
-    document.title = 'Expenses | FinHub';
-  }, []);
+    document.title = selectedType === 'Brokerage' ? 'Brokerage | FinHub' : 'Expenses | FinHub';
+  }, [selectedType]);
 
   useEffect(() => {
     dispatch(fetchExpenses());
+    dispatch(fetchProjects());
   }, [dispatch]);
 
   const openAddModal = () => {
@@ -117,7 +149,7 @@ const Expenses = () => {
           <SearchableDropdown
             label="Type"
             value={selectedType}
-            onChange={setSelectedType}
+            onChange={onTypeChange}
             options={EXPENSE_TYPE_OPTIONS}
             placeholder="All Types"
             layout="filter"
@@ -132,8 +164,9 @@ const Expenses = () => {
           onEdit={openEditModal}
           isLoading={isLoading}
           title="Expense Details"
-            hideFilters={['expenseType']}
-          />
+          hideFilters={['expenseType']}
+          projects={projects}
+        />
 
         <ExpenseFormModal
         key={editingExpenseId || 'new'}

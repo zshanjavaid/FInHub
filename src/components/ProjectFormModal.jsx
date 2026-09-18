@@ -5,12 +5,7 @@ import { HiOutlineCurrencyDollar, HiOutlinePercentBadge } from 'react-icons/hi2'
 import { getTaxFormDefaultsFromProject } from '../utils/project';
 import { PAYOUT_OCCURRENCE_OPTIONS, PAYOUT_OCCURRENCE_LABEL_BY_VALUE } from '../constants/payoutOccurrences';
 import { LEAD_OPTIONS, PROJECT_MANAGER_OPTIONS } from '../constants/projectAssignments';
-
-const getDateSixMonthsFromNow = () => {
-  const d = new Date();
-  d.setMonth(d.getMonth() + 6);
-  return d.toISOString().slice(0, 10);
-};
+import { addMonthsLocalYmd, todayLocalYmd } from '../utils/date';
 
 const defaultForm = {
   client: '',
@@ -43,8 +38,8 @@ const ProjectFormModal = ({
   isSaving = false,
   projects = []
 }) => {
-  const today = new Date().toISOString().slice(0, 10);
-  const contractEndingDefault = getDateSixMonthsFromNow();
+  const today = todayLocalYmd();
+  const contractEndingDefault = addMonthsLocalYmd(6);
   const taxFromInitial = getTaxFormDefaultsFromProject(initialValues);
   const normalizedInitialValues = {
     ...defaultForm,
@@ -160,7 +155,7 @@ const ProjectFormModal = ({
         type: 'date',
         name: 'contractEnding',
         label: 'End Date',
-        defaultValue: getDateSixMonthsFromNow()
+        defaultValue: contractEndingDefault
       },
       {
         type: 'number',
@@ -232,7 +227,7 @@ const ProjectFormModal = ({
         }
       }
     ],
-    [clientOptions, projectTypeOptions, today]
+    [clientOptions, projectTypeOptions, today, contractEndingDefault]
   );
 
   return (

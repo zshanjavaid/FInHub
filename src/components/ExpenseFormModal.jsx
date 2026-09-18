@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import FormModal from './FormModal';
 import { FiFileText, FiDollarSign, FiMessageSquare, FiCalendar } from 'react-icons/fi';
 import { EXPENSE_TYPE_FORM_OPTIONS, RECURRING_PERIOD_FORM_OPTIONS } from '../constants/expenseTypes';
+import { todayLocalYmd } from '../utils/date';
 
 const defaultForm = {
   expenseName: '',
@@ -21,7 +22,7 @@ const ExpenseFormModal = ({
   onSubmit,
   isSaving = false
 }) => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocalYmd();
   const normalizedInitialValues = {
     ...defaultForm,
     ...(initialValues || {}),

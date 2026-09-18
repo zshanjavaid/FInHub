@@ -111,4 +111,3 @@ export const deleteTransactionsBulk = async (transactionIds = []) => {
     throw error;
   }
 };
-

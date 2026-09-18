@@ -11,7 +11,7 @@ import { shouldSkipListFetch } from '../../utils/fetchGate';
 
 export const fetchExpenses = createAsyncThunk(
   'expenses/fetchAll',
-  async () => await getAllExpensesService(),
+  async () => getAllExpensesService(),
   {
     condition: (arg, { getState }) => !shouldSkipListFetch(getState().expenses, arg)
   }

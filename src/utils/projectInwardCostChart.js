@@ -1,19 +1,15 @@
 import { isApproved } from '../constants/app';
 import { filterByDateRange } from './date';
 import { computeProjectBrokerageDollars, computeProjectTaxDollars } from './project';
+import { transactionNetAfterImpactFund } from './transactionNet';
 
 const toNumber = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
 
-/** Match Transactions page chart: net before impact fund, then × 0.98. */
-export const transactionNetInwardForChart = (t) => {
-  const netBefore = Number.isFinite(Number(t.totalAmount))
-    ? Number(t.totalAmount)
-    : (Number(t.amount) || 0) - (Number(t.brokerageAmount) || 0) - (Number(t.additionalCharges) || 0);
-  return netBefore * 0.98;
-};
+/** Match Transactions table Total (Net) / Dashboard Monthly Comparison. */
+export const transactionNetInwardForChart = (t) => transactionNetAfterImpactFund(t);
 
 const rowKey = (client, project) =>
   `${String(client || '').trim()}|${String(project || '').trim()}`;

@@ -3,11 +3,12 @@ import FormModal from './FormModal';
 import { FiUser, FiFileText, FiDollarSign } from 'react-icons/fi';
 import { formatMoney } from '../utils/format';
 import { HiOutlineCurrencyDollar, HiOutlinePercentBadge } from 'react-icons/hi2';
-import { normalizeDateToYYYYMMDD } from '../utils/date';
+import { normalizeDateToYYYYMMDD, todayLocalYmd } from '../utils/date';
 import { isApproved } from '../constants/app';
 import { PAYOUT_OCCURRENCE_LABEL_BY_VALUE } from '../constants/payoutOccurrences';
 import { isProjectEligibleForTransactions } from '../utils/transactionsEligibility';
 import { countExpectedPayoutsInRange, countExpectedWithCarryover, getPayoutOccurrenceLabel } from '../utils/payoutSchedule';
+import { computeProjectBrokerageDollars } from '../utils/project';
 
 const defaultForm = {
   client: '',
@@ -25,18 +26,9 @@ const toNumber = (v) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-const computeBrokerageAmount = ({ amount, brokerageType, brokerageValue }) => {
+const computeTotalAmount = ({ amount, brokerageAmount, additionalCharges }) => {
   const a = toNumber(amount);
-  const b = toNumber(brokerageValue);
-  if (brokerageType === 'percentage') return (a * b) / 100;
-  return b;
-};
-
-const computeTotalAmount = ({ amount, brokerageAmount, additionalCharges, brokerageType, brokerageValue }) => {
-  const a = toNumber(amount);
-  const bAmt = brokerageAmount !== '' && brokerageAmount !== null && brokerageAmount !== undefined
-    ? toNumber(brokerageAmount)
-    : computeBrokerageAmount({ amount, brokerageType, brokerageValue });
+  const bAmt = toNumber(brokerageAmount);
   const charges = toNumber(additionalCharges);
   return a - bAmt - charges;
 };
@@ -54,7 +46,7 @@ const TransactionFormModal = ({
   editingTransactionId = null,
   editingTransaction = null
 }) => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocalYmd();
   const [submitError, setSubmitError] = useState('');
   const normalizedInitialValues = {
     ...defaultForm,
@@ -98,6 +90,57 @@ const TransactionFormModal = ({
     return matches[0] || null;
   };
 
+  /**
+   * Percentage: amount × rate.
+   * Fixed (new entries only): Mon–Fri prorated month fee, minus other approved txs
+   * in the same month. Edits keep the stored amount so existing rows are unchanged.
+   */
+  const computeBrokerageAmount = (form) => {
+    const type = String(form.brokerageType || 'percentage').trim().toLowerCase();
+    const value = toNumber(form.brokerageValue);
+
+    if (type === 'percentage') {
+      return (toNumber(form.amount) * value) / 100;
+    }
+
+    // Existing entries: do not re-prorate on edit
+    if (editingTransactionId) {
+      if (form.brokerageAmount !== '' && form.brokerageAmount != null) {
+        return toNumber(form.brokerageAmount);
+      }
+      return value;
+    }
+
+    const dateYmd = normalizeDateToYYYYMMDD(form.date);
+    const monthKey = dateYmd ? dateYmd.slice(0, 7) : '';
+    const projectRow = findLatestProjectByBrokerAndProject(form.client, form.project);
+
+    if (!monthKey || !projectRow) return value;
+
+    const monthFee = Number(
+      computeProjectBrokerageDollars(
+        { ...projectRow, brokerageType: 'fixed', brokerageValue: value },
+        { monthKey }
+      ).toFixed(2)
+    );
+
+    const clientKey = String(form.client || '').trim().toLowerCase();
+    const projectKey = String(form.project || '').trim().toLowerCase();
+    const othersSum = (transactions || [])
+      .filter(isApproved)
+      .filter((t) => {
+        const d = normalizeDateToYYYYMMDD(t.date);
+        if (!d || d.slice(0, 7) !== monthKey) return false;
+        return (
+          String(t.client || '').trim().toLowerCase() === clientKey &&
+          String(t.project || '').trim().toLowerCase() === projectKey
+        );
+      })
+      .reduce((s, t) => s + (toNumber(t.brokerageAmount) || 0), 0);
+
+    return Math.max(0, Number((monthFee - othersSum).toFixed(2)));
+  };
+
   const handleFieldChange = (form, fieldName, value) => {
     if (submitError) setSubmitError('');
     if (fieldName === 'client') {
@@ -112,16 +155,29 @@ const TransactionFormModal = ({
       }
     }
 
-    if (
+    const type = String(form.brokerageType || 'percentage').trim().toLowerCase();
+    const shouldRecalc =
       fieldName === 'amount' ||
       fieldName === 'brokerageType' ||
       fieldName === 'brokerageValue' ||
-      fieldName === 'additionalCharges'
-    ) {
-      const brokerageAmount = computeBrokerageAmount(form);
-      form.brokerageAmount = brokerageAmount ? brokerageAmount.toFixed(2) : '';
+      fieldName === 'additionalCharges' ||
+      fieldName === 'date' ||
+      fieldName === 'client' ||
+      fieldName === 'project';
+
+    if (!shouldRecalc) return form;
+
+    // Edits: never re-apply working-day proration to existing rows
+    if (editingTransactionId && type === 'fixed') {
+      if (fieldName === 'brokerageValue' || fieldName === 'brokerageType') {
+        const fee = toNumber(form.brokerageValue);
+        form.brokerageAmount = fee ? fee.toFixed(2) : '';
+      }
+      return form;
     }
 
+    const brokerageAmount = computeBrokerageAmount(form);
+    form.brokerageAmount = brokerageAmount ? brokerageAmount.toFixed(2) : '';
     return form;
   };
 
@@ -199,14 +255,14 @@ const TransactionFormModal = ({
         const amount = toNumber(form.amount);
         const brokerageAmount = computeBrokerageAmount(form);
         const additionalCharges = toNumber(form.additionalCharges);
-        const totalBeforeImpactFund = computeTotalAmount({ ...form, brokerageAmount });
-        const impactFundAmount = (totalBeforeImpactFund * 0.02) || 0;
-        const grandTotal = totalBeforeImpactFund - impactFundAmount;
-
-        const brokerageLabel =
-          form.brokerageType === 'percentage'
-            ? `Brokerage (${toNumber(form.brokerageValue)}%)`
-            : 'Brokerage (Fixed)';
+        const netBeforeImpactFund = computeTotalAmount({ ...form, brokerageAmount });
+        const impactFund = Number(((netBeforeImpactFund > 0 ? netBeforeImpactFund : 0) * 0.02).toFixed(2));
+        const netTotal = Number((netBeforeImpactFund - impactFund).toFixed(2));
+        const brokerageValue = toNumber(form.brokerageValue);
+        const isFixed = String(form.brokerageType || '').toLowerCase() === 'fixed';
+        const brokerageLabel = isFixed
+          ? 'Brokerage'
+          : `Brokerage (${brokerageValue}%)`;
 
         return (
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
@@ -216,25 +272,25 @@ const TransactionFormModal = ({
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600 font-medium">(-) {brokerageLabel}</span>
-              <span className="text-gray-900 font-semibold">{formatMoney(brokerageAmount)}</span>
+              <span className="text-red-600 font-semibold">{formatMoney(brokerageAmount)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600 font-medium">(-) Additional Charges</span>
-              <span className="text-gray-900 font-semibold">{formatMoney(additionalCharges)}</span>
+              <span className="text-red-600 font-semibold">{formatMoney(additionalCharges)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600 font-medium">(-) Impact Fund (2%)</span>
-              <span className="text-gray-900 font-semibold">{formatMoney(impactFundAmount)}</span>
+              <span className="text-red-600 font-semibold">{formatMoney(impactFund)}</span>
             </div>
             <div className="border-t border-gray-200 pt-3 flex items-center justify-between">
               <span className="text-gray-900 font-semibold">Total Amount (Net)</span>
-              <span className="text-primary-700 font-bold text-lg">{formatMoney(grandTotal)}</span>
+              <span className="text-primary-700 font-bold text-lg">{formatMoney(netTotal)}</span>
             </div>
           </div>
         );
       }
     }
-  ], [activeClientOptions, eligibleProjects, today, submitError]);
+  ], [activeClientOptions, eligibleProjects, today, submitError, transactions, editingTransactionId]);
 
   useEffect(() => {
     if (!isOpen) setSubmitError('');

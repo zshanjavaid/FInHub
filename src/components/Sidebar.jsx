@@ -1,6 +1,6 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FiHome, FiFileText, FiRepeat, FiTrendingDown, FiDollarSign, FiInbox, FiLayout, FiLogOut } from 'react-icons/fi';
+import { FiHome, FiFileText, FiRepeat, FiTrendingDown, FiDollarSign, FiInbox, FiLayout, FiLogOut, FiPercent } from 'react-icons/fi';
 import { useSelector } from 'react-redux';
 import { useAuth } from '../contexts/AuthContext';
 import Logo from './Logo';
@@ -34,22 +34,45 @@ const Sidebar = ({ isOpen = true, isDesktop = true, onClose, motionClass = '' })
     [transactions, expenses, projects]
   );
 
+  const expenseTypeParam = useMemo(() => {
+    if (location.pathname !== '/expenses') return '';
+    return new URLSearchParams(location.search).get('type') || '';
+  }, [location.pathname, location.search]);
+
   useEffect(() => {
     if (!isDesktop) onClose?.();
-  }, [location.pathname, isDesktop, onClose]);
+  }, [location.pathname, location.search, isDesktop, onClose]);
 
   const menuItems = [
     { path: '/', label: 'Dashboard', icon: FiHome },
     { path: '/projects', label: 'Projects', icon: FiFileText },
     { path: '/transactions', label: 'Transactions', icon: FiRepeat },
-    { path: '/expenses', label: 'Expenses', icon: FiTrendingDown },
+    { path: '/expenses', label: 'Expenses', icon: FiTrendingDown, match: 'expenses-all' },
+    { path: '/expenses?type=brokerage', label: 'Brokerage', icon: FiPercent, match: 'expenses-brokerage' },
     { path: '/pending', label: 'Pending', icon: FiInbox, badge: pendingCount },
     { path: '/impact-fund', label: 'Impact Fund', icon: FiDollarSign },
     { path: '/allocation', label: 'Allocation', icon: FiLayout }
   ];
 
+  const isItemActive = (item) => {
+    if (item.match === 'expenses-brokerage') {
+      return location.pathname === '/expenses' && expenseTypeParam === 'brokerage';
+    }
+    if (item.match === 'expenses-all') {
+      return location.pathname === '/expenses' && expenseTypeParam !== 'brokerage';
+    }
+    return location.pathname === item.path;
+  };
+
+  const activeKey = useMemo(() => {
+    const active = menuItems.find((item) => isItemActive(item));
+    return active?.path || location.pathname;
+    // menuItems is stable enough for nav; expenseTypeParam drives updates
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, expenseTypeParam, pendingCount]);
+
   useLayoutEffect(() => {
-    const el = itemRefs.current[location.pathname];
+    const el = itemRefs.current[activeKey];
     const nav = navRef.current;
     if (!el || !nav) return undefined;
 
@@ -64,7 +87,7 @@ const Sidebar = ({ isOpen = true, isDesktop = true, onClose, motionClass = '' })
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
-  }, [location.pathname, pendingCount]);
+  }, [activeKey, pendingCount]);
 
   const asideClass = `fixed left-0 top-0 z-50 h-full w-64 max-w-[85vw] ${motionClass} ${
     isOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
@@ -84,7 +107,6 @@ const Sidebar = ({ isOpen = true, isDesktop = true, onClose, motionClass = '' })
         </div>
 
         <nav ref={navRef} className="relative flex-1 px-3 py-4 sm:px-3.5 sm:py-5 space-y-1 overflow-y-auto" aria-label="Main">
-          {/* Sliding active pill — style stays the same, motion is on this layer */}
           <div
             className="finhub-nav-indicator pointer-events-none absolute left-3 right-3 sm:left-3.5 sm:right-3.5 rounded-xl bg-gradient-to-r from-primary-500/30 to-primary-500/10 shadow-[inset_3px_0_0_0_#2dd4bf]"
             style={{
@@ -96,7 +118,7 @@ const Sidebar = ({ isOpen = true, isDesktop = true, onClose, motionClass = '' })
           />
 
           {menuItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive = isItemActive(item);
             const count = item.badge ?? 0;
             const Icon = item.icon;
             return (

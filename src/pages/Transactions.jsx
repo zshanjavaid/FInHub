@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { FiInfo, FiTrendingUp } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
@@ -11,16 +12,26 @@ import ImportTransactionsModal from '../components/ImportTransactionsModal';
 import Modal, { modalActionsClass, modalScrollTableWrapClass, modalScrollTableInnerClass } from '../components/Modal';
 import DeferredMount, { ChartSkeleton } from '../components/DeferredMount';
 import { tableElementClass, tableHeadCellClass, tableBodyCellClass } from '../constants/tableStyles';
+import {
+  chartCardClass,
+  chartCardHeaderClass,
+  chartCardTitleClass,
+  chartCardIconWrapClass,
+  chartPlotWrapClass
+} from '../constants/chartCardStyles';
 import { fetchProjects } from '../store/projects/projectsSlice';
-import { fetchExpenses } from '../store/expenses/expensesSlice';
+import { createExpense, fetchExpenses } from '../store/expenses/expensesSlice';
 import {
   createTransaction,
   editTransaction,
   fetchTransactions,
-  removeTransaction
+  removeTransaction,
+  createTransactionsBulk
 } from '../store/transactions/transactionsSlice';
 import { normalizeDateToYYYYMMDD, filterByDateRange, MONTH_NAMES } from '../utils/date';
 import { shortenChartAxisLabel } from '../utils/chartLabels';
+import { formatMoney } from '../utils/format';
+import { transactionNetAfterImpactFund } from '../utils/transactionNet';
 import { isApproved } from '../constants/app';
 import { useDateFilter } from '../hooks/useDateFilter';
 import { useClientOptions } from '../hooks/useClientOptions';
@@ -33,11 +44,44 @@ import {
   isProjectEligibleForTransactions
 } from '../utils/transactionsEligibility';
 import { buildExpectedTransactionDatesForMonth, countExpectedPayoutsInRange, getPayoutOccurrenceLabel } from '../utils/payoutSchedule';
-import { computeProjectTaxDollars } from '../utils/project';
-import { createTransactionsBulk } from '../store/transactions/transactionsSlice';
+import { computeProjectTaxDollars, computeProjectBrokerageDollars } from '../utils/project';
+import {
+  monthKeyFromYmd,
+  planNewMonthlyBrokerageExpense
+} from '../utils/csvTransactionImport';
+import {
+  buildMonthlyBrokerageExpenseIfNeeded,
+  findLatestProjectByBrokerAndProject,
+  monthGrossForProject
+} from '../utils/ensureMonthlyBrokerageExpense';
 
 const BarChart = lazy(() => import('../components/BarChart'));
 const LineChartChartJS = lazy(() => import('../components/LineChartChartJS'));
+
+const monthlyTrendInfo = (
+  <div className="space-y-2 text-[11px] sm:text-xs text-slate-600 leading-relaxed">
+    <p className="font-semibold text-slate-800">How Monthly Trend is calculated</p>
+    <p>
+      <span className="font-medium text-slate-700">Each transaction net</span>
+      <br />
+      <span className="font-mono text-[10px] sm:text-[11px] text-slate-700">
+        totalAmount
+      </span>
+      <span className="text-slate-500">, or if missing: </span>
+      <span className="font-mono text-[10px] sm:text-[11px] text-slate-700">
+        amount − brokerage − additional charges
+      </span>
+    </p>
+    <p>
+      <span className="font-medium text-slate-700">Each month</span>
+      <br />
+      <span className="font-mono text-[10px] sm:text-[11px] text-slate-700">
+        Σ (net × 0.98)
+      </span>
+      <span className="text-slate-500"> after the 2% Impact Fund deduction</span>
+    </p>
+  </div>
+);
 
 const defaultForm = {
   client: '',
@@ -210,23 +254,24 @@ const Transactions = () => {
           const d = new Date(tDate);
           const idx = monthsRange.findIndex((r) => r.year === d.getFullYear() && r.month === d.getMonth());
           if (idx === -1) return;
-          const netBefore = Number.isFinite(Number(t.totalAmount)) ? Number(t.totalAmount) : (Number(t.amount) || 0) - (Number(t.brokerageAmount) || 0) - (Number(t.additionalCharges) || 0);
-          monthlyTotals[idx] += netBefore * 0.98;
+          monthlyTotals[idx] += transactionNetAfterImpactFund(t);
         });
-        return { labels, values: monthlyTotals };
+        return {
+          labels,
+          values: monthlyTotals.map((n) => Number(n.toFixed(2))),
+          isSingleMonth: monthsRange.length === 1
+        };
       }
     }
-    return { labels: [], values: [] };
+    return { labels: [], values: [], isSingleMonth: false };
   }, [approvedForCharts, dateFrom, dateTo]);
 
   const projectChartData = useMemo(() => {
     const list = approvedForCharts;
     const byProject = {};
     list.forEach((t) => {
-      const netBefore = Number.isFinite(Number(t.totalAmount)) ? Number(t.totalAmount) : (Number(t.amount) || 0) - (Number(t.brokerageAmount) || 0) - (Number(t.additionalCharges) || 0);
-      const netAfterImpactFund = netBefore * 0.98;
       const label = [t.client, t.project].filter(Boolean).join(' – ') || 'Other';
-      byProject[label] = (byProject[label] || 0) + netAfterImpactFund;
+      byProject[label] = (byProject[label] || 0) + transactionNetAfterImpactFund(t);
     });
     const fullLabels = Object.keys(byProject).sort();
     const labels = fullLabels.map((k) => shortenChartAxisLabel(k));
@@ -301,15 +346,31 @@ const Transactions = () => {
     setEditingTransaction(null);
   };
 
+  /** Same as CSV import: one monthly brokerage expense per client/project/month. */
+  const ensureMonthlyBrokerageExpense = async (transactionData, { excludeTxId = null } = {}) => {
+    const expenseData = buildMonthlyBrokerageExpenseIfNeeded({
+      transactionData,
+      projects,
+      transactions,
+      expenses,
+      excludeTxId,
+      createdBy: user?.uid || null
+    });
+    if (!expenseData) return;
+    await dispatch(createExpense(expenseData)).unwrap();
+  };
+
   const onSubmit = async (transactionData) => {
     if (editingTransactionId) {
       await dispatch(
         editTransaction({ transactionId: editingTransactionId, transactionData })
       ).unwrap();
+      await ensureMonthlyBrokerageExpense(transactionData, { excludeTxId: editingTransactionId });
       setEditingTransactionId(null);
     } else {
       const payload = user?.uid ? { ...transactionData, createdBy: user.uid } : transactionData;
       await dispatch(createTransaction(payload)).unwrap();
+      await ensureMonthlyBrokerageExpense(payload);
     }
 
     setIsModalOpen(false);
@@ -325,10 +386,11 @@ const Transactions = () => {
     return Number.isFinite(n) ? n : 0;
   };
 
-  const computeBrokerageAmountFromProject = (project, grossAmount) => {
+  const computeBrokerageAmountFromProject = (project, grossAmount, monthKey = '') => {
     const type = String(project?.brokerageType || 'percentage').trim().toLowerCase();
     const val = toNumber(project?.brokerageValue);
     if (type === 'percentage') return grossAmount * (val / 100);
+    if (monthKey) return computeProjectBrokerageDollars(project, { monthKey });
     return val;
   };
 
@@ -361,7 +423,7 @@ const Transactions = () => {
       const p = it.projectRow;
       if (isFreelanceProject(p)) return;
       const gross = toNumber(p?.totalMonthlyHours) * toNumber(p?.hourlyRate);
-      const brokerageAmount = computeBrokerageAmountFromProject(p, gross);
+      const brokerageAmount = computeBrokerageAmountFromProject(p, gross, it.monthKey);
       const tax = computeProjectTaxDollars(p);
       const projectCost = toNumber(p?.projectCost);
       const additionalCharges = Number((tax + projectCost).toFixed(2));
@@ -455,6 +517,41 @@ const Transactions = () => {
     try {
       const payload = buildAutoTransactionsPayload().map((t) => ({ ...t, createdBy: user.uid }));
       await dispatch(createTransactionsBulk(payload)).unwrap();
+
+      const expenseSnapshot = [...(expenses || [])];
+      const plannedKeys = new Set();
+      for (const t of payload) {
+        const monthKey = monthKeyFromYmd(t.date);
+        const planKey = `${String(t.client || '').trim().toLowerCase()}|${String(t.project || '').trim().toLowerCase()}|${monthKey}`;
+        if (!monthKey || plannedKeys.has(planKey)) continue;
+        plannedKeys.add(planKey);
+
+        const projectRow = findLatestProjectByBrokerAndProject(projects, t.client, t.project);
+        if (!projectRow || isFreelanceProject(projectRow)) continue;
+
+        const existingGross = monthGrossForProject(transactions, t.client, t.project, monthKey);
+        const newGross = payload
+          .filter((row) => {
+            if (monthKeyFromYmd(row.date) !== monthKey) return false;
+            if ((row.client || '').trim().toLowerCase() !== String(t.client || '').trim().toLowerCase()) return false;
+            return (row.project || '').trim().toLowerCase() === String(t.project || '').trim().toLowerCase();
+          })
+          .reduce((s, row) => s + (Number(row.amount) || 0), 0);
+
+        const expenseData = planNewMonthlyBrokerageExpense({
+          client: t.client,
+          project: t.project,
+          date: t.date,
+          projectRow,
+          expenses: expenseSnapshot,
+          monthGrossAmount: existingGross + newGross,
+          createdBy: user.uid
+        });
+        if (!expenseData) continue;
+        await dispatch(createExpense(expenseData)).unwrap();
+        expenseSnapshot.push(expenseData);
+      }
+
       setIsGenerateOpen(false);
     } catch (e) {
       setGenerateError(e?.message || 'Failed to generate transactions.');
@@ -520,11 +617,56 @@ const Transactions = () => {
             <Suspense fallback={<ChartSkeleton />}>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
                 {monthlyTrendData.labels.length > 0 && monthlyTrendData.values.some((v) => v > 0) && (
-                  <LineChartChartJS
-                    data={[{ label: 'Transactions (Net)', values: monthlyTrendData.values, color: '#0d9488' }]}
-                    labels={monthlyTrendData.labels}
-                    title="Monthly Trend"
-                  />
+                  monthlyTrendData.isSingleMonth ? (
+                    <div className={`${chartCardClass} flex flex-col !overflow-visible`}>
+                      <div className={`${chartCardHeaderClass} flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0 overflow-visible relative z-20`}>
+                        <div className={`${chartCardIconWrapClass} bg-primary-100 text-primary-600`}>
+                          <FiTrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </div>
+                        <div className="min-w-0 flex-1 flex items-center gap-1.5 sm:gap-2">
+                          <h3 className={`${chartCardTitleClass} min-w-0 truncate sm:whitespace-normal`}>
+                            Monthly Trend
+                            <span className="text-slate-500 font-semibold text-sm sm:text-base ml-1.5">
+                              · {monthlyTrendData.labels[0]}
+                            </span>
+                          </h3>
+                          <div className="relative group/info shrink-0">
+                            <button
+                              type="button"
+                              className="inline-flex items-center justify-center w-6 h-6 rounded-full text-slate-400 hover:text-primary-600 hover:bg-primary-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
+                              aria-label="How this chart is calculated"
+                            >
+                              <FiInfo className="w-4 h-4" aria-hidden />
+                            </button>
+                            <div
+                              role="tooltip"
+                              className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 w-[min(18.5rem,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-slate-200/90 bg-white p-3 text-left shadow-elevated opacity-0 scale-95 transition duration-150 group-hover/info:opacity-100 group-hover/info:scale-100 group-focus-within/info:opacity-100 group-focus-within/info:scale-100"
+                            >
+                              {monthlyTrendInfo}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`${chartPlotWrapClass} flex-1 flex flex-col items-center justify-center min-h-[220px] sm:min-h-[280px] md:min-h-[360px]`}>
+                        <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-[0.08em]">
+                          Transactions (Net)
+                        </p>
+                        <p className="mt-3 text-3xl sm:text-4xl md:text-5xl font-bold text-primary-700 tabular-nums tracking-tight">
+                          {formatMoney(monthlyTrendData.values[0] || 0)}
+                        </p>
+                        <p className="mt-2 text-sm text-slate-500">
+                          Total for {monthlyTrendData.labels[0]}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <LineChartChartJS
+                      data={[{ label: 'Transactions (Net)', values: monthlyTrendData.values, color: '#0d9488' }]}
+                      labels={monthlyTrendData.labels}
+                      title="Monthly Trend"
+                      info={monthlyTrendInfo}
+                    />
+                  )
                 )}
                 {projectChartData.labels.length > 0 && (
                   <BarChart
