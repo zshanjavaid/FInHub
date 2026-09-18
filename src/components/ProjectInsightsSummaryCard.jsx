@@ -79,7 +79,7 @@ const ProjectInsightsSummaryCard = ({ projects = [], activityProjects = null }) 
               <StatValue
                 value={endedCurr}
                 valueClassName="text-amber-900"
-                title="Projects marked inactive in this window (inactive date; older rows may use last update)."
+                title="Projects whose End Date falls in this window (inactive / completed)."
               />
             </div>
           </div>

@@ -23,6 +23,7 @@ import { EXPENSE_TYPE_LABELS, EXPENSE_TYPE_COLORS, RECURRING_MONTHS_LABELS } fro
 import { PROJECT_TYPE_OPTIONS, PROJECT_TYPE_COLORS } from '../constants/projectTypes';
 import PersonBadge from '../components/PersonBadge';
 import { getTaxFormDefaultsFromProject, prepareProjectForFirestore } from '../utils/project';
+import { getEffectiveProjectStatus } from '../utils/transactionsEligibility';
 import { normalizeDateToYYYYMMDD } from '../utils/date';
 import ErrorAlert from '../components/ErrorAlert';
 import PageContainer from '../components/PageContainer';
@@ -421,9 +422,8 @@ const PendingRequests = () => {
     {
       key: 'projectStatus',
       label: 'Status',
-      render: (value) => {
-        const status = value || 'active';
-        const isActive = status === 'active';
+      render: (_, project) => {
+        const isActive = getEffectiveProjectStatus(project) === 'active';
         const colorClass = isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700';
         return (
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${colorClass}`}>

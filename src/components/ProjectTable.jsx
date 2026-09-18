@@ -6,6 +6,7 @@ import { formatMoney } from '../utils/format';
 import { PAYOUT_OCCURRENCE_LABEL_BY_VALUE } from '../constants/payoutOccurrences';
 import PersonBadge from './PersonBadge';
 import ProjectTypeCountBar from './ProjectTypeCountBar';
+import { getEffectiveProjectStatus } from '../utils/transactionsEligibility';
 
 const ProjectTable = ({ projects, onDelete, onEdit, isLoading = false, title = 'Saved Projects', additionalFilters = null, hideFilters = [] }) => {
   const columns = [
@@ -49,9 +50,8 @@ const ProjectTable = ({ projects, onDelete, onEdit, isLoading = false, title = '
     {
       key: 'projectStatus',
       label: 'Status',
-      render: (value) => {
-        const status = value || 'active';
-        const isActive = status === 'active';
+      render: (_, project) => {
+        const isActive = getEffectiveProjectStatus(project) === 'active';
         const colorClass = isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700';
         return (
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${colorClass}`}>

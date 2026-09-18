@@ -177,6 +177,7 @@ export const isProjectContractEndingAlert = (project, monthsBefore = 2) => {
 
   if (today <= ymd) return true;
 
+  // Overdue only while still effectively active (DB lag before auto-inactive)
   const status = String(project?.projectStatus || 'active').trim().toLowerCase();
   return status === 'active';
 };

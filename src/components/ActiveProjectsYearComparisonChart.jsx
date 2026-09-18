@@ -121,7 +121,7 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
     return {
       labels,
       datasets: [
-        lineDataset('Total projects', (selected.active || []).slice(0, endIdx + 1), yearColor, {
+        lineDataset('Active projects', (selected.active || []).slice(0, endIdx + 1), yearColor, {
           fill: true,
           compact,
           pointIndex: selected.isCurrent ? pointIndex : endIdx
@@ -176,9 +176,9 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
               if (isAll) {
                 const year = Number(ctx.dataset.label);
                 const s = comparison.byYear[year];
-                const total = ctx.parsed?.y;
+                const active = ctx.parsed?.y;
                 const completed = s?.completed?.[ctx.dataIndex];
-                return `${year}: ${total == null ? '—' : total} total · ${completed == null ? '—' : completed} completed`;
+                return `${year}: ${active == null ? '—' : active} active · ${completed == null ? '—' : completed} completed`;
               }
               const v = ctx.parsed?.y;
               return `${ctx.dataset.label}: ${v == null ? '—' : v}`;
@@ -236,8 +236,8 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
             <p className={chartCardSubtitleClass}>
               {comparison.years.length
                 ? isAll
-                  ? 'Compare active totals by month across years.'
-                  : `Monthly total vs completed for ${selectedYear}.`
+                  ? 'Compare active headcount by month across years.'
+                  : `Monthly active vs completed for ${selectedYear}.`
                 : 'No yearly project history yet.'}
             </p>
           </div>
@@ -280,8 +280,8 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
                     {year}
                   </span>
                   <span className="mt-0.5 block text-[10px] font-semibold tabular-nums text-slate-500 leading-tight">
-                    <span className="text-slate-800">{s?.totalProjects ?? 0}</span>
-                    {' total · '}
+                    <span className="text-slate-800">{s?.latestActive ?? 0}</span>
+                    {' active · '}
                     <span className="text-amber-700">{s?.completedProjects ?? 0}</span>
                     {' completed'}
                   </span>

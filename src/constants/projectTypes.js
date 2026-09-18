@@ -1,3 +1,5 @@
+import { isProjectPastContractEnding } from '../utils/date';
+
 export const PROJECT_TYPE_OPTIONS = [
   { value: 'Full time', label: 'Full time' },
   { value: 'Part time', label: 'Part time' },
@@ -12,10 +14,13 @@ export const DASHBOARD_ACTIVE_PROJECT_TYPES = ['Full time', 'Part time', 'Contra
 export const isFreelanceProject = (project) =>
   String(project?.projectType || '').trim().toLowerCase() === 'freelance';
 
+/** Active on Dashboard: not inactive, End Date not passed, and non-freelance type. */
 export const isDashboardActiveProject = (project) => {
-  const status = project?.projectStatus || 'active';
+  const status = String(project?.projectStatus || 'active').trim().toLowerCase();
+  if (status === 'inactive') return false;
+  if (isProjectPastContractEnding(project)) return false;
   const type = (project?.projectType || '').trim();
-  return status === 'active' && DASHBOARD_ACTIVE_PROJECT_TYPES.includes(type);
+  return DASHBOARD_ACTIVE_PROJECT_TYPES.includes(type);
 };
 
 export const PROJECT_TYPE_COLORS = {

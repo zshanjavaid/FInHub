@@ -8,7 +8,6 @@ import FilterBar from '../components/FilterBar';
 import SearchableDropdown from '../components/SearchableDropdown';
 import ProjectTable from '../components/ProjectTable';
 import ProjectFormModal from '../components/ProjectFormModal';
-import { filterByDateRange } from '../utils/date';
 import { useDateFilter } from '../hooks/useDateFilter';
 import { useClientOptions } from '../hooks/useClientOptions';
 import { isApproved } from '../constants/app';
@@ -17,11 +16,9 @@ import ErrorAlert from '../components/ErrorAlert';
 import PageContainer from '../components/PageContainer';
 import ProjectInsightsSummaryCard from '../components/ProjectInsightsSummaryCard';
 import { getTaxFormDefaultsFromProject, prepareProjectForFirestore } from '../utils/project';
+import { projectMatchesStatusInRange } from '../utils/transactionsEligibility';
 
 const PROJECT_STATUS_FILTER_LABELS = ['All', 'Active', 'Inactive'];
-
-const normalizeProjectStatus = (p) =>
-  String(p?.projectStatus || 'active').trim().toLowerCase();
 
 const Projects = () => {
   const dispatch = useDispatch();
@@ -58,14 +55,11 @@ const Projects = () => {
   });
 
   const filteredProjects = useMemo(() => {
-    let list = filterByDateRange(projects || [], dateFrom, dateTo, (p) => p.date);
+    let list = (projects || []).filter((p) =>
+      projectMatchesStatusInRange(p, statusFilter, dateFrom, dateTo)
+    );
     if (selectedBroker) list = list.filter((p) => (p.client || '').trim() === selectedBroker);
     if (selectedProjectType) list = list.filter((p) => (p.projectType || '').trim() === selectedProjectType);
-    if (statusFilter === 'active') {
-      list = list.filter((p) => normalizeProjectStatus(p) === 'active');
-    } else if (statusFilter === 'inactive') {
-      list = list.filter((p) => normalizeProjectStatus(p) === 'inactive');
-    }
     return list;
   }, [projects, dateFrom, dateTo, selectedBroker, selectedProjectType, statusFilter]);
 

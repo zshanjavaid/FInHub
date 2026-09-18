@@ -1,7 +1,7 @@
 import { collection, addDoc, getDocs, getDoc, deleteDoc, doc, updateDoc, deleteField } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ENTRY_STATUS } from '../constants/app';
-import { needsAutoInactiveStatus } from '../utils/date';
+import { needsAutoInactiveStatus, normalizeDateToYYYYMMDD } from '../utils/date';
 
 export const getAllProjects = async () => {
   try {
@@ -51,14 +51,19 @@ export const updateProject = async (projectId, projectData) => {
         : prev.projectStatus || 'active'
     ).trim().toLowerCase();
 
-    const { inactiveAt: _clientInactiveAt, ...rest } = projectData;
+    const { inactiveAt: clientInactiveAt, ...rest } = projectData;
     const payload = {
       ...rest,
       updatedAt: new Date().toISOString()
     };
 
     if (nextStatus === 'inactive' && prevStatus !== 'inactive') {
-      payload.inactiveAt = new Date().toISOString();
+      // Allow callers (auto-inactive) to pass the real end date; otherwise stamp now.
+      if (clientInactiveAt) {
+        payload.inactiveAt = clientInactiveAt;
+      } else {
+        payload.inactiveAt = new Date().toISOString();
+      }
     } else if (nextStatus === 'active') {
       payload.inactiveAt = deleteField();
     }
@@ -72,14 +77,20 @@ export const updateProject = async (projectId, projectData) => {
 
 /**
  * Sets projectStatus to inactive for active projects whose End Date (contractEnding) has passed.
- * Returns how many were updated. Uses existing updateProject so inactiveAt is set.
+ * Returns how many were updated. Stamps inactiveAt to the End Date (not "now").
  */
 export const inactivateExpiredProjects = async (projects = []) => {
   const due = (projects || []).filter((p) => p?.id && needsAutoInactiveStatus(p));
   if (!due.length) return 0;
 
   const results = await Promise.allSettled(
-    due.map((p) => updateProject(p.id, { projectStatus: 'inactive' }))
+    due.map((p) => {
+      const endYmd = normalizeDateToYYYYMMDD(p.contractEnding);
+      return updateProject(p.id, {
+        projectStatus: 'inactive',
+        ...(endYmd ? { inactiveAt: `${endYmd}T12:00:00.000Z` } : {})
+      });
+    })
   );
 
   const failed = results.filter((r) => r.status === 'rejected');

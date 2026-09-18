@@ -2,8 +2,40 @@ import { addMonths } from 'date-fns';
 import { isFreelanceProject } from '../constants/projectTypes';
 import { normalizeDateToYYYYMMDD } from './date';
 
-export const isActiveProject = (project) =>
-  String(project?.projectStatus || 'active').trim().toLowerCase() === 'active';
+/**
+ * When the project leaves the active pool:
+ * End Date if set; otherwise inactiveAt/updatedAt when marked inactive.
+ */
+export const projectLifecycleEndYmd = (project) => {
+  const contractEnd = normalizeDateToYYYYMMDD(project?.contractEnding);
+  if (contractEnd) return contractEnd;
+
+  const status = String(project?.projectStatus || 'active').trim().toLowerCase();
+  if (status !== 'inactive') return '';
+
+  return (
+    normalizeDateToYYYYMMDD(project?.inactiveAt) ||
+    normalizeDateToYYYYMMDD(project?.updatedAt) ||
+    ''
+  );
+};
+
+/**
+ * Status as of a date: Inactive if marked inactive OR End Date has passed.
+ * Active until then (matches Projects table + annual chart).
+ */
+export const getEffectiveProjectStatus = (project, asOf = new Date()) => {
+  const stored = String(project?.projectStatus || 'active').trim().toLowerCase();
+  if (stored === 'inactive') return 'inactive';
+
+  const endYmd = normalizeDateToYYYYMMDD(project?.contractEnding);
+  const asOfYmd = normalizeDateToYYYYMMDD(asOf);
+  if (endYmd && asOfYmd && asOfYmd > endYmd) return 'inactive';
+  return 'active';
+};
+
+export const isActiveProject = (project, asOf = new Date()) =>
+  getEffectiveProjectStatus(project, asOf) === 'active';
 
 /**
  * True if the project was active at any point during [monthStart, monthEnd].
@@ -14,8 +46,8 @@ export const wasProjectActiveInMonth = (project, monthStart, monthEnd) =>
 
 /**
  * Status of a project during a calendar month:
- * - 'active' — started by month end and not yet ended
- * - 'inactive' — already ended by month end
+ * - 'active' — started by month end and still active after month end
+ * - 'inactive' — ended on or before month end
  * - null — not started yet that month
  */
 export const projectStatusInMonth = (project, monthStart, monthEnd) => {
@@ -25,24 +57,15 @@ export const projectStatusInMonth = (project, monthStart, monthEnd) => {
   if (!startYmd || !rangeStart || !rangeEnd) return null;
   if (startYmd > rangeEnd) return null;
 
-  const status = String(project?.projectStatus || 'active').trim().toLowerCase();
-  if (status === 'active') return 'active';
-
-  const endedYmd = projectInactiveEventYmd(project);
-  if (!endedYmd) return 'inactive';
-  // Still active during this month if it ended after the month ends
-  if (endedYmd > rangeEnd) return 'active';
-  return 'inactive';
+  const endedYmd = projectLifecycleEndYmd(project);
+  if (endedYmd && endedYmd <= rangeEnd) return 'inactive';
+  return 'active';
 };
 
-/** End date used for inactive event (matches 3-month activity: inactiveAt, else updatedAt). */
-export const projectInactiveEventYmd = (project) => {
-  const status = String(project?.projectStatus || 'active').trim().toLowerCase();
-  if (status !== 'inactive') return '';
-  const fromInactiveAt = normalizeDateToYYYYMMDD(project?.inactiveAt);
-  if (fromInactiveAt) return fromInactiveAt;
-  return normalizeDateToYYYYMMDD(project?.updatedAt);
-};
+/**
+ * Completion / ended date (End Date preferred). Alias for chart + inactive filters.
+ */
+export const projectInactiveEventYmd = (project) => projectLifecycleEndYmd(project);
 
 const projectIdentityKey = (project) =>
   `${String(project?.client || '').trim().toLowerCase()}|${String(project?.project || '').trim().toLowerCase()}`;
@@ -103,6 +126,40 @@ export const wasProjectInactivatedInMonth = (project, monthStart, monthEnd) => {
   const endedYmd = projectInactiveEventYmd(project);
   if (!endedYmd) return false;
   return endedYmd >= rangeStart && endedYmd <= rangeEnd;
+};
+
+/**
+ * Projects filter (keep this simple — matches chart):
+ * - Active: still active at range end (start ≤ to, End Date empty or after to)
+ * - Inactive: End Date / completion falls inside [from, to]
+ * - All: project existed in the range (started by to, not ended before from)
+ *
+ * Example: start Jan, end March → Active in Jan & Feb; Inactive/All in March; not Active in March.
+ */
+export const projectMatchesStatusInRange = (project, statusFilter, dateFrom, dateTo) => {
+  const start = normalizeDateToYYYYMMDD(project?.date);
+  const end = projectLifecycleEndYmd(project);
+  const from = normalizeDateToYYYYMMDD(dateFrom);
+  const to = normalizeDateToYYYYMMDD(dateTo);
+
+  if (!from && !to) {
+    const status = getEffectiveProjectStatus(project);
+    if (statusFilter === 'active') return status === 'active';
+    if (statusFilter === 'inactive') return status === 'inactive';
+    return true;
+  }
+
+  if (!start) return false;
+  if (to && start > to) return false;
+
+  const stillActiveAtRangeEnd = Boolean(to) && (!end || end > to);
+  const completedInRange =
+    Boolean(end) && (!from || end >= from) && (!to || end <= to);
+  const existedInRange = (!from || !end || end >= from) && (!to || start <= to);
+
+  if (statusFilter === 'active') return stillActiveAtRangeEnd;
+  if (statusFilter === 'inactive') return completedInRange;
+  return existedInRange;
 };
 
 export const isProjectEligibleForAutoGenerateMonth = (project, monthStart, monthEnd) => {

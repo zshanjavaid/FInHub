@@ -2,7 +2,7 @@ import { MONTH_NAMES, normalizeDateToYYYYMMDD } from './date';
 import {
   wasProjectInactivatedInMonth,
   uniqueProjectsForTrend,
-  projectInactiveEventYmd
+  projectLifecycleEndYmd
 } from './transactionsEligibility';
 
 const monthBounds = (year, monthIndex0) => {
@@ -23,32 +23,28 @@ const yearBounds = (year, currentYear, currentMonth) => {
   return { from, to };
 };
 
-/** Active headcount in a calendar month. */
+/**
+ * Active headcount in a calendar month (same rule as Projects table):
+ * started by month end, and End Date / completion is still after month end.
+ */
 export const countActiveProjectsInMonth = (projects, year, monthIndex0) => {
   const uniqueProjects = uniqueProjectsForTrend(projects);
-  const { from: ms, to: me } = monthBounds(year, monthIndex0);
+  const { to: me } = monthBounds(year, monthIndex0);
   let active = 0;
 
   uniqueProjects.forEach((p) => {
     const startYmd = normalizeDateToYYYYMMDD(p?.date);
     if (!startYmd || startYmd > me) return;
 
-    if (wasProjectInactivatedInMonth(p, ms, me)) return;
-
-    const status = String(p?.projectStatus || 'active').trim().toLowerCase();
-    if (status === 'active') {
-      active += 1;
-      return;
-    }
-
-    const endedYmd = projectInactiveEventYmd(p);
-    if (endedYmd && endedYmd > me) active += 1;
+    const endedYmd = projectLifecycleEndYmd(p);
+    // Still active at month end: no end yet, or ends after this month
+    if (!endedYmd || endedYmd > me) active += 1;
   });
 
   return active;
 };
 
-/** Projects marked inactive in a calendar month. */
+/** Projects whose End Date (completion) falls in a calendar month. */
 export const countCompletedProjectsInMonth = (projects, year, monthIndex0) => {
   const uniqueProjects = uniqueProjectsForTrend(projects);
   const { from: ms, to: me } = monthBounds(year, monthIndex0);
@@ -62,7 +58,7 @@ export const countCompletedProjectsInMonth = (projects, year, monthIndex0) => {
 /**
  * Year totals:
  * - totalProjects: unique projects that existed during the year
- * - completedProjects: unique projects inactivated during that year
+ * - completedProjects: unique projects whose End Date falls in that year
  */
 export const countYearProjectTotals = (projects, year, currentYear, currentMonth) => {
   const uniqueProjects = uniqueProjectsForTrend(projects);
@@ -74,11 +70,10 @@ export const countYearProjectTotals = (projects, year, currentYear, currentMonth
     const startYmd = normalizeDateToYYYYMMDD(p?.date);
     if (!startYmd || startYmd > to) return;
 
-    const status = String(p?.projectStatus || 'active').trim().toLowerCase();
-    const endedYmd = projectInactiveEventYmd(p);
+    const endedYmd = projectLifecycleEndYmd(p);
 
     // Ended before this year began → never existed in this year
-    if (status === 'inactive' && endedYmd && endedYmd < from) return;
+    if (endedYmd && endedYmd < from) return;
 
     totalProjects += 1;
 
@@ -101,7 +96,7 @@ const earliestProjectYear = (projects = [], currentYear) => {
   uniqueProjectsForTrend(projects).forEach((p) => {
     const startY = yearFromYmd(normalizeDateToYYYYMMDD(p?.date));
     if (startY != null && startY < minYear) minYear = startY;
-    const endY = yearFromYmd(projectInactiveEventYmd(p));
+    const endY = yearFromYmd(projectLifecycleEndYmd(p));
     if (endY != null && endY < minYear) minYear = endY;
   });
   return minYear;

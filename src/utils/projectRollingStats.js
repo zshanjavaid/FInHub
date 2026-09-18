@@ -1,25 +1,16 @@
 import { addMonths, startOfDay, format } from 'date-fns';
 import { normalizeDateToYYYYMMDD } from './date';
 import { isApproved } from '../constants/app';
+import { projectInactiveEventYmd } from './transactionsEligibility';
 
 const inRange = (ymd, start, end) => Boolean(ymd && start && end && ymd >= start && ymd <= end);
-
-const isInactiveProject = (p) =>
-  String(p?.projectStatus || 'active').trim().toLowerCase() === 'inactive';
-
-const inactiveRecordedYmd = (p) => {
-  if (!isInactiveProject(p)) return '';
-  const fromInactiveAt = normalizeDateToYYYYMMDD(p.inactiveAt);
-  if (fromInactiveAt) return fromInactiveAt;
-  return normalizeDateToYYYYMMDD(p.updatedAt);
-};
 
 const countCurrentWindow = (projects, currStartYmd, currEndYmd) => {
   let onboardCurr = 0;
   let endedCurr = 0;
   for (const p of projects) {
     const onboard = normalizeDateToYYYYMMDD(p.date);
-    const ended = inactiveRecordedYmd(p);
+    const ended = projectInactiveEventYmd(p);
     if (inRange(onboard, currStartYmd, currEndYmd)) onboardCurr += 1;
     if (inRange(ended, currStartYmd, currEndYmd)) endedCurr += 1;
   }
