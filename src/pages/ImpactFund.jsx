@@ -140,7 +140,7 @@ const ImpactFund = () => {
       Icon: FiDollarSign,
       valueClassName: 'text-primary-600',
       iconClassName: 'text-primary-500',
-      borderClassName: 'border-primary-500'
+      borderClassName: 'border-t-primary-600'
     },
     {
       label: 'Withdrawn',
@@ -148,7 +148,7 @@ const ImpactFund = () => {
       Icon: FiTrendingDown,
       valueClassName: 'text-red-600',
       iconClassName: 'text-red-500',
-      borderClassName: 'border-red-500'
+      borderClassName: 'border-t-red-500'
     },
     {
       label: 'Remaining',
@@ -156,7 +156,7 @@ const ImpactFund = () => {
       Icon: FiCreditCard,
       valueClassName: 'text-emerald-600',
       iconClassName: 'text-emerald-500',
-      borderClassName: 'border-emerald-500'
+      borderClassName: 'border-t-emerald-500'
     }
   ];
 

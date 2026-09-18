@@ -7,16 +7,21 @@ import {
   deleteExpense as deleteExpenseService,
   approveExpense as approveExpenseService
 } from '../../services/expenseService';
+import { shouldSkipListFetch } from '../../utils/fetchGate';
 
-export const fetchExpenses = createAsyncThunk('expenses/fetchAll', async () => {
-  return await getAllExpensesService();
-});
+export const fetchExpenses = createAsyncThunk(
+  'expenses/fetchAll',
+  async () => await getAllExpensesService(),
+  {
+    condition: (arg, { getState }) => !shouldSkipListFetch(getState().expenses, arg)
+  }
+);
 
 export const createExpense = createAsyncThunk(
   'expenses/create',
   async (expenseData, { dispatch }) => {
     await saveExpenseService(expenseData);
-    await dispatch(fetchExpenses());
+    await dispatch(fetchExpenses({ force: true }));
   }
 );
 
@@ -24,7 +29,7 @@ export const editExpense = createAsyncThunk(
   'expenses/edit',
   async ({ expenseId, expenseData }, { dispatch }) => {
     await updateExpenseService(expenseId, expenseData);
-    await dispatch(fetchExpenses());
+    await dispatch(fetchExpenses({ force: true }));
   }
 );
 
@@ -35,7 +40,7 @@ export const removeExpense = createAsyncThunk(
       await deleteExpenseService(expenseId);
       return expenseId;
     } catch (error) {
-      await dispatch(fetchExpenses());
+      await dispatch(fetchExpenses({ force: true }));
       return rejectWithValue(error?.message || 'Failed to delete expense');
     }
   }
@@ -48,7 +53,7 @@ export const approveExpense = createAsyncThunk(
       await approveExpenseService(expenseId, approvedBy);
       return { expenseId, approvedBy };
     } catch (error) {
-      await dispatch(fetchExpenses());
+      await dispatch(fetchExpenses({ force: true }));
       return rejectWithValue(error?.message || 'Failed to approve expense');
     }
   }
@@ -64,7 +69,8 @@ const expensesSlice = createSlice({
   initialState: {
     items: [],
     isLoading: false,
-    error: null
+    error: null,
+    lastFetchedAt: null
   },
   reducers: {},
   extraReducers: (builder) => {
@@ -76,6 +82,7 @@ const expensesSlice = createSlice({
       .addCase(fetchExpenses.fulfilled, (state, action) => {
         state.items = action.payload || [];
         state.isLoading = false;
+        state.lastFetchedAt = Date.now();
       })
       .addCase(fetchExpenses.rejected, (state, action) => {
         state.isLoading = false;

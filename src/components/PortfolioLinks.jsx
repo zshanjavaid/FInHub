@@ -5,14 +5,15 @@ import {
   chartCardHeaderClass,
   chartCardTitleClass,
   chartCardSubtitleClass,
-  chartCardIconWrapClass
+  chartCardIconWrapClass,
+  chartPlotWrapClass
 } from '../constants/chartCardStyles';
 
 const PortfolioLinks = () => (
-  <div className={`${chartCardClass} border-t-4 border-t-primary-500`}>
+  <div className={chartCardClass}>
     <div className={chartCardHeaderClass}>
       <div className="flex items-start gap-2.5 sm:gap-3 min-w-0">
-        <div className={`${chartCardIconWrapClass} bg-primary-100 text-primary-600`}>
+        <div className={chartCardIconWrapClass}>
           <FiGrid className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden />
         </div>
         <div className="min-w-0">
@@ -22,7 +23,7 @@ const PortfolioLinks = () => (
       </div>
     </div>
 
-    <div className="p-3 sm:p-4 md:p-5">
+    <div className={chartPlotWrapClass}>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-2.5 sm:gap-3">
         {PORTFOLIO_SITES.map((site) => (
           <a
@@ -30,7 +31,7 @@ const PortfolioLinks = () => (
             href={site.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white px-3 py-3 shadow-sm ring-1 ring-slate-100/80 hover:border-primary-300 hover:bg-primary-50/40 hover:ring-primary-200/50 transition-colors min-w-0"
+            className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-3 hover:border-primary-300 hover:bg-primary-50/50 transition-colors min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 focus-visible:ring-offset-1"
           >
             <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/80 shrink-0 overflow-hidden">
               <img

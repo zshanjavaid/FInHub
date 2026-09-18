@@ -1,14 +1,5 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-} from 'chart.js';
 import { FiBarChart2 } from 'react-icons/fi';
 import {
   chartCardClass,
@@ -28,15 +19,9 @@ import {
   buildLegendFont,
   buildLegendPadding
 } from '../utils/chartTheme';
+import { ensureChartJsRegistered } from '../utils/registerChart';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+ensureChartJsRegistered();
 
 const BarChart = ({ data, labels, title = 'Bar Chart', fullLabels = null, headerRight = null }) => {
   const compact = useCompactChart();
@@ -133,7 +118,7 @@ const BarChart = ({ data, labels, title = 'Bar Chart', fullLabels = null, header
   );
 
   return (
-    <div className={`${chartCardClass} border-t-4 border-t-primary-500`}>
+    <div className={chartCardClass}>
       <div className={`${chartCardHeaderClass} flex items-center gap-2.5 sm:gap-3 min-w-0`}>
         <div className={`${chartCardIconWrapClass} bg-primary-100 text-primary-600`}>
           <FiBarChart2 className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -150,4 +135,4 @@ const BarChart = ({ data, labels, title = 'Bar Chart', fullLabels = null, header
   );
 };
 
-export default BarChart;
+export default memo(BarChart);

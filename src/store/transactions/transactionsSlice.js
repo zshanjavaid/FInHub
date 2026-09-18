@@ -9,16 +9,21 @@ import {
   deleteTransactionsBulk as deleteTransactionsBulkService,
   approveTransaction as approveTransactionService
 } from '../../services/transactionService';
+import { shouldSkipListFetch } from '../../utils/fetchGate';
 
-export const fetchTransactions = createAsyncThunk('transactions/fetchAll', async () => {
-  return await getAllTransactionsService();
-});
+export const fetchTransactions = createAsyncThunk(
+  'transactions/fetchAll',
+  async () => await getAllTransactionsService(),
+  {
+    condition: (arg, { getState }) => !shouldSkipListFetch(getState().transactions, arg)
+  }
+);
 
 export const createTransaction = createAsyncThunk(
   'transactions/create',
   async (transactionData, { dispatch }) => {
     await saveTransactionService(transactionData);
-    await dispatch(fetchTransactions());
+    await dispatch(fetchTransactions({ force: true }));
   }
 );
 
@@ -26,7 +31,7 @@ export const createTransactionsBulk = createAsyncThunk(
   'transactions/createBulk',
   async (transactions, { dispatch }) => {
     await saveTransactionsBulkService(transactions);
-    await dispatch(fetchTransactions());
+    await dispatch(fetchTransactions({ force: true }));
   }
 );
 
@@ -34,7 +39,7 @@ export const editTransaction = createAsyncThunk(
   'transactions/edit',
   async ({ transactionId, transactionData }, { dispatch }) => {
     await updateTransactionService(transactionId, transactionData);
-    await dispatch(fetchTransactions());
+    await dispatch(fetchTransactions({ force: true }));
   }
 );
 
@@ -45,7 +50,7 @@ export const removeTransaction = createAsyncThunk(
       await deleteTransactionService(transactionId);
       return transactionId;
     } catch (error) {
-      await dispatch(fetchTransactions());
+      await dispatch(fetchTransactions({ force: true }));
       return rejectWithValue(error?.message || 'Failed to delete transaction');
     }
   }
@@ -58,7 +63,7 @@ export const removeTransactionsBulk = createAsyncThunk(
       await deleteTransactionsBulkService(transactionIds);
       return transactionIds;
     } catch (error) {
-      await dispatch(fetchTransactions());
+      await dispatch(fetchTransactions({ force: true }));
       return rejectWithValue(error?.message || 'Failed to delete transactions');
     }
   }
@@ -71,7 +76,7 @@ export const approveTransaction = createAsyncThunk(
       await approveTransactionService(transactionId, approvedBy);
       return { transactionId, approvedBy };
     } catch (error) {
-      await dispatch(fetchTransactions());
+      await dispatch(fetchTransactions({ force: true }));
       return rejectWithValue(error?.message || 'Failed to approve transaction');
     }
   }
@@ -90,7 +95,8 @@ const transactionsSlice = createSlice({
   initialState: {
     items: [],
     isLoading: false,
-    error: null
+    error: null,
+    lastFetchedAt: null
   },
   reducers: {},
   extraReducers: (builder) => {
@@ -102,6 +108,7 @@ const transactionsSlice = createSlice({
       .addCase(fetchTransactions.fulfilled, (state, action) => {
         state.items = action.payload || [];
         state.isLoading = false;
+        state.lastFetchedAt = Date.now();
       })
       .addCase(fetchTransactions.rejected, (state, action) => {
         state.isLoading = false;

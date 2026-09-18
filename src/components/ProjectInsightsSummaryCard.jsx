@@ -25,7 +25,7 @@ const ProjectInsightsSummaryCard = ({ projects = [], activityProjects = null }) 
   );
 
   return (
-    <div className={`${chartCardClass} border-t-4 border-t-primary-500 overflow-hidden`}>
+    <div className={`${chartCardClass} overflow-hidden`}>
       <div className={chartCardHeaderClass}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 md:gap-6">
           <div className="flex items-start gap-2.5 sm:gap-3 min-w-0">
@@ -50,16 +50,16 @@ const ProjectInsightsSummaryCard = ({ projects = [], activityProjects = null }) 
         </div>
       </div>
 
-      <div className="px-3 py-3 sm:px-4 md:px-6 sm:py-4 md:py-5 bg-slate-100/60 border-t border-slate-200/80">
+      <div className="px-3 py-3 sm:px-4 md:px-6 sm:py-4 md:py-5 bg-slate-50 border-t border-slate-100">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 md:gap-4">
-          <div className="rounded-lg sm:rounded-xl bg-white/90 border border-slate-200/80 shadow-sm ring-1 ring-slate-100/80 pl-3 pr-3 sm:pl-3.5 sm:pr-4 py-3 sm:py-3.5 border-l-[3px] border-l-primary-500 min-w-0">
+          <div className="rounded-lg sm:rounded-xl bg-white border border-slate-200 pl-3 pr-3 sm:pl-3.5 sm:pr-4 py-3 sm:py-3.5 border-l-[3px] border-l-primary-600 min-w-0">
             <div className="flex items-center gap-2 mb-2 sm:mb-3">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary-500 ring-2 ring-primary-500/25" aria-hidden />
-              <span className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.12em] sm:tracking-[0.14em] text-slate-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary-600" aria-hidden />
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-slate-600">
                 Onboard
               </span>
             </div>
-            <div className="rounded-lg bg-slate-50/95 border border-slate-100 px-2.5 py-2">
+            <div className="rounded-lg bg-slate-50 border border-slate-100 px-2.5 py-2">
               <StatValue
                 value={onboardCurr}
                 valueClassName="text-primary-800"
@@ -68,10 +68,10 @@ const ProjectInsightsSummaryCard = ({ projects = [], activityProjects = null }) 
             </div>
           </div>
 
-          <div className="rounded-lg sm:rounded-xl bg-white/90 border border-slate-200/80 shadow-sm ring-1 ring-slate-100/80 pl-3 pr-3 sm:pl-3.5 sm:pr-4 py-3 sm:py-3.5 border-l-[3px] border-l-amber-500 min-w-0">
+          <div className="rounded-lg sm:rounded-xl bg-white border border-slate-200 pl-3 pr-3 sm:pl-3.5 sm:pr-4 py-3 sm:py-3.5 border-l-[3px] border-l-amber-500 min-w-0">
             <div className="flex items-center gap-2 mb-2 sm:mb-3">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 ring-2 ring-amber-500/25" aria-hidden />
-              <span className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.12em] sm:tracking-[0.14em] text-amber-900/80">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-amber-900/80">
                 Ended
               </span>
             </div>

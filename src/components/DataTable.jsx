@@ -9,6 +9,13 @@ import {
   tableBodyCellClass,
   tableScrollWrapClass
 } from '../constants/tableStyles';
+import {
+  chartCardClass,
+  chartCardHeaderClass,
+  chartCardIconWrapClass,
+  chartCardTitleClass,
+  chartCardSubtitleClass
+} from '../constants/chartCardStyles';
 
 const DataTable = ({
   data = [],
@@ -84,25 +91,21 @@ const DataTable = ({
 
   const tableHeader = (
     <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-      <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary-100 text-primary-600 shrink-0">
+      <div className={`${chartCardIconWrapClass} bg-primary-100 text-primary-600`}>
         <FiFileText className="w-4 h-4 sm:w-5 sm:h-5" />
       </div>
       <div className="min-w-0">
-        <h3 className="text-base sm:text-lg md:text-xl font-bold text-slate-800 tracking-tight truncate">{title}</h3>
-        <p className="text-[11px] sm:text-xs md:text-sm text-slate-500 mt-0.5">Search and filter below</p>
+        <h3 className={`${chartCardTitleClass} truncate`}>{title}</h3>
+        <p className={chartCardSubtitleClass}>Search and filter below</p>
       </div>
     </div>
   );
 
-  const tableCardClass =
-    'bg-white rounded-2xl shadow-panel overflow-hidden border border-slate-200/80 ring-1 ring-slate-200/50 border-t-4 border-t-primary-500 min-w-0 w-full';
-
-  const tableHeaderBarClass =
-    'px-4 py-3.5 sm:px-6 sm:py-5 bg-gradient-to-r from-slate-50 to-white border-b border-slate-200/80';
+  const tableCardClass = chartCardClass;
 
   const renderTableHeaderBar = () => (
     <div
-      className={`${tableHeaderBarClass} flex flex-col sm:flex-row flex-wrap justify-between items-start sm:items-center gap-3 sm:gap-4`}
+      className={`${chartCardHeaderClass} flex flex-col sm:flex-row flex-wrap justify-between items-start sm:items-center gap-3 sm:gap-4`}
     >
       {tableHeader}
       {titleActions ? <div className="w-full sm:w-auto min-w-0">{titleActions}</div> : null}
@@ -127,8 +130,8 @@ const DataTable = ({
     return (
       <div className={tableCardClass}>
         {renderTableHeaderBar()}
-        <div className="flex justify-center py-8 sm:py-10 px-4">
-          <Loader />
+        <div className="flex justify-center py-6 sm:py-8 px-4">
+          <Loader size="sm" className="py-4" />
         </div>
       </div>
     );
@@ -165,7 +168,7 @@ const DataTable = ({
                 placeholder={searchConfig.placeholder}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 sm:px-4 sm:py-2.5 pl-9 sm:pl-10 text-sm border-2 border-slate-300 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                className="w-full px-3 py-2 sm:px-4 sm:py-2.5 pl-9 sm:pl-10 text-sm border-2 border-slate-300 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus-visible:ring-2 focus-visible:ring-primary-500/30"
               />
               <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                 <FiSearch className="w-5 h-5 text-slate-400" />
@@ -175,7 +178,7 @@ const DataTable = ({
         )}
 
         {filters.map((filter) => (
-          <div key={filter.key} className="w-full md:w-auto shrink-0">
+          <div key={filter.key} className="w-full md:w-auto shrink-0 min-w-0">
             {filter.type === 'searchable' ? (
               <SearchableDropdown
                 label={filter.label}
@@ -195,7 +198,7 @@ const DataTable = ({
                   <select
                     value={filterValues[filter.key] || 'All'}
                     onChange={(e) => setFilterValues(prev => ({ ...prev, [filter.key]: e.target.value }))}
-                    className="w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 appearance-none bg-white pr-10 cursor-pointer text-slate-700"
+                    className="w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus-visible:ring-2 focus-visible:ring-primary-500/30 appearance-none bg-white pr-10 cursor-pointer text-slate-700"
                   >
                     {getFilterOptions(filter).map(option => (
                       <option key={option} value={option}>{option}</option>
@@ -234,7 +237,7 @@ const DataTable = ({
             <table className={tableElementClass}>
               <thead>
                 {headerSummaryDisplay != null && headerSummaryColIndex >= 0 ? (
-                  <tr className="bg-primary-50/90 border-b border-primary-200/60">
+                  <tr className="bg-slate-50 border-b border-slate-200/80">
                     {headerSummaryColIndex > 0 ? (
                       <th
                         colSpan={headerSummaryColIndex}
@@ -259,7 +262,7 @@ const DataTable = ({
                       />
                     ) : null}
                     {(onEdit || onDelete || onApprove) && (
-                      <th className="py-2 px-2 sm:py-2.5 sm:px-4 bg-primary-50/90" aria-hidden />
+                      <th className="py-2 px-2 sm:py-2.5 sm:px-4 bg-slate-50" aria-hidden />
                     )}
                   </tr>
                 ) : null}
@@ -285,7 +288,7 @@ const DataTable = ({
                     const rowAccent = getRowClassName?.(item, localIndex);
                     const trClass = rowAccent
                       ? `border-b border-slate-100 ${rowAccent} transition-colors`
-                      : `border-b border-slate-100 ${isEven ? 'bg-white' : 'bg-slate-50/50'} hover:bg-primary-50/60 transition-colors`;
+                      : `border-b border-slate-100 ${isEven ? 'bg-white' : 'bg-slate-50/60'} hover:bg-primary-50/50 transition-colors`;
                     return (
                       <tr key={uniqueId} className={trClass}>
                         {columns.map((column) => (

@@ -1,17 +1,9 @@
 import { useMemo } from 'react';
 import { Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-} from 'chart.js';
 import { FiLayers } from 'react-icons/fi';
 import { formatMoney } from '../utils/format';
 import { buildProjectInwardCostChartRows } from '../utils/projectInwardCostChart';
+import { shortenChartAxisLabel } from '../utils/chartLabels';
 import { useDateFilter } from '../hooks/useDateFilter';
 import DateFilterControls from './DateFilterControls';
 import {
@@ -31,11 +23,11 @@ import {
   buildLegendFont,
   buildLegendPadding
 } from '../utils/chartTheme';
+import { ensureChartJsRegistered } from '../utils/registerChart';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+ensureChartJsRegistered();
 
 const MAX_BARS = 14;
-import { shortenChartAxisLabel } from '../utils/chartLabels';
 
 const ProjectInwardCostBar = ({
   projects = [],
@@ -199,7 +191,7 @@ const ProjectInwardCostBar = ({
     chartData.datasets.some((d) => d.data.some((n) => n > 0));
 
   return (
-    <div className={`${chartCardClass} border-t-4 border-t-emerald-600 overflow-hidden flex flex-col ${className}`}>
+    <div className={`${chartCardClass} !border-t-emerald-600 overflow-hidden flex flex-col ${className}`}>
       <div className={`${chartCardHeaderClass} shrink-0`}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
           <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">

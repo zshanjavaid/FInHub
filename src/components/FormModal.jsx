@@ -373,8 +373,8 @@ const FormModal = ({
           >
             Cancel
           </Button>
-          <Button onClick={handleSave} className="w-full sm:flex-1" disabled={isSaving}>
-            {isSaving ? 'Saving...' : 'Save'}
+          <Button onClick={handleSave} className="w-full sm:flex-1" disabled={isSaving} loading={isSaving}>
+            {isSaving ? 'Saving…' : 'Save'}
           </Button>
         </div>
       </div>

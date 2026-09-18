@@ -9,7 +9,7 @@ const tabGridColsClass = (count) => {
 const Tabs = ({ tabs = [], activeId, onChange, children }) => {
   return (
     <div className="w-full min-w-0">
-      <div className="rounded-xl sm:rounded-2xl bg-slate-100/90 border border-slate-200/80 p-1 sm:p-1.5 shadow-sm">
+      <div className="rounded-xl bg-slate-100 p-1 sm:p-1.5">
         <nav
           className={`grid ${tabGridColsClass(tabs.length)} gap-1 w-full min-w-0 md:flex md:flex-wrap`}
           role="tablist"
@@ -23,10 +23,10 @@ const Tabs = ({ tabs = [], activeId, onChange, children }) => {
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => onChange(tab.id)}
-                className={`flex flex-1 items-center justify-center gap-1 sm:gap-2 min-w-0 px-2 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm font-semibold rounded-lg sm:rounded-xl transition-all duration-200 ${
+                className={`flex flex-1 items-center justify-center gap-1 sm:gap-2 min-w-0 px-2 py-2.5 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 focus-visible:ring-offset-1 ${
                   isActive
-                    ? 'bg-white text-primary-700 shadow-card border border-slate-200/60'
-                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/60 border border-transparent'
+                    ? 'bg-white text-primary-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/70'
                 }`}
               >
                 <span className="truncate text-center leading-tight min-w-0">

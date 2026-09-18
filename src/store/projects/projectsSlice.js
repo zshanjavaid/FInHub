@@ -8,26 +8,33 @@ import {
   approveProject as approveProjectService,
   inactivateExpiredProjects as inactivateExpiredProjectsService
 } from '../../services/projectService';
+import { shouldSkipListFetch } from '../../utils/fetchGate';
 
-export const fetchProjects = createAsyncThunk('projects/fetchAll', async () => {
-  const projects = await getAllProjectsService();
-  const inactivated = await inactivateExpiredProjectsService(projects);
-  if (inactivated > 0) {
-    return await getAllProjectsService();
+export const fetchProjects = createAsyncThunk(
+  'projects/fetchAll',
+  async () => {
+    const projects = await getAllProjectsService();
+    const inactivated = await inactivateExpiredProjectsService(projects);
+    if (inactivated > 0) {
+      return await getAllProjectsService();
+    }
+    return projects;
+  },
+  {
+    condition: (arg, { getState }) => !shouldSkipListFetch(getState().projects, arg)
   }
-  return projects;
-});
+);
 
 export const createProject = createAsyncThunk('projects/create', async (projectData, { dispatch }) => {
   await saveProjectService(projectData);
-  await dispatch(fetchProjects());
+  await dispatch(fetchProjects({ force: true }));
 });
 
 export const editProject = createAsyncThunk(
   'projects/edit',
   async ({ projectId, projectData }, { dispatch }) => {
     await updateProjectService(projectId, projectData);
-    await dispatch(fetchProjects());
+    await dispatch(fetchProjects({ force: true }));
   }
 );
 
@@ -38,7 +45,7 @@ export const removeProject = createAsyncThunk(
       await deleteProjectService(projectId);
       return projectId;
     } catch (error) {
-      await dispatch(fetchProjects());
+      await dispatch(fetchProjects({ force: true }));
       return rejectWithValue(error?.message || 'Failed to delete project');
     }
   }
@@ -51,7 +58,7 @@ export const approveProject = createAsyncThunk(
       await approveProjectService(projectId, approvedBy);
       return { projectId, approvedBy };
     } catch (error) {
-      await dispatch(fetchProjects());
+      await dispatch(fetchProjects({ force: true }));
       return rejectWithValue(error?.message || 'Failed to approve project');
     }
   }
@@ -67,7 +74,8 @@ const projectsSlice = createSlice({
   initialState: {
     items: [],
     isLoading: false,
-    error: null
+    error: null,
+    lastFetchedAt: null
   },
   reducers: {},
   extraReducers: (builder) => {
@@ -79,6 +87,7 @@ const projectsSlice = createSlice({
       .addCase(fetchProjects.fulfilled, (state, action) => {
         state.items = action.payload || [];
         state.isLoading = false;
+        state.lastFetchedAt = Date.now();
       })
       .addCase(fetchProjects.rejected, (state, action) => {
         state.isLoading = false;

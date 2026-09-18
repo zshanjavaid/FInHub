@@ -4,10 +4,11 @@ import ModernDatePicker from './ModernDatePicker';
 const currentYear = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 12 }, (_, i) => currentYear - 5 + i);
 
-const filterLabelClass = 'text-sm font-semibold mb-2 text-slate-700 capitalize tracking-wide block';
+const filterLabelClass =
+  'text-[11px] font-semibold mb-1.5 text-slate-500 uppercase tracking-[0.08em] block';
 
 const filterSelectClass =
-  'w-full h-10 min-w-0 px-3 py-2 pr-10 text-sm text-slate-800 border-2 border-slate-300 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 bg-white appearance-none cursor-pointer';
+  'w-full h-10 min-w-0 px-3 py-2 pr-10 text-sm text-slate-800 border border-slate-200/90 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-0 focus-visible:ring-0 bg-white appearance-none cursor-pointer';
 
 const datePickerClass = 'filter-date-field w-full min-w-0';
 
@@ -25,19 +26,18 @@ const DateFilterControls = ({
   className = ''
 }) => {
   const pill = (isActive) =>
-    `w-full h-9 px-2 sm:px-3 rounded-md text-sm font-semibold transition-colors duration-150 border xl:w-auto xl:whitespace-nowrap ${
+    `w-full h-9 px-2 sm:px-3 rounded-lg text-sm font-semibold transition-colors duration-150 border outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 ring-0 xl:w-auto xl:whitespace-nowrap ${
       isActive
-        ? 'bg-white text-primary-700 shadow-sm border-slate-200/70'
-        : 'text-slate-600 border-transparent hover:text-slate-800'
+        ? 'bg-white text-primary-700 shadow-sm border-slate-200/80'
+        : 'text-slate-600 border-transparent hover:text-slate-800 hover:bg-white/70'
     }`;
 
   return (
-    <div className={`flex flex-col min-w-0 w-full overflow-hidden ${className}`}>
+    <div className={`flex flex-col min-w-0 w-full overflow-visible ${className}`}>
       <label className={filterLabelClass}>Date</label>
 
-      {/* Stack by default; side-by-side only when the Date column is wide enough */}
       <div className="flex flex-col gap-2 w-full min-w-0 xl:flex-row xl:flex-wrap xl:items-center xl:gap-2">
-        <div className="grid grid-cols-3 gap-0.5 p-0.5 w-full min-w-0 rounded-xl bg-slate-100/90 border border-slate-200/80 xl:w-auto xl:shrink-0 xl:inline-flex">
+        <div className="grid grid-cols-3 gap-0.5 p-0.5 w-full min-w-0 rounded-xl bg-slate-100/90 ring-1 ring-slate-200/60 xl:w-auto xl:shrink-0 xl:inline-flex">
           <button type="button" onClick={() => setDateMode('month')} className={pill(dateMode === 'month')}>
             Month
           </button>

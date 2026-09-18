@@ -58,7 +58,7 @@ const DropZone = ({ children, onDragOver, onDrop, onDragLeave, isOver, label }) 
     onDragOver={onDragOver}
     onDrop={onDrop}
     onDragLeave={onDragLeave}
-    className={`relative flex-1 min-h-[320px] rounded-2xl border-2 border-dashed p-4 transition-colors ${
+    className={`relative flex-1 min-h-[320px] min-w-0 overflow-hidden rounded-xl sm:rounded-2xl border-2 border-dashed p-4 transition-colors ${
       isOver ? 'border-primary-500 bg-primary-50/50 z-10' : 'border-slate-200 bg-slate-50/50'
     }`}
   >
@@ -277,7 +277,7 @@ const ProjectAllocation = () => {
           icon={<FiDollarSign className="w-5 h-5" />}
           valueClassName="text-primary-600"
           iconClassName="text-primary-500"
-          borderClassName="border-primary-500"
+          borderClassName="border-t-primary-600"
         />
         <StatCard
           label="If Inactive (expense)"
@@ -285,7 +285,7 @@ const ProjectAllocation = () => {
           icon={<FiPieChart className="w-5 h-5" />}
           valueClassName="text-amber-600"
           iconClassName="text-amber-500"
-          borderClassName="border-amber-500"
+          borderClassName="border-t-amber-500"
         />
         <StatCard
           label="Remaining"
@@ -293,7 +293,7 @@ const ProjectAllocation = () => {
           icon={<FiTrendingUp className="w-5 h-5" />}
           valueClassName={remainingAmount >= 0 ? 'text-emerald-600' : 'text-red-600'}
           iconClassName={remainingAmount >= 0 ? 'text-emerald-500' : 'text-red-500'}
-          borderClassName={remainingAmount >= 0 ? 'border-emerald-500' : 'border-red-500'}
+          borderClassName={remainingAmount >= 0 ? 'border-t-emerald-500' : 'border-t-red-500'}
         />
       </div>
 

@@ -1,16 +1,5 @@
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Line } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Filler,
-  Title,
-  Tooltip,
-  Legend
-} from 'chart.js';
 import { FiTrendingUp } from 'react-icons/fi';
 import {
   chartCardClass,
@@ -31,17 +20,9 @@ import {
   buildLegendPadding
 } from '../utils/chartTheme';
 import { buildActiveProjectsYearComparison } from '../utils/projectYearComparison';
+import { ensureChartJsRegistered } from '../utils/registerChart';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Filler,
-  Title,
-  Tooltip,
-  Legend
-);
+ensureChartJsRegistered();
 
 const COMPLETED_COLOR = '#d97706';
 const ALL_TAB = 'all';
@@ -74,10 +55,10 @@ const lineDataset = (label, values, color, { fill = false, compact = false, poin
 });
 
 const tabClass = (isActive) =>
-  `px-3 py-1.5 rounded-md text-sm font-semibold transition-colors duration-150 border text-left ${
+  `px-3 py-2 rounded-lg text-sm font-semibold transition-colors duration-150 border text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 focus-visible:ring-offset-1 ${
     isActive
       ? 'bg-white text-primary-700 shadow-sm border-slate-200/70'
-      : 'text-slate-600 border-transparent hover:text-slate-800'
+      : 'text-slate-600 border-transparent hover:text-slate-800 hover:bg-white/60'
   }`;
 
 const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) => {
@@ -180,7 +161,7 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
           padding: compact ? 10 : 14,
           titleFont: { size: compact ? 11 : 13, weight: 'bold' },
           bodyFont: { size: compact ? 11 : 13 },
-          borderColor: 'rgba(16, 185, 129, 0.35)',
+          borderColor: 'rgba(13, 148, 136, 0.35)',
           borderWidth: 1,
           cornerRadius: 12,
           displayColors: true,
@@ -242,7 +223,7 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
   );
 
   return (
-    <div className={`${chartCardClass} border-t-4 border-t-primary-500 flex flex-col ${className}`}>
+    <div className={`${chartCardClass} flex flex-col ${className}`}>
       <div className={`${chartCardHeaderClass} shrink-0`}>
         <div className="flex items-start gap-2.5 sm:gap-3 min-w-0">
           <div className={`${chartCardIconWrapClass} bg-primary-100 text-primary-600`}>
@@ -264,7 +245,7 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
 
         {comparison.years.length > 0 ? (
           <div
-            className="mt-4 inline-flex max-w-full flex-wrap gap-0.5 p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/80"
+            className="mt-4 inline-flex max-w-full flex-wrap gap-0.5 p-0.5 rounded-xl bg-slate-100"
             role="tablist"
             aria-label="Select year view"
           >
@@ -326,4 +307,4 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
   );
 };
 
-export default ActiveProjectsYearComparisonChart;
+export default memo(ActiveProjectsYearComparisonChart);

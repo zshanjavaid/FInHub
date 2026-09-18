@@ -1,16 +1,5 @@
 import { useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Filler,
-  Title,
-  Tooltip,
-  Legend
-} from 'chart.js';
 import { FiTrendingUp } from 'react-icons/fi';
 import {
   chartCardClass,
@@ -29,17 +18,9 @@ import {
   buildLegendFont,
   buildLegendPadding
 } from '../utils/chartTheme';
+import { ensureChartJsRegistered } from '../utils/registerChart';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Filler,
-  Title,
-  Tooltip,
-  Legend
-);
+ensureChartJsRegistered();
 
 const LineChartChartJS = ({ data, labels, title = 'Line Chart', headerRight = null, className = '' }) => {
   const compact = useCompactChart();
@@ -49,7 +30,7 @@ const LineChartChartJS = ({ data, labels, title = 'Line Chart', headerRight = nu
     return {
       labels,
       datasets: (data || []).map((dataset) => {
-        const color = dataset.color || '#10b981';
+        const color = dataset.color || '#0d9488';
         return {
           label: dataset.label,
           data: dataset.values,
@@ -148,7 +129,7 @@ const LineChartChartJS = ({ data, labels, title = 'Line Chart', headerRight = nu
   );
 
   return (
-    <div className={`${chartCardClass} border-t-4 border-t-primary-500 flex flex-col ${className}`}>
+    <div className={`${chartCardClass} flex flex-col ${className}`}>
       <div className={`${chartCardHeaderClass} flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0`}>
         <div className={`${chartCardIconWrapClass} bg-primary-100 text-primary-600`}>
           <FiTrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />

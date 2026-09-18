@@ -45,7 +45,7 @@ const MissingTransactionsFloating = ({
       <button
         type="button"
         onClick={onOpen}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-2xl border border-rose-200/80 bg-white px-4 py-3 shadow-card hover:bg-slate-50 transition-colors group"
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-xl sm:rounded-2xl border border-rose-200/80 bg-white px-4 py-3 shadow-card hover:bg-slate-50 transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
         aria-label="Show missing transactions"
         title="Show missing transactions"
         style={{

@@ -40,11 +40,11 @@ const MainLayout = () => {
   const toggleSidebar = () => setIsSidebarOpen((open) => !open);
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-slate-100/90">
+    <div className="relative flex h-screen overflow-hidden bg-transparent">
       {!isDesktop && (
         <button
           type="button"
-          className={`fixed inset-0 z-40 bg-slate-900/45 lg:hidden transition-opacity duration-300 ease-out motion-reduce:transition-none ${
+          className={`fixed inset-0 z-40 bg-slate-900/55 backdrop-blur-[2px] lg:hidden transition-opacity duration-300 ease-out motion-reduce:transition-none ${
             isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
           aria-label="Close menu"
@@ -64,8 +64,8 @@ const MainLayout = () => {
           isDesktop && isSidebarOpen ? 'lg:ml-64' : ''
         }`}
       >
-        <header className="sticky top-0 z-30 bg-white border-b border-slate-200/80 shadow-card">
-          <div className="w-full max-w-[1800px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3">
+        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200/70">
+          <div className="w-full max-w-[1800px] mx-auto px-4 sm:px-6 py-2.5 sm:py-3 flex items-center gap-3">
             <Link
               to="/"
               className="lg:hidden min-w-0 shrink"
@@ -77,7 +77,7 @@ const MainLayout = () => {
             <button
               type="button"
               onClick={toggleSidebar}
-              className="p-2.5 rounded-xl hover:bg-slate-100 transition-colors duration-150 text-slate-600 hover:text-primary-600 shrink-0 ml-auto"
+              className="p-2 rounded-xl hover:bg-slate-100/90 transition-colors duration-150 text-slate-500 hover:text-primary-700 shrink-0 ml-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
               aria-label={isSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
               aria-expanded={isSidebarOpen}
             >

@@ -63,8 +63,8 @@ const InputField = ({
           onChange={onChange}
           placeholder={placeholder}
           disabled={disabled}
-          className={`w-full px-4 py-2.5 border-2 rounded-lg focus:outline-none bg-white ${
-            error ? "border-red-500 focus:border-red-500" : "border-slate-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+          className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none bg-white ${
+            error ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" : "border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
           } ${hasLeftContent ? "pl-10" : ""} ${disabled ? "bg-gray-50 cursor-not-allowed opacity-60" : ""}`}
         />
       </div>

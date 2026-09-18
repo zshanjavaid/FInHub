@@ -6,33 +6,47 @@ const Button = ({
   disabled = false,
   className = '',
   fullWidth = false,
-  variant = 'primary'
+  variant = 'primary',
+  loading = false
 }) => {
-  const baseStyles = 'font-semibold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-card hover:shadow-card-hover inline-flex items-center justify-center gap-2';
+  const baseStyles =
+    'finhub-btn relative overflow-hidden font-semibold rounded-lg outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 ring-0 shadow-none disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none inline-flex items-center justify-center gap-2';
 
   const sizes = {
-    sm: 'px-3 py-1.5 text-xs',
-    md: 'px-5 py-3 text-sm',
+    sm: 'px-3.5 py-1.5 text-xs',
+    md: 'px-5 py-2.5 text-sm',
     lg: 'px-6 py-3 text-base'
   };
 
   const widthClass = fullWidth ? 'w-full' : '';
+  const busy = disabled || loading;
 
   const variantStyles =
     variant === 'danger'
-      ? 'bg-gradient-to-br from-red-600 to-red-500 text-white focus:ring-red-500/50 border border-red-400/30'
+      ? 'finhub-btn-danger'
       : variant === 'secondary'
-        ? 'bg-slate-200 text-slate-800 border border-slate-300 hover:bg-slate-300 focus:ring-slate-400/50'
-        : 'bg-gradient-to-br from-primary-500 to-primary-600 text-white focus:ring-primary-500/50 border border-primary-400/30 hover:from-primary-600 hover:to-primary-700';
+        ? 'finhub-btn-secondary'
+        : 'finhub-btn-primary';
 
   return (
     <button
       type={type}
       onClick={onClick}
-      disabled={disabled}
+      disabled={busy}
+      aria-busy={loading || undefined}
       className={`${baseStyles} ${sizes[size]} ${widthClass} ${variantStyles} ${className}`}
     >
-      {children}
+      <span className="finhub-btn-fill" aria-hidden />
+      <span className="finhub-btn-label relative z-10 inline-flex items-center justify-center gap-2">
+        {loading ? (
+          <>
+            <span className="finhub-btn-spinner" aria-hidden />
+            <span>{typeof children === 'string' ? children : 'Working…'}</span>
+          </>
+        ) : (
+          children
+        )}
+      </span>
     </button>
   );
 };

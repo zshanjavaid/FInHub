@@ -6,29 +6,29 @@ const SLIDE_MS = 5000;
 
 const variantStyles = {
   dark: {
-    card: 'rounded-xl bg-emerald-800 border border-emerald-700 p-5 sm:p-6',
-    badge: 'text-[10px] font-bold uppercase tracking-wider text-emerald-300 px-2 py-0.5 rounded-full bg-emerald-700/80 border border-emerald-600',
-    iconWrap: 'w-11 h-11 rounded-lg bg-emerald-700 text-emerald-50 border border-emerald-600',
-    title: 'text-lg font-bold text-white',
-    description: 'text-sm text-emerald-100/90 leading-relaxed',
-    track: 'bg-emerald-700/60',
-    progress: 'bg-emerald-300',
-    dotActive: 'w-7 bg-emerald-300',
-    dotIdle: 'w-1.5 bg-emerald-600/80 hover:bg-emerald-500',
-    arrow: 'p-2 rounded-lg border border-emerald-700 bg-emerald-800 text-emerald-100 hover:bg-emerald-700 hover:text-white transition-colors',
-    counter: 'text-xs text-emerald-400 tabular-nums'
+    card: 'rounded-2xl bg-white/[0.06] border border-white/10 p-5 sm:p-6 shadow-sm backdrop-blur-[2px]',
+    badge: 'text-[10px] font-bold uppercase tracking-wide text-primary-200 px-2 py-0.5 rounded-full bg-primary-500/20 border border-primary-400/25',
+    iconWrap: 'w-11 h-11 rounded-xl bg-primary-500/25 text-primary-100 ring-1 ring-primary-400/30',
+    title: 'text-lg font-bold text-white tracking-tight',
+    description: 'text-sm text-teal-100/80 leading-relaxed',
+    track: 'bg-white/10',
+    progress: 'bg-primary-300',
+    dotActive: 'w-7 bg-primary-300',
+    dotIdle: 'w-1.5 bg-white/25 hover:bg-white/40',
+    arrow: 'p-2 rounded-xl border border-white/10 bg-white/5 text-teal-100 hover:bg-white/10 hover:text-white transition-colors',
+    counter: 'text-xs text-teal-200/70 tabular-nums'
   },
   light: {
-    card: 'rounded-xl border border-slate-200 bg-white p-4 shadow-card',
-    badge: 'text-[10px] font-bold uppercase tracking-wider text-primary-700 px-2 py-0.5 rounded-full bg-primary-50 border border-primary-200',
-    iconWrap: 'w-10 h-10 rounded-lg bg-primary-100 text-primary-700 border border-primary-200',
+    card: 'rounded-2xl border border-slate-200/80 bg-white p-4 shadow-card',
+    badge: 'text-[10px] font-bold uppercase tracking-wide text-primary-700 px-2 py-0.5 rounded-full bg-primary-50 border border-primary-200',
+    iconWrap: 'w-10 h-10 rounded-xl bg-primary-50 text-primary-700 ring-1 ring-primary-100',
     title: 'text-sm font-bold text-slate-800',
     description: 'text-xs text-slate-600 leading-relaxed',
     track: 'bg-slate-200',
     progress: 'bg-primary-500',
     dotActive: 'w-6 bg-primary-500',
     dotIdle: 'w-1.5 bg-slate-300 hover:bg-slate-400',
-    arrow: 'p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-primary-600 transition-colors',
+    arrow: 'p-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-primary-600 transition-colors',
     counter: 'text-[11px] text-slate-500 tabular-nums'
   }
 };

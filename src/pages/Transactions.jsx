@@ -1,16 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../contexts/AuthContext';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
 import FilterBar from '../components/FilterBar';
 import SearchableDropdown from '../components/SearchableDropdown';
-import BarChart from '../components/BarChart';
-import LineChartChartJS from '../components/LineChartChartJS';
 import TransactionTable from '../components/TransactionTable';
 import TransactionFormModal from '../components/TransactionFormModal';
 import ImportTransactionsModal from '../components/ImportTransactionsModal';
 import Modal, { modalActionsClass, modalScrollTableWrapClass, modalScrollTableInnerClass } from '../components/Modal';
+import DeferredMount, { ChartSkeleton } from '../components/DeferredMount';
 import { tableElementClass, tableHeadCellClass, tableBodyCellClass } from '../constants/tableStyles';
 import { fetchProjects } from '../store/projects/projectsSlice';
 import { fetchExpenses } from '../store/expenses/expensesSlice';
@@ -36,6 +35,9 @@ import {
 import { buildExpectedTransactionDatesForMonth, countExpectedPayoutsInRange, getPayoutOccurrenceLabel } from '../utils/payoutSchedule';
 import { computeProjectTaxDollars } from '../utils/project';
 import { createTransactionsBulk } from '../store/transactions/transactionsSlice';
+
+const BarChart = lazy(() => import('../components/BarChart'));
+const LineChartChartJS = lazy(() => import('../components/LineChartChartJS'));
 
 const defaultForm = {
   client: '',
@@ -232,7 +234,7 @@ const Transactions = () => {
     return {
       labels,
       fullLabels,
-      data: [{ label: 'Amount', values, color: '#10b981' }]
+      data: [{ label: 'Amount', values, color: '#0d9488' }]
     };
   }, [approvedForCharts]);
 
@@ -514,23 +516,27 @@ const Transactions = () => {
         <ErrorAlert message={error} />
 
         {(monthlyTrendData.labels.length > 0 && monthlyTrendData.values.some((v) => v > 0)) || projectChartData.labels.length > 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
-            {monthlyTrendData.labels.length > 0 && monthlyTrendData.values.some((v) => v > 0) && (
-              <LineChartChartJS
-                data={[{ label: 'Transactions (Net)', values: monthlyTrendData.values, color: '#10b981' }]}
-                labels={monthlyTrendData.labels}
-                title="Monthly Trend"
-              />
-            )}
-            {projectChartData.labels.length > 0 && (
-              <BarChart
-                data={projectChartData.data}
-                labels={projectChartData.labels}
-                fullLabels={projectChartData.fullLabels}
-                title="Transactions by Project"
-              />
-            )}
-          </div>
+          <DeferredMount>
+            <Suspense fallback={<ChartSkeleton />}>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
+                {monthlyTrendData.labels.length > 0 && monthlyTrendData.values.some((v) => v > 0) && (
+                  <LineChartChartJS
+                    data={[{ label: 'Transactions (Net)', values: monthlyTrendData.values, color: '#0d9488' }]}
+                    labels={monthlyTrendData.labels}
+                    title="Monthly Trend"
+                  />
+                )}
+                {projectChartData.labels.length > 0 && (
+                  <BarChart
+                    data={projectChartData.data}
+                    labels={projectChartData.labels}
+                    fullLabels={projectChartData.fullLabels}
+                    title="Transactions by Project"
+                  />
+                )}
+              </div>
+            </Suspense>
+          </DeferredMount>
         ) : null}
 
         <TransactionTable

@@ -1,4 +1,4 @@
-export const themePrimary = '#10b981';
+export const themePrimary = '#0d9488';
 export const themeText = '#1e293b';
 export const themeMuted = '#64748b';
 export const themeGrid = 'rgba(15, 23, 42, 0.06)';

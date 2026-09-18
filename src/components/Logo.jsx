@@ -1,18 +1,21 @@
 const Logo = ({ className = '', variant = 'default', compact = false }) => {
   const isLight = variant === 'light';
-  const textClass = isLight ? 'text-slate-100' : 'text-slate-800';
-  const subClass = isLight ? 'text-emerald-300' : 'text-primary-600';
+  const textClass = isLight ? 'text-white' : 'text-slate-800';
+  const subClass = isLight ? 'text-primary-300' : 'text-primary-600';
   const iconBoxClass = compact ? 'w-9 h-9 rounded-lg' : 'w-12 h-12 rounded-xl';
   const titleClass = compact ? 'text-base' : 'text-xl';
   const subTitleClass = compact ? 'text-[10px]' : 'text-xs';
   const chartIcon = compact ? 20 : 24;
   const badgeSize = compact ? 'w-4 h-4' : 'w-5 h-5';
   const badgeIcon = compact ? 8 : 10;
+  const badgeBorder = isLight ? 'border-primary-900' : 'border-white';
 
   return (
     <div className={`flex items-center gap-2.5 sm:gap-3 ${className}`}>
       <div
-        className={`relative ${iconBoxClass} flex items-center justify-center shadow-lg border-2 border-primary-400/40 bg-gradient-to-br from-primary-500 to-primary-700`}
+        className={`relative ${iconBoxClass} flex items-center justify-center shadow-sm ${
+          isLight ? 'bg-primary-500 ring-1 ring-white/15' : 'bg-primary-600'
+        }`}
       >
         <svg
           width={chartIcon}
@@ -38,7 +41,7 @@ const Logo = ({ className = '', variant = 'default', compact = false }) => {
           />
         </svg>
         <div
-          className={`absolute -bottom-1 -right-1 ${badgeSize} rounded-full flex items-center justify-center border-2 border-white shadow-md bg-primary-700`}
+          className={`absolute -bottom-1 -right-1 ${badgeSize} rounded-full flex items-center justify-center border-2 ${badgeBorder} shadow-sm bg-primary-800`}
         >
           <svg
             width={badgeIcon}

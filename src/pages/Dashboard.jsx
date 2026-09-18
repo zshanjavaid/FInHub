@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProjects } from '../store/projects/projectsSlice';
 import {
@@ -17,8 +17,6 @@ import { isApproved } from '../constants/app';
 import { isDashboardActiveProject, DASHBOARD_ACTIVE_PROJECT_TYPES, PROJECT_TYPE_COLORS } from '../constants/projectTypes';
 import { useClientOptions } from '../hooks/useClientOptions';
 import { useDateFilter } from '../hooks/useDateFilter';
-import BarChart from '../components/BarChart';
-import ActiveProjectsYearComparisonChart from '../components/ActiveProjectsYearComparisonChart';
 import PageHeader from '../components/PageHeader';
 import PageContainer from '../components/PageContainer';
 import Button from '../components/Button';
@@ -31,7 +29,12 @@ import InputField from '../components/InputField';
 import TransactionTable from '../components/TransactionTable';
 import TransactionFormModal from '../components/TransactionFormModal';
 import PortfolioLinks from '../components/PortfolioLinks';
+import DeferredMount, { ChartSkeleton } from '../components/DeferredMount';
 import { FiDollarSign, FiTarget, FiEdit2, FiBriefcase } from 'react-icons/fi';
+
+const BarChart = lazy(() => import('../components/BarChart'));
+const ActiveProjectsYearComparisonChart = lazy(() => import('../components/ActiveProjectsYearComparisonChart'));
+
 
 const defaultForm = {
   client: '',
@@ -350,7 +353,7 @@ const Dashboard = () => {
 
   const chartSeries = useMemo(
     () => [
-      { label: `Inward (${inwardPct}%)`, values: chartData.inward, color: '#10b981' },
+      { label: `Inward (${inwardPct}%)`, values: chartData.inward, color: '#0d9488' },
       { label: `Expense (${expensePct}%)`, values: chartData.expense, color: '#ef4444' }
     ],
     [chartData, inwardPct, expensePct]
@@ -418,28 +421,32 @@ const Dashboard = () => {
             value={formatMoney(availableAmount)}
             icon={<FiDollarSign className="w-5 h-5" />}
             valueClassName="text-primary-600"
-            iconClassName="text-primary-500"
-            borderClassName="border-primary-500"
+            iconClassName="text-primary-600"
+            borderClassName="border-t-primary-600"
           />
           <StatCard
             label="Active Projects"
             value={activeProjectCount}
             icon={<FiBriefcase className="w-5 h-5" />}
             valueClassName="text-primary-600"
-            iconClassName="text-primary-500"
-            borderClassName="border-primary-500"
+            iconClassName="text-primary-600"
+            borderClassName="border-t-primary-600"
             chips={activeProjectCountByType}
           />
-          <div className="bg-white rounded-xl sm:rounded-2xl shadow-panel overflow-hidden border-t-4 border-primary-500 p-4 sm:p-5 md:p-6 min-w-0">
+          <div className="bg-white rounded-2xl shadow-card overflow-hidden border border-slate-200/80 border-t-[3px] border-t-primary-600 p-4 sm:p-5 md:p-6 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                <span className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-primary-100 text-primary-600 shrink-0"><FiTarget className="w-4 h-4 sm:w-5 sm:h-5" /></span>
-                <p className="text-xs sm:text-sm font-bold text-slate-600 uppercase tracking-wider leading-snug">Total Inward / Target</p>
+                <span className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-primary-100 text-primary-600 shrink-0">
+                  <FiTarget className="w-4 h-4 sm:w-5 sm:h-5" />
+                </span>
+                <p className="text-xs sm:text-sm font-bold text-slate-600 uppercase tracking-wide leading-snug">
+                  Total Inward / Target
+                </p>
               </div>
               <button
                 type="button"
                 onClick={openTargetModal}
-                className="p-2 rounded-xl hover:bg-primary-100 text-primary-600 transition-colors"
+                className="p-2 rounded-xl hover:bg-primary-100 text-primary-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
                 aria-label={targetAmount != null ? 'Edit target' : 'Set target'}
               >
                 <FiEdit2 className="w-5 h-5" />
@@ -466,25 +473,33 @@ const Dashboard = () => {
 
         <ErrorAlert messages={[projectsError, transactionsError, expensesError].filter(Boolean)} />
 
-        <ActiveProjectsYearComparisonChart projects={projectsForAnnualChart} />
+        <DeferredMount>
+          <Suspense fallback={<ChartSkeleton />}>
+            <ActiveProjectsYearComparisonChart projects={projectsForAnnualChart} />
+          </Suspense>
+        </DeferredMount>
 
-        <div className="min-w-0">
-          <BarChart
-            data={chartSeries}
-            labels={chartData.labels}
-            title="Monthly Comparison"
-            headerRight={
-              <div className="min-w-0">
-                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-slate-500 leading-tight">
-                  Next Month Estimated Amount
-                </p>
-                <p className="mt-0.5 text-sm sm:text-base font-bold tabular-nums text-emerald-600">
-                  {formatMoney(nextMonthEstimate.estimated)}
-                </p>
-              </div>
-            }
-          />
-        </div>
+        <DeferredMount>
+          <Suspense fallback={<ChartSkeleton />}>
+            <div className="min-w-0">
+              <BarChart
+                data={chartSeries}
+                labels={chartData.labels}
+                title="Monthly Comparison"
+                headerRight={
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-slate-500 leading-tight">
+                      Next Month Estimated Amount
+                    </p>
+                    <p className="mt-0.5 text-sm sm:text-base font-bold tabular-nums text-emerald-600">
+                      {formatMoney(nextMonthEstimate.estimated)}
+                    </p>
+                  </div>
+                }
+              />
+            </div>
+          </Suspense>
+        </DeferredMount>
 
         <TransactionTable
           transactions={approvedTransactions}
@@ -531,8 +546,8 @@ const Dashboard = () => {
             <Button variant="secondary" onClick={closeTargetModal} className="w-full sm:flex-1">
               Cancel
             </Button>
-            <Button onClick={onSaveTarget} disabled={isSavingTarget} className="w-full sm:flex-1">
-              {isSavingTarget ? 'Saving...' : 'Save'}
+            <Button onClick={onSaveTarget} disabled={isSavingTarget} loading={isSavingTarget} className="w-full sm:flex-1">
+              {isSavingTarget ? 'Saving…' : 'Save'}
             </Button>
           </div>
         </div>

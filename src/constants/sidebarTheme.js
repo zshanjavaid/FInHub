@@ -1,19 +1,21 @@
-export const sidebarShellClass =
-  'h-full flex flex-col bg-emerald-900 text-white shadow-xl border-r border-emerald-950 overscroll-contain';
+/** Deep teal sidebar — refined finance rail. */
 
-export const sidebarSectionBorderClass = 'border-emerald-800';
+export const sidebarShellClass =
+  'h-full flex flex-col bg-gradient-to-b from-[#063532] via-primary-900 to-[#031c1b] text-slate-100 shadow-sidebar overscroll-contain';
+
+export const sidebarSectionBorderClass = 'border-white/[0.08]';
 
 export const sidebarNavLinkBase =
-  'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-colors duration-200';
+  'group relative z-[1] flex items-center gap-3 pl-2.5 pr-3 py-2.5 rounded-xl text-[13px] font-medium tracking-tight transition-[color] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/35';
 
 export const sidebarNavLinkActive =
-  'bg-emerald-800 text-white border-l-4 border-emerald-300 shadow-sm';
+  'text-white font-semibold';
 
 export const sidebarNavLinkInactive =
-  'text-emerald-100/85 hover:bg-emerald-800/90 hover:text-white border-l-4 border-transparent';
+  'text-teal-100/60 hover:text-white';
 
 export const sidebarBadgeClass =
-  'min-w-[1.25rem] px-1.5 py-0.5 text-xs font-bold rounded-full bg-amber-500/25 text-amber-200 border border-amber-400/35 tabular-nums';
+  'min-w-[1.25rem] h-5 px-1.5 inline-flex items-center justify-center text-[10px] font-bold rounded-md bg-amber-400/15 text-amber-200 ring-1 ring-inset ring-amber-300/25 tabular-nums';
 
 export const sidebarLogoutClass =
-  'flex items-center gap-3 px-4 py-3 w-full rounded-xl font-semibold text-emerald-100/90 hover:bg-red-950/50 hover:text-red-300 transition-colors border border-transparent hover:border-red-900/40';
+  'flex items-center gap-3 px-2.5 py-2.5 w-full rounded-xl text-[13px] font-medium text-teal-100/55 hover:bg-rose-500/12 hover:text-rose-200 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/35';

@@ -5,22 +5,21 @@
 @layer base {
   body {
     @apply min-h-screen text-slate-800 antialiased;
-    background: linear-gradient(160deg, #f1f5f9 0%, #e2e8f0 50%, #f8fafc 100%);
-    background-attachment: scroll;
-  }
-
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: radial-gradient(circle at 20% 30%, rgba(16, 185, 129, 0.04) 0%, transparent 50%),
-                      radial-gradient(circle at 80% 70%, rgba(5, 150, 105, 0.03) 0%, transparent 50%);
-    pointer-events: none;
-    z-index: 0;
+    background-color: #e8eef3;
+    background-image:
+      radial-gradient(ellipse 90% 60% at 100% -10%, rgba(13, 148, 136, 0.07), transparent 55%),
+      radial-gradient(ellipse 70% 50% at -5% 100%, rgba(15, 23, 42, 0.04), transparent 50%),
+      linear-gradient(165deg, #eef3f7 0%, #e8eef3 45%, #e6edf2 100%);
+    background-attachment: fixed;
   }
 
   #root {
     @apply min-h-screen relative;
+  }
+
+  ::selection {
+    background-color: rgba(13, 148, 136, 0.18);
+    color: #134e4a;
   }
 }
 
@@ -31,4 +30,212 @@ html {
 html,
 body {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+/* ——— FinHub loader ——— */
+@keyframes finhub-loader-bar {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@keyframes finhub-loader-ring {
+  0% {
+    transform: rotate(0deg) scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: rotate(180deg) scale(1.04);
+    opacity: 0.9;
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+    opacity: 0.55;
+  }
+}
+
+@keyframes finhub-loader-halo {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.7;
+  }
+}
+
+@keyframes finhub-loader-line {
+  0% {
+    stroke-dashoffset: 48;
+    opacity: 0.35;
+  }
+  40% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  70% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: -48;
+    opacity: 0.2;
+  }
+}
+
+.finhub-loader-bar {
+  transform-origin: bottom center;
+  animation: finhub-loader-bar 1.05s ease-in-out infinite;
+}
+
+.finhub-loader-ring {
+  border-style: solid;
+  border-width: 1.5px;
+  border-color: rgb(153 246 228 / 0.35);
+  border-top-color: rgb(13 148 136 / 0.9);
+  border-right-color: rgb(13 148 136 / 0.35);
+  animation: finhub-loader-ring 1.8s linear infinite;
+}
+
+.finhub-loader-halo {
+  animation: finhub-loader-halo 1.6s ease-in-out infinite;
+}
+
+.finhub-loader-line path {
+  animation: finhub-loader-line 1.8s ease-in-out infinite;
+}
+
+.finhub-nav-indicator {
+  transition:
+    top 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.2s ease;
+  will-change: top, height;
+}
+
+/* ——— FinHub buttons — fill hover ——— */
+@keyframes finhub-btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.finhub-btn {
+  border: none;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.finhub-btn:focus,
+.finhub-btn:focus-visible,
+.finhub-btn:active {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.finhub-btn-primary {
+  background-color: #0d9488;
+  color: #fff;
+}
+
+.finhub-btn-secondary {
+  background-color: #fff;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+}
+
+.finhub-btn-danger {
+  background-color: #dc2626;
+  color: #fff;
+}
+
+.finhub-btn-fill {
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100%;
+  z-index: 0;
+  transform: translateY(101%);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  border-radius: inherit;
+}
+
+.finhub-btn:hover:not(:disabled) .finhub-btn-fill {
+  transform: translateY(0);
+}
+
+.finhub-btn:active:not(:disabled) .finhub-btn-fill {
+  transform: translateY(0);
+  transition-duration: 100ms;
+}
+
+.finhub-btn-primary .finhub-btn-fill {
+  background-color: #115e59;
+}
+
+.finhub-btn-secondary .finhub-btn-fill {
+  background-color: #ccfbf1;
+}
+
+.finhub-btn-danger .finhub-btn-fill {
+  background-color: #991b1b;
+}
+
+.finhub-btn-secondary:hover:not(:disabled) {
+  color: #115e59;
+  border-color: #5eead4;
+}
+
+.finhub-btn-spinner {
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 9999px;
+  animation: finhub-btn-spin 0.65s linear infinite;
+  opacity: 0.9;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .finhub-loader-bar,
+  .finhub-loader-ring,
+  .finhub-loader-halo,
+  .finhub-loader-line path,
+  .finhub-btn-spinner {
+    animation: none !important;
+  }
+
+  .finhub-loader-bar {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+
+  .finhub-loader-line path {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  .finhub-btn-fill {
+    transition: none !important;
+  }
+
+  .finhub-btn:hover:not(:disabled) .finhub-btn-fill {
+    transform: translateY(0);
+  }
+
+  .finhub-nav-indicator {
+    transition: none !important;
+  }
 }

@@ -21,26 +21,26 @@ const Modal = ({ isOpen, onClose, title, children, panelClassName = 'max-w-2xl' 
       role="presentation"
     >
       <div
-        className={`bg-white w-full min-w-0 ${panelClassName} max-h-[92dvh] sm:max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl shadow-modal ring-1 ring-slate-200/80`}
+        className={`bg-white w-full min-w-0 ${panelClassName} max-h-[92dvh] sm:max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-modal border border-slate-200/50`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
       >
-        <div className="flex items-center gap-2 px-4 py-3 sm:px-6 sm:py-4 shrink-0 bg-gradient-to-r from-primary-600 to-primary-500 rounded-t-2xl sm:rounded-t-2xl">
+        <div className="flex items-center gap-2 px-4 py-3.5 sm:px-6 sm:py-4 shrink-0 bg-gradient-to-r from-primary-800 to-primary-600 rounded-t-2xl sm:rounded-t-2xl">
           <h2 id="modal-title" className="text-base sm:text-lg font-bold text-white tracking-tight truncate flex-1 min-w-0">
             {title}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/20 transition-colors shrink-0"
+            className="p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/20 transition-colors shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
             aria-label="Close"
           >
             <FiX className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-4 sm:p-6 overflow-y-auto overflow-x-hidden flex-1 min-h-0 bg-slate-50/50">
+        <div className="p-4 sm:p-6 overflow-y-auto overflow-x-hidden flex-1 min-h-0 bg-slate-50">
           {children}
         </div>
       </div>
