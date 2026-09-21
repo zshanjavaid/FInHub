@@ -3,7 +3,7 @@ const SectionTitle = ({ title, className = "" }) => {
     <div className={`mb-8 ${className}`}>
       <div className="flex items-center gap-4">
         <div className="h-1 w-12 bg-primary-500 rounded-full"></div>
-        <h2 className="text-4xl font-bold text-gray-800">
+        <h2 className="text-4xl sm:text-5xl font-extrabold text-gray-800 tracking-tight leading-[0.95]">
           {title}
         </h2>
       </div>

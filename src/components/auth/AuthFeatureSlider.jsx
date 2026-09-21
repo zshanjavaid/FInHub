@@ -7,10 +7,10 @@ const SLIDE_MS = 5000;
 const variantStyles = {
   dark: {
     card: 'rounded-2xl bg-white/[0.06] border border-white/10 p-5 sm:p-6 shadow-sm backdrop-blur-[2px]',
-    badge: 'text-[10px] font-bold uppercase tracking-wide text-primary-200 px-2 py-0.5 rounded-full bg-primary-500/20 border border-primary-400/25',
+    badge: 'text-[10px] font-light uppercase tracking-[0.16em] text-primary-200 px-2 py-0.5 rounded-full bg-primary-500/20 border border-primary-400/25',
     iconWrap: 'w-11 h-11 rounded-xl bg-primary-500/25 text-primary-100 ring-1 ring-primary-400/30',
-    title: 'text-lg font-bold text-white tracking-tight',
-    description: 'text-sm text-teal-100/80 leading-relaxed',
+    title: 'text-xl font-extrabold text-white tracking-tight leading-tight',
+    description: 'text-sm font-light text-teal-100/80 leading-relaxed',
     track: 'bg-white/10',
     progress: 'bg-primary-300',
     dotActive: 'w-7 bg-primary-300',
@@ -20,10 +20,10 @@ const variantStyles = {
   },
   light: {
     card: 'rounded-2xl border border-slate-200/80 bg-white p-4 shadow-card',
-    badge: 'text-[10px] font-bold uppercase tracking-wide text-primary-700 px-2 py-0.5 rounded-full bg-primary-50 border border-primary-200',
+    badge: 'text-[10px] font-light uppercase tracking-[0.16em] text-primary-700 px-2 py-0.5 rounded-full bg-primary-50 border border-primary-200',
     iconWrap: 'w-10 h-10 rounded-xl bg-primary-50 text-primary-700 ring-1 ring-primary-100',
-    title: 'text-sm font-bold text-slate-800',
-    description: 'text-xs text-slate-600 leading-relaxed',
+    title: 'text-base font-extrabold text-slate-800 tracking-tight',
+    description: 'text-xs font-light text-slate-600 leading-relaxed',
     track: 'bg-slate-200',
     progress: 'bg-primary-500',
     dotActive: 'w-6 bg-primary-500',

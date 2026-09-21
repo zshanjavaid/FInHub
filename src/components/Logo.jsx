@@ -53,18 +53,18 @@ const Logo = ({ className = '', variant = 'default', compact = false }) => {
   const isLight = variant === 'light';
   const textClass = isLight ? 'text-white' : 'text-slate-800';
   const subClass = isLight ? 'text-teal-200/90' : 'text-primary-600';
-  const titleClass = compact ? 'text-base' : 'text-xl';
-  const subTitleClass = compact ? 'text-[10px]' : 'text-[11px]';
+  const titleClass = compact ? 'text-lg' : 'text-2xl';
+  const subTitleClass = compact ? 'text-[9px]' : 'text-[10px]';
 
   return (
     <div className={`flex items-center gap-2.5 sm:gap-3 ${className}`}>
       <LogoIcon size={compact ? 'sm' : 'md'} light={isLight} />
       <div className="flex flex-col min-w-0">
-        <span className={`finhub-logo-wordmark ${titleClass} font-bold leading-none tracking-tight ${textClass}`}>
+        <span className={`finhub-logo-wordmark ${titleClass} font-extrabold leading-none tracking-tight ${textClass}`}>
           FinHub
         </span>
         <span
-          className={`finhub-logo-tagline mt-0.5 ${subTitleClass} font-semibold uppercase tracking-[0.16em] ${subClass}`}
+          className={`finhub-logo-tagline mt-0.5 ${subTitleClass} font-light uppercase tracking-[0.22em] ${subClass}`}
         >
           Projects
         </span>

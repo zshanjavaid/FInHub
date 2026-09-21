@@ -442,7 +442,7 @@ const Dashboard = () => {
                 <span className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-primary-100 text-primary-600 shrink-0">
                   <FiTarget className="w-4 h-4 sm:w-5 sm:h-5" />
                 </span>
-                <p className="text-xs sm:text-sm font-bold text-slate-600 uppercase tracking-wide leading-snug">
+                <p className="text-[10px] sm:text-[11px] font-light text-slate-500 uppercase tracking-[0.18em] leading-snug">
                   Total Inward / Target
                 </p>
               </div>
@@ -455,7 +455,7 @@ const Dashboard = () => {
                 <FiEdit2 className="w-5 h-5" />
               </button>
             </div>
-            <p className="mt-2 sm:mt-3 text-xl sm:text-2xl font-bold tabular-nums">
+            <p className="mt-3 sm:mt-4 text-2xl sm:text-3xl font-bold tracking-tight leading-none tabular-nums font-mono">
               {targetAmount != null && targetAmount > 0 ? (
                 <>
                   <span className={totalInward >= targetAmount ? 'text-emerald-600' : 'text-red-600'}>
@@ -491,10 +491,10 @@ const Dashboard = () => {
                 title="Monthly Comparison"
                 headerRight={
                   <div className="min-w-0">
-                    <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-slate-500 leading-tight">
+                    <p className="text-[10px] sm:text-xs font-light uppercase tracking-[0.16em] text-slate-500 leading-tight">
                       Next Month Estimated Amount
                     </p>
-                    <p className="mt-0.5 text-sm sm:text-base font-bold tabular-nums text-emerald-600">
+                    <p className="mt-0.5 text-sm sm:text-base font-bold tabular-nums font-mono text-emerald-600">
                       {formatMoney(nextMonthEstimate.estimated)}
                     </p>
                   </div>

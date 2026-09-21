@@ -5,7 +5,7 @@ const currentYear = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 12 }, (_, i) => currentYear - 5 + i);
 
 const filterLabelClass =
-  'text-[11px] font-semibold mb-1.5 text-slate-500 uppercase tracking-[0.08em] block';
+  'text-[11px] font-light mb-1.5 text-slate-500 uppercase tracking-[0.16em] block';
 
 const filterSelectClass =
   'w-full h-10 min-w-0 px-3 py-2 pr-10 text-sm text-slate-800 border border-slate-200/90 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-0 focus-visible:ring-0 bg-white appearance-none cursor-pointer';

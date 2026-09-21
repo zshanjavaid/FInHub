@@ -31,7 +31,7 @@ const LineChart = ({ data, labels, yAxisLabels, legend }) => {
               className="w-6 h-1.5 rounded-full"
               style={{ backgroundColor: dataset.color }}
             />
-            <span className="text-sm font-bold text-gray-700 uppercase tracking-wide">{legend[index]?.label || `Line ${index + 1}`}</span>
+            <span className="text-sm font-extrabold text-gray-700 uppercase tracking-[0.14em]">{legend[index]?.label || `Line ${index + 1}`}</span>
           </div>
         ))}
       </div>
@@ -55,7 +55,7 @@ const LineChart = ({ data, labels, yAxisLabels, legend }) => {
                 x={padding.left - 12}
                 y={yPos + 4}
                 textAnchor="end"
-                className="text-xs fill-gray-600 font-medium"
+                className="text-xs fill-gray-600 font-light tabular-nums"
               >
                 ${label}
               </text>
@@ -70,7 +70,7 @@ const LineChart = ({ data, labels, yAxisLabels, legend }) => {
               x={xPos}
               y={chartHeight - 8}
               textAnchor="middle"
-              className="text-xs fill-gray-600 font-medium"
+              className="text-xs fill-gray-600 font-light tabular-nums"
             >
               {label}
             </text>

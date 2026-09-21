@@ -10,7 +10,7 @@ const Button = ({
   loading = false
 }) => {
   const baseStyles =
-    'finhub-btn relative overflow-hidden font-semibold rounded-lg outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 ring-0 shadow-none disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none inline-flex items-center justify-center gap-2';
+    'finhub-btn relative overflow-hidden font-extrabold rounded-lg outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 ring-0 shadow-none disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none inline-flex items-center justify-center gap-2';
 
   const sizes = {
     sm: 'px-3.5 py-1.5 text-xs',

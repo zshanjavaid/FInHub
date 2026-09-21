@@ -17,7 +17,8 @@ import {
   themeGrid,
   buildAxisTickFont,
   buildLegendFont,
-  buildLegendPadding
+  buildLegendPadding,
+  buildAxisTitleFont
 } from '../utils/chartTheme';
 import { buildActiveProjectsYearComparison } from '../utils/projectYearComparison';
 import { ensureChartJsRegistered } from '../utils/registerChart';
@@ -213,7 +214,7 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
             display: !compact,
             text: 'Month',
             color: themeMuted,
-            font: { size: 11, weight: '600' },
+            font: buildAxisTitleFont(),
             padding: { top: 4 }
           }
         }

@@ -44,14 +44,14 @@ const Sidebar = ({ isOpen = true, isDesktop = true, onClose, motionClass = '' })
   }, [location.pathname, location.search, isDesktop, onClose]);
 
   const menuItems = [
-    { path: '/', label: 'Dashboard', icon: FiHome },
-    { path: '/projects', label: 'Projects', icon: FiFileText },
-    { path: '/transactions', label: 'Transactions', icon: FiRepeat },
-    { path: '/expenses', label: 'Expenses', icon: FiTrendingDown, match: 'expenses-all' },
-    { path: '/expenses?type=brokerage', label: 'Brokerage', icon: FiPercent, match: 'expenses-brokerage' },
-    { path: '/pending', label: 'Pending', icon: FiInbox, badge: pendingCount },
-    { path: '/impact-fund', label: 'Impact Fund', icon: FiDollarSign },
-    { path: '/allocation', label: 'Allocation', icon: FiLayout }
+    { path: '/', label: 'Dashboard', icon: FiHome, motion: 'home' },
+    { path: '/projects', label: 'Projects', icon: FiFileText, motion: 'projects' },
+    { path: '/transactions', label: 'Transactions', icon: FiRepeat, motion: 'transactions' },
+    { path: '/expenses', label: 'Expenses', icon: FiTrendingDown, match: 'expenses-all', motion: 'expenses' },
+    { path: '/expenses?type=brokerage', label: 'Brokerage', icon: FiPercent, match: 'expenses-brokerage', motion: 'brokerage' },
+    { path: '/pending', label: 'Pending', icon: FiInbox, badge: pendingCount, motion: 'pending' },
+    { path: '/impact-fund', label: 'Impact Fund', icon: FiDollarSign, motion: 'fund' },
+    { path: '/allocation', label: 'Allocation', icon: FiLayout, motion: 'allocation' }
   ];
 
   const isItemActive = (item) => {
@@ -133,13 +133,13 @@ const Sidebar = ({ isOpen = true, isDesktop = true, onClose, motionClass = '' })
                 aria-current={isActive ? 'page' : undefined}
               >
                 <span
-                  className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-[background-color,color,box-shadow,transform] duration-300 ease-out ${
+                  className={`flex items-center justify-center w-8 h-8 overflow-visible rounded-lg shrink-0 transition-[background-color,color,box-shadow] duration-200 ease-out ${
                     isActive
-                      ? 'bg-primary-500 text-white shadow-sm shadow-primary-500/40 scale-100'
-                      : 'bg-white/5 text-teal-100/55 scale-95 group-hover:bg-white/10 group-hover:text-teal-50 group-hover:scale-100'
+                      ? 'bg-primary-500 text-white shadow-sm shadow-primary-500/40'
+                      : 'bg-white/5 text-teal-100/55 group-hover:bg-white/10 group-hover:text-teal-50'
                   }`}
                 >
-                  <Icon className="w-[1.05rem] h-[1.05rem]" aria-hidden />
+                  <Icon className={`fh-icon-live fh-icon-live--${item.motion} w-[1.05rem] h-[1.05rem]`} aria-hidden />
                 </span>
                 <span className="flex-1 truncate tracking-tight">{item.label}</span>
                 {count > 0 && <span className={sidebarBadgeClass}>{count}</span>}
@@ -150,8 +150,8 @@ const Sidebar = ({ isOpen = true, isDesktop = true, onClose, motionClass = '' })
 
         <div className={`px-3 py-3 sm:px-3.5 sm:py-4 border-t ${sidebarSectionBorderClass} shrink-0`}>
           <button type="button" onClick={logout} aria-label="Sign out" className={sidebarLogoutClass}>
-            <span className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 bg-white/5 text-teal-100/55">
-              <FiLogOut className="w-[1.05rem] h-[1.05rem]" aria-hidden />
+            <span className="flex items-center justify-center w-8 h-8 overflow-visible rounded-lg shrink-0 bg-white/5 text-teal-100/55">
+              <FiLogOut className="fh-icon-live fh-icon-live--logout w-[1.05rem] h-[1.05rem]" aria-hidden />
             </span>
             <span>Sign out</span>
           </button>

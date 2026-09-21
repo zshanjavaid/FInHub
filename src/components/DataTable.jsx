@@ -119,7 +119,7 @@ const DataTable = ({
       >
         <Icon className={iconClass} />
       </div>
-      <h4 className="text-base sm:text-lg font-bold text-slate-800 mb-1 sm:mb-1.5 px-2">{heading}</h4>
+      <h4 className="text-lg sm:text-xl font-extrabold text-slate-800 mb-1 sm:mb-1.5 px-2 tracking-tight">{heading}</h4>
       <p className="text-slate-500 text-xs sm:text-sm max-w-[16rem] sm:max-w-sm mx-auto leading-relaxed px-2">
         {description}
       </p>
@@ -159,7 +159,7 @@ const DataTable = ({
       <div className="p-3 sm:p-4 md:p-5 bg-slate-100/60 border-b border-slate-200/80 flex flex-col md:flex-row gap-3 sm:gap-4">
         {searchConfig.enabled && (
           <div className="flex-1 min-w-0">
-            <label className="text-xs sm:text-sm font-semibold mb-2 sm:mb-2.5 text-slate-700 capitalize tracking-wide block">
+            <label className="text-xs sm:text-sm font-light mb-2 sm:mb-2.5 text-slate-700 capitalize tracking-[0.12em] block">
               Search
             </label>
             <div className="relative">
@@ -191,7 +191,7 @@ const DataTable = ({
               />
             ) : (
               <div>
-                <label className="text-xs sm:text-sm font-semibold mb-2 sm:mb-2.5 text-slate-700 capitalize tracking-wide block">
+                <label className="text-xs sm:text-sm font-light mb-2 sm:mb-2.5 text-slate-700 capitalize tracking-[0.12em] block">
                   {filter.label}
                 </label>
                 <div className="relative">
@@ -225,8 +225,8 @@ const DataTable = ({
           <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-xl sm:rounded-2xl bg-slate-100 flex items-center justify-center">
             <FiSearch className="w-8 h-8 text-slate-400" />
           </div>
-          <p className="text-slate-600 font-semibold text-sm sm:text-base">No results found</p>
-          <p className="text-slate-500 text-sm mt-1">Try adjusting your search or filter</p>
+          <p className="text-slate-800 font-extrabold text-base sm:text-lg tracking-tight">No results found</p>
+          <p className="text-slate-500 text-sm font-light mt-1">Try adjusting your search or filter</p>
         </div>
       ) : (
         <>

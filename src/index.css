@@ -2,24 +2,61 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --fh-primary-50: #f0fdfa;
+  --fh-primary-100: #ccfbf1;
+  --fh-primary-300: #5eead4;
+  --fh-primary-400: #2dd4bf;
+  --fh-primary-500: #0d9488;
+  --fh-primary-600: #0f766e;
+  --fh-primary-700: #115e59;
+  --fh-primary-800: #134e4a;
+  --fh-primary-900: #042f2e;
+  --fh-ink: #1e293b;
+  --fh-surface: #e8eef3;
+  --fh-surface-2: #eef3f7;
+  --fh-surface-3: #e6edf2;
+  --fh-card: #ffffff;
+  --fh-muted: #dce4ec;
+  --fh-sidebar-from: #063532;
+  --fh-sidebar-to: #031c1b;
+  --fh-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @layer base {
+  html {
+    background-color: var(--fh-surface);
+  }
+
   body {
     @apply min-h-screen text-slate-800 antialiased;
-    background-color: #e8eef3;
+    color: var(--fh-ink);
+    background-color: transparent;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-color: var(--fh-surface);
     background-image:
+      linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15, 23, 42, 0.024) 1px, transparent 1px),
       radial-gradient(ellipse 90% 60% at 100% -10%, rgba(13, 148, 136, 0.07), transparent 55%),
       radial-gradient(ellipse 70% 50% at -5% 100%, rgba(15, 23, 42, 0.04), transparent 50%),
-      linear-gradient(165deg, #eef3f7 0%, #e8eef3 45%, #e6edf2 100%);
-    background-attachment: fixed;
+      linear-gradient(165deg, var(--fh-surface-2) 0%, var(--fh-surface) 45%, var(--fh-surface-3) 100%);
+    background-size: 32px 32px, 32px 32px, auto, auto, auto;
   }
 
   #root {
-    @apply min-h-screen relative;
+    @apply min-h-screen relative z-[1];
   }
 
   ::selection {
     background-color: rgba(13, 148, 136, 0.18);
-    color: #134e4a;
+    color: var(--fh-primary-800);
   }
 }
 
@@ -29,7 +66,168 @@ html {
 
 html,
 body {
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif !important;
+  font-optical-sizing: auto;
+  font-weight: 400;
+}
+
+.font-mono {
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@keyframes fh-icon-home {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes fh-icon-projects {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-10deg);
+  }
+}
+
+@keyframes fh-icon-transactions {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fh-icon-expenses {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+
+@keyframes fh-icon-brokerage {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.22);
+  }
+}
+
+@keyframes fh-icon-pending {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  35% {
+    transform: translateY(-3.5px);
+  }
+  50% {
+    transform: translateY(1px);
+  }
+}
+
+@keyframes fh-icon-fund {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-3px) scale(1.14);
+  }
+}
+
+@keyframes fh-icon-allocation {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-9deg);
+  }
+  75% {
+    transform: rotate(9deg);
+  }
+}
+
+@keyframes fh-icon-logout {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(3px);
+  }
+}
+
+svg.fh-icon-live {
+  display: block;
+  transform-origin: 50% 50%;
+  transform-box: view-box;
+  will-change: transform;
+}
+
+svg.fh-icon-live--home {
+  animation: fh-icon-home 2s ease-in-out infinite;
+}
+
+svg.fh-icon-live--projects {
+  animation: fh-icon-projects 2.2s ease-in-out infinite;
+}
+
+svg.fh-icon-live--transactions {
+  animation: fh-icon-transactions 4.5s linear infinite;
+}
+
+svg.fh-icon-live--expenses {
+  animation: fh-icon-expenses 2s ease-in-out infinite;
+}
+
+svg.fh-icon-live--brokerage {
+  animation: fh-icon-brokerage 1.8s ease-in-out infinite;
+}
+
+svg.fh-icon-live--pending {
+  animation: fh-icon-pending 2.1s ease-in-out infinite;
+}
+
+svg.fh-icon-live--fund {
+  animation: fh-icon-fund 2s ease-in-out infinite;
+}
+
+svg.fh-icon-live--allocation {
+  animation: fh-icon-allocation 2.4s ease-in-out infinite;
+}
+
+svg.fh-icon-live--logout {
+  animation: fh-icon-logout 2s ease-in-out infinite;
+}
+
+.fh-auth-mesh {
+  position: relative;
+  overflow: hidden;
+}
+
+.fh-auth-mesh::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(94, 234, 212, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(94, 234, 212, 0.05) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(ellipse at 28% 38%, #000 20%, transparent 72%);
 }
 
 /* ——— FinHub logo — icon style + next-level motion ——— */
@@ -316,5 +514,9 @@ body {
 
   .finhub-nav-indicator {
     transition: none !important;
+  }
+
+  .fh-icon-live {
+    animation: none !important;
   }
 }

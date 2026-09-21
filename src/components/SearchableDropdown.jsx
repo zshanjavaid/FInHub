@@ -151,8 +151,8 @@ const SearchableDropdown = ({
       <label
         className={
           isFilter
-            ? 'text-[11px] font-semibold mb-1.5 text-slate-500 uppercase tracking-[0.08em]'
-            : 'text-sm font-semibold mb-2.5 text-slate-700 capitalize tracking-wide'
+            ? 'text-[11px] font-light mb-1.5 text-slate-500 uppercase tracking-[0.16em]'
+            : 'text-sm font-light mb-2.5 text-slate-700 capitalize tracking-[0.12em]'
         }
       >
         {label}

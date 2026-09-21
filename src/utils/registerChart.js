@@ -10,6 +10,7 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
+import { chartFontFamily } from './chartTheme';
 
 let registered = false;
 
@@ -27,5 +28,9 @@ export function ensureChartJsRegistered() {
     Tooltip,
     Legend
   );
+  ChartJS.defaults.font.family = chartFontFamily;
+  ChartJS.defaults.animation = false;
+  ChartJS.defaults.transitions.active.animation.duration = 0;
+  ChartJS.defaults.resizeDelay = 150;
   registered = true;
 }

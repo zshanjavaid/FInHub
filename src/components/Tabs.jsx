@@ -23,10 +23,10 @@ const Tabs = ({ tabs = [], activeId, onChange, children }) => {
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => onChange(tab.id)}
-                className={`flex flex-1 items-center justify-center gap-1 sm:gap-2 min-w-0 px-2 py-2.5 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 focus-visible:ring-offset-1 ${
+                className={`flex flex-1 items-center justify-center gap-1 sm:gap-2 min-w-0 px-2 py-2.5 sm:px-4 sm:py-2.5 text-xs sm:text-sm rounded-lg transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 focus-visible:ring-offset-1 ${
                   isActive
-                    ? 'bg-white text-primary-700 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/70'
+                    ? 'bg-white text-primary-700 shadow-sm font-extrabold'
+                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/70 font-light'
                 }`}
               >
                 <span className="truncate text-center leading-tight min-w-0">

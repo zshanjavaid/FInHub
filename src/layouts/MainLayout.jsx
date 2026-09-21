@@ -60,11 +60,11 @@ const MainLayout = () => {
         motionClass={SIDEBAR_MOTION}
       />
       <div
-        className={`relative z-10 flex flex-col flex-1 min-w-0 w-full h-full min-h-0 ${
+        className={`relative z-10 flex flex-col flex-1 min-w-0 w-full h-full min-h-0 overflow-hidden ${
           isDesktop && isSidebarOpen ? 'lg:ml-64' : ''
         }`}
       >
-        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200/70">
+        <header className="relative z-30 bg-white border-b border-primary-600/15">
           <div className="w-full max-w-[1800px] mx-auto px-4 sm:px-6 py-2.5 sm:py-3 flex items-center gap-3">
             <Link
               to="/"
@@ -89,8 +89,8 @@ const MainLayout = () => {
             </button>
           </div>
         </header>
-        <main className="overflow-auto h-[calc(100vh-57px)] sm:h-[calc(100vh-73px)] w-full min-h-0 min-w-0">
-          <div className="w-full min-w-0 max-w-[1800px] mx-auto relative">
+        <main className="relative z-[1] overflow-auto flex-1 min-h-0 w-full min-w-0">
+          <div className="w-full min-w-0 max-w-[1800px] mx-auto">
             <Outlet />
           </div>
         </main>

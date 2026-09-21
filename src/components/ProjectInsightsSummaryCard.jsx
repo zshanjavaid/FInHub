@@ -11,7 +11,7 @@ import {
 
 const StatValue = ({ value, valueClassName = 'text-slate-900', title }) => (
   <div className="flex items-baseline tabular-nums" title={title}>
-    <span className={`text-lg sm:text-xl font-bold tracking-tight leading-none ${valueClassName}`}>{value}</span>
+    <span className={`text-2xl sm:text-3xl font-bold tracking-tight leading-none font-mono ${valueClassName}`}>{value}</span>
   </div>
 );
 
@@ -41,7 +41,7 @@ const ProjectInsightsSummaryCard = ({ projects = [], activityProjects = null }) 
           </div>
           <div className="sm:text-right shrink-0 w-full sm:w-auto">
             <p
-              className="text-xs sm:text-sm font-semibold text-slate-700 tabular-nums tracking-tight"
+              className="text-xs sm:text-sm font-light text-slate-700 tabular-nums tracking-wide"
               title="Current rolling window"
             >
               {rangeLabel}
@@ -55,7 +55,7 @@ const ProjectInsightsSummaryCard = ({ projects = [], activityProjects = null }) 
           <div className="rounded-lg sm:rounded-xl bg-white border border-slate-200 pl-3 pr-3 sm:pl-3.5 sm:pr-4 py-3 sm:py-3.5 border-l-[3px] border-l-primary-600 min-w-0">
             <div className="flex items-center gap-2 mb-2 sm:mb-3">
               <span className="h-1.5 w-1.5 rounded-full bg-primary-600" aria-hidden />
-              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-slate-600">
+              <span className="text-[10px] sm:text-[11px] font-light uppercase tracking-[0.16em] text-slate-600">
                 Onboard
               </span>
             </div>
@@ -71,7 +71,7 @@ const ProjectInsightsSummaryCard = ({ projects = [], activityProjects = null }) 
           <div className="rounded-lg sm:rounded-xl bg-white border border-slate-200 pl-3 pr-3 sm:pl-3.5 sm:pr-4 py-3 sm:py-3.5 border-l-[3px] border-l-amber-500 min-w-0">
             <div className="flex items-center gap-2 mb-2 sm:mb-3">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />
-              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-amber-900/80">
+              <span className="text-[10px] sm:text-[11px] font-light uppercase tracking-[0.16em] text-amber-900/80">
                 Ended
               </span>
             </div>

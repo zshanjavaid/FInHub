@@ -21,7 +21,7 @@ const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
 
 /** Single full-screen loader — avoids a second top-of-page spinner. */
 const FullScreenLoader = () => (
-  <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[#e8eef3]">
+  <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[var(--fh-surface)]">
     <Loader size="lg" label="Loading FinHub…" className="py-0" />
   </div>
 );

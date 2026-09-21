@@ -28,7 +28,7 @@ const Modal = ({ isOpen, onClose, title, children, panelClassName = 'max-w-2xl' 
         aria-labelledby="modal-title"
       >
         <div className="flex items-center gap-2 px-4 py-3.5 sm:px-6 sm:py-4 shrink-0 bg-gradient-to-r from-primary-800 to-primary-600 rounded-t-2xl sm:rounded-t-2xl">
-          <h2 id="modal-title" className="text-base sm:text-lg font-bold text-white tracking-tight truncate flex-1 min-w-0">
+          <h2 id="modal-title" className="text-lg sm:text-xl font-extrabold text-white tracking-tight truncate flex-1 min-w-0">
             {title}
           </h2>
           <button

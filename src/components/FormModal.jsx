@@ -85,7 +85,7 @@ const FormModal = ({
         return (
           <div className={field.className || ''}>
             {field.label && (
-              <div className="text-sm font-semibold mb-2.5 text-slate-700 capitalize tracking-wide">
+              <div className="text-sm font-light mb-2.5 text-slate-700 capitalize tracking-[0.12em]">
                 {field.label}
               </div>
             )}
@@ -159,7 +159,7 @@ const FormModal = ({
                 onChange={(e) => onFieldChange(field.name, e.target.checked)}
                 className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
               />
-              <span className="text-sm font-semibold text-slate-700">{field.label}</span>
+              <span className="text-sm font-light text-slate-700">{field.label}</span>
             </label>
           </div>
         );
@@ -236,7 +236,7 @@ const FormModal = ({
 
   const renderRadioGroupInner = (field) => (
     <div className="space-y-4 min-w-0">
-      <label className="text-sm font-semibold text-slate-700 capitalize tracking-wide block">
+      <label className="text-sm font-light text-slate-700 capitalize tracking-[0.12em] block">
         {field.dynamicLabel ? field.dynamicLabel(form) : field.label}
       </label>
       <div className="flex flex-wrap gap-x-6 gap-y-2">
@@ -292,7 +292,7 @@ const FormModal = ({
             return (
               <div key={`section-${rowIndex}`} className="space-y-4 pt-4 border-t border-slate-200">
                 {row.field.title && (
-                  <h3 className="text-lg font-semibold text-slate-800">{row.field.title}</h3>
+                  <h3 className="text-xl font-extrabold text-slate-800 tracking-tight">{row.field.title}</h3>
                 )}
                 {row.field.fields && row.field.fields.map((field, idx) => (
                   <div key={field.name || idx} className={field.fullWidth ? '' : 'grid grid-cols-1 md:grid-cols-2 gap-6'}>
