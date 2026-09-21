@@ -1,5 +1,6 @@
-import { toNumber } from './number';
+import { roundMoney, toNumber } from './number';
 import { prorateFixedAmountForMonth } from './workingDays';
+import { impactFundFromNet } from './transactionNet';
 
 /**
  * Brokerage in dollars.
@@ -67,11 +68,13 @@ export const prepareProjectForFirestore = (values) => {
   return out;
 };
 
-export const getProjectMonthlyAllocationAmount = (p) => {
+export const getProjectMonthlyAllocationAmount = (p, options = {}) => {
   const hours = toNumber(p.totalMonthlyHours);
   const rate = toNumber(p.hourlyRate);
   const gross = hours * rate;
-  const brokerage = computeProjectBrokerageDollars(p);
+  const brokerage = computeProjectBrokerageDollars(p, options);
   const tax = computeProjectTaxDollars(p);
-  return Math.max(0, gross - brokerage - tax);
+  const projectCost = toNumber(p.projectCost);
+  const beforeIf = Math.max(0, gross - brokerage - tax - projectCost);
+  return roundMoney(beforeIf - impactFundFromNet(beforeIf));
 };

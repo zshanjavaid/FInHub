@@ -5,7 +5,7 @@ import { fetchProjects, createProject } from '../store/projects/projectsSlice';
 import { formatMoney } from '../utils/format';
 import { getProjectMonthlyAllocationAmount, prepareProjectForFirestore } from '../utils/project';
 import { EMPTY_PROJECT_FORM } from '../utils/formValues';
-import { addMonthsLocalYmd } from '../utils/date';
+import { addMonthsLocalYmd, getCurrentYearMonth } from '../utils/date';
 import { isApproved } from '../constants/app';
 import { PROJECT_TYPE_OPTIONS } from '../constants/projectTypes';
 import { useAuth } from '../contexts/AuthContext';
@@ -91,11 +91,14 @@ const ProjectAllocation = () => {
   }, [dispatch]);
 
   const projectsWithCost = useMemo(() => {
-    const list = (projects || []).filter(isApproved).filter((p) => (p.projectStatus || 'active') === 'active');
+    const list = (projects || [])
+      .filter(isApproved)
+      .filter((p) => String(p.projectStatus || 'active').trim().toLowerCase() === 'active');
+    const monthKey = getCurrentYearMonth();
     return list
       .map((p) => {
         const key = projectIdentityKey(p.client, p.project);
-        const cost = getProjectMonthlyAllocationAmount(p);
+        const cost = getProjectMonthlyAllocationAmount(p, { monthKey });
         return { ...p, key, cost };
       })
       .filter((p) => p.cost > 0);

@@ -15,7 +15,7 @@ import {
   removeExpense
 } from '../store/expenses/expensesSlice';
 import { fetchProjects } from '../store/projects/projectsSlice';
-import { filterByDateRange } from '../utils/date';
+import { filterByDateRange, expenseDateValue } from '../utils/date';
 import { useDateFilter } from '../hooks/useDateFilter';
 import { isApproved } from '../constants/app';
 import { EXPENSE_TYPE_LABELS, EXPENSE_TYPE_LABEL_TO_VALUE, EXPENSE_TYPE_OPTIONS } from '../constants/expenseTypes';
@@ -42,7 +42,7 @@ const Expenses = () => {
   const error = useSelector((state) => state.expenses.error);
   const projects = useSelector((state) => state.projects.items);
 
-  const dateFilter = useDateFilter({ defaultToPreviousMonth: true });
+  const dateFilter = useDateFilter({ defaultToCurrentMonth: true });
   const { effectiveDateFrom: dateFrom, effectiveDateTo: dateTo } = dateFilter;
   const [selectedType, setSelectedType] = useState(() => typeParamToLabel(searchParams.get('type')));
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -68,7 +68,7 @@ const Expenses = () => {
   };
 
   const filteredExpenses = useMemo(() => {
-    let list = filterByDateRange(expenses || [], dateFrom, dateTo, (e) => e.date);
+    let list = filterByDateRange(expenses || [], dateFrom, dateTo, expenseDateValue);
     if (selectedType) {
       const typeValue = EXPENSE_TYPE_LABEL_TO_VALUE[selectedType];
       list = list.filter((e) => (e.expenseType || '').toLowerCase() === typeValue);

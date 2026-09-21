@@ -20,6 +20,7 @@ import ErrorAlert from '../components/ErrorAlert';
 import PageContainer from '../components/PageContainer';
 import { compareTransactions, compareWithdrawals } from '../utils/tableSort';
 import { toNumber } from '../utils/number';
+import { isApproved } from '../constants/app';
 import {
   IMPACT_FUND_PERCENT_LABEL,
   transactionImpactFundAmount
@@ -36,7 +37,7 @@ const ImpactFund = () => {
   const [editingWithdrawalId, setEditingWithdrawalId] = useState(null);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawNote, setWithdrawNote] = useState('');
-  const dateFilter = useDateFilter({ defaultToPreviousMonth: true });
+  const dateFilter = useDateFilter({ defaultToCurrentMonth: true });
   const { effectiveDateFrom: dateFrom, effectiveDateTo: dateTo } = dateFilter;
   const [activeTab, setActiveTab] = useState('contrib');
   const [selectedBroker, setSelectedBroker] = useState('');
@@ -53,6 +54,7 @@ const ImpactFund = () => {
 
   const contributionHistory = useMemo(() => {
     return (transactions || [])
+      .filter(isApproved)
       .map((t) => {
         const amount = transactionImpactFundAmount(t);
         return {
@@ -107,8 +109,6 @@ const ImpactFund = () => {
     [filteredWithdrawalRows]
   );
 
-  const remaining = totalContributions - totalWithdrawn;
-
   const allTimeRemaining = useMemo(() => {
     const contrib = contributionHistory.reduce((sum, c) => sum + c.amount, 0);
     const withdrawn = (withdrawals || []).reduce((sum, w) => sum + toNumber(w.amount), 0);
@@ -142,11 +142,12 @@ const ImpactFund = () => {
     },
     {
       label: 'Remaining',
-      value: formatMoney(remaining),
+      value: formatMoney(allTimeRemaining),
       Icon: FiCreditCard,
-      valueClassName: signedMoneyClass(remaining, 'text-emerald-600'),
-      iconClassName: remaining < 0 ? 'text-red-500' : 'text-emerald-500',
-      borderClassName: remaining < 0 ? 'border-t-red-500' : 'border-t-emerald-500'
+      valueClassName: signedMoneyClass(allTimeRemaining, 'text-emerald-600'),
+      iconClassName: allTimeRemaining < 0 ? 'text-red-500' : 'text-emerald-500',
+      borderClassName: allTimeRemaining < 0 ? 'border-t-red-500' : 'border-t-emerald-500',
+      hint: <span className="text-sm text-slate-500">All time</span>
     }
   ];
 
@@ -260,6 +261,7 @@ const ImpactFund = () => {
               icon={<card.Icon className="w-5 h-5" />}
               iconClassName={card.iconClassName}
               borderClassName={card.borderClassName}
+              hint={card.hint}
             />
           ))}
         </div>

@@ -12,10 +12,10 @@ import { syncMonthlyBrokerageExpense } from '../utils/ensureMonthlyBrokerageExpe
 import { useAuth } from '../contexts/AuthContext';
 import { getTargetAmount, setTargetAmount } from '../services/settingsService';
 import { formatMoney, signedMoneyClass } from '../utils/format';
-import { filterByDateRange, monthSlotsForRange, calendarYearMonthSlots, addIntoMonthSlots, MONTH_NAMES, normalizeDateToYYYYMMDD } from '../utils/date';
+import { filterByDateRange, monthSlotsForRange, calendarYearMonthSlots, addIntoMonthSlots, MONTH_NAMES, normalizeDateToYYYYMMDD, expenseDateValue } from '../utils/date';
 import { computeNextMonthEstimatedAmount } from '../utils/nextMonthEstimate';
 import { transactionNetAfterImpactFund, sumTransactionNetAfterImpactFund } from '../utils/transactionNet';
-import { sumExpenseAmounts } from '../utils/availableBalance';
+import { sumExpenseAmounts, sumExpensesTowardAvailable } from '../utils/availableBalance';
 import { toNumber, normText } from '../utils/number';
 import { EMPTY_TRANSACTION_FORM, transactionToFormValues } from '../utils/formValues';
 import { matchesClientProject } from '../utils/projectLookup';
@@ -40,14 +40,6 @@ import { FiDollarSign, FiTarget, FiEdit2, FiBriefcase, FiCreditCard } from 'reac
 
 const BarChart = lazy(() => import('../components/BarChart'));
 const ActiveProjectsYearComparisonChart = lazy(() => import('../components/ActiveProjectsYearComparisonChart'));
-
-const expenseDateValue = (expense) => {
-  const fromDate = normalizeDateToYYYYMMDD(expense?.date);
-  if (fromDate) return fromDate;
-  const monthKey = String(expense?.monthKey || '').slice(0, 7);
-  if (/^\d{4}-\d{2}$/.test(monthKey)) return `${monthKey}-01`;
-  return expense?.date || '';
-};
 
 const Dashboard = () => {
   const dispatch = useDispatch();
@@ -231,16 +223,34 @@ const Dashboard = () => {
       return { labels: range.labels, ...fillSeries(range.slots) };
     }
 
-    const yearSlots = calendarYearMonthSlots();
-    return { labels: yearSlots.labels, ...fillSeries(yearSlots.slots) };
+    const ymds = [];
+    approvedTransactions.forEach((t) => {
+      const d = normalizeDateToYYYYMMDD(t.date);
+      if (d) ymds.push(d);
+    });
+    approvedExpenses.forEach((row) => {
+      const d = normalizeDateToYYYYMMDD(expenseDateValue(row));
+      if (d) ymds.push(d);
+    });
+    if (ymds.length === 0) {
+      const yearSlots = calendarYearMonthSlots();
+      return { labels: yearSlots.labels, inward: new Array(12).fill(0), expense: new Array(12).fill(0) };
+    }
+    ymds.sort();
+    const span = monthSlotsForRange(ymds[0], ymds[ymds.length - 1]);
+    if (!span.valid) {
+      const yearSlots = calendarYearMonthSlots();
+      return { labels: yearSlots.labels, ...fillSeries(yearSlots.slots) };
+    }
+    return { labels: span.labels, ...fillSeries(span.slots) };
   }, [approvedTransactions, approvedExpenses, dateFrom, dateTo]);
 
   const activeProjectCount = useMemo(() => {
-    return (projects || []).filter(isDashboardActiveProject).length;
+    return (projects || []).filter((p) => isApproved(p) && isDashboardActiveProject(p)).length;
   }, [projects]);
 
   const activeProjectCountByType = useMemo(() => {
-    const active = (projects || []).filter(isDashboardActiveProject);
+    const active = (projects || []).filter((p) => isApproved(p) && isDashboardActiveProject(p));
     const byType = {};
     DASHBOARD_ACTIVE_PROJECT_TYPES.forEach((type) => {
       byType[type] = active.filter((p) => (p.projectType || '').trim() === type).length;
@@ -255,6 +265,7 @@ const Dashboard = () => {
   const { inwardPct, expensePct, totalInward, totalExpense, availableAmount } = useMemo(() => {
     const inward = sumTransactionNetAfterImpactFund(approvedTransactions);
     const expense = sumExpenseAmounts(approvedExpenses);
+    const available = inward - sumExpensesTowardAvailable(approvedExpenses, approvedTransactions);
     const mix = inward + expense;
     const pct = mix === 0
       ? { inwardPct: 0, expensePct: 0 }
@@ -266,7 +277,7 @@ const Dashboard = () => {
       ...pct,
       totalInward: inward,
       totalExpense: expense,
-      availableAmount: inward - expense
+      availableAmount: available
     };
   }, [approvedTransactions, approvedExpenses]);
 

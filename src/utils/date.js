@@ -177,6 +177,15 @@ export const addIntoMonthSlots = (totals, dateValue, amount, slots) => {
   totals[idx] += Number(amount) || 0;
 };
 
+/** Prefer `date`; fall back to the first day of `monthKey` so month filters still match. */
+export const expenseDateValue = (expense) => {
+  const fromDate = normalizeDateToYYYYMMDD(expense?.date);
+  if (fromDate) return fromDate;
+  const monthKey = String(expense?.monthKey || '').slice(0, 7);
+  if (/^\d{4}-\d{2}$/.test(monthKey)) return `${monthKey}-01`;
+  return expense?.date || '';
+};
+
 /**
  * Filter a list by date range (inclusive). getDate(item) should return the item's date (any format supported by normalizeDateToYYYYMMDD).
  */

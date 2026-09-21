@@ -34,6 +34,7 @@ import { formatMoney } from '../utils/format';
 import { EMPTY_TRANSACTION_FORM, transactionToFormValues } from '../utils/formValues';
 import { toNumber, roundMoney } from '../utils/number';
 import { transactionNetAfterImpactFund, netFromGrossParts } from '../utils/transactionNet';
+import { transactionHasBrokerageDeduction } from '../utils/availableBalance';
 import { isApproved } from '../constants/app';
 import { useDateFilter } from '../hooks/useDateFilter';
 import { useClientOptions } from '../hooks/useClientOptions';
@@ -97,10 +98,16 @@ const Transactions = () => {
 
   const filteredTransactions = useMemo(() => {
     let list = filterByDateRange(transactions || [], dateFrom, dateTo, (t) => t.date);
-    if (selectedBroker) list = list.filter((t) => (t.client || '').trim() === selectedBroker);
+    if (selectedBroker) {
+      list = list.filter((t) => (t.client || '').trim().toLowerCase() === selectedBroker.trim().toLowerCase());
+    }
     if (selectedProjectId) {
       const [client, project] = selectedProjectId.split('|');
-      list = list.filter((t) => (t.client || '').trim() === client && (t.project || '').trim() === project);
+      list = list.filter(
+        (t) =>
+          (t.client || '').trim().toLowerCase() === String(client || '').trim().toLowerCase() &&
+          (t.project || '').trim().toLowerCase() === String(project || '').trim().toLowerCase()
+      );
     }
     return list;
   }, [transactions, dateFrom, dateTo, selectedBroker, selectedProjectId]);
@@ -115,18 +122,8 @@ const Transactions = () => {
   );
 
   const monthBuckets = useMemo(() => {
-    if (!dateFrom || !dateTo) return [];
-    const start = new Date(dateFrom);
-    const end = new Date(dateTo);
-    if (!(start <= end)) return [];
-    const months = [];
-    const d = new Date(start.getFullYear(), start.getMonth(), 1);
-    const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
-    while (d <= endMonth) {
-      months.push({ year: d.getFullYear(), month: d.getMonth() });
-      d.setMonth(d.getMonth() + 1);
-    }
-    return months;
+    const range = monthSlotsForRange(dateFrom, dateTo);
+    return range.valid ? range.slots : [];
   }, [dateFrom, dateTo]);
 
   const generationPlan = useMemo(() => {
@@ -469,13 +466,14 @@ const Transactions = () => {
         if (!projectRow || isFreelanceProject(projectRow)) continue;
 
         const existingGross = monthGrossForProject(transactions, t.client, t.project, monthKey);
-        const newGross = payload
-          .filter((row) => {
-            if (monthKeyFromYmd(row.date) !== monthKey) return false;
-            if ((row.client || '').trim().toLowerCase() !== String(t.client || '').trim().toLowerCase()) return false;
-            return (row.project || '').trim().toLowerCase() === String(t.project || '').trim().toLowerCase();
-          })
-          .reduce((s, row) => s + (Number(row.amount) || 0), 0);
+        const bucketRows = payload.filter((row) => {
+          if (monthKeyFromYmd(row.date) !== monthKey) return false;
+          if ((row.client || '').trim().toLowerCase() !== String(t.client || '').trim().toLowerCase()) return false;
+          return (row.project || '').trim().toLowerCase() === String(t.project || '').trim().toLowerCase();
+        });
+        if (bucketRows.some(transactionHasBrokerageDeduction)) continue;
+
+        const newGross = bucketRows.reduce((s, row) => s + (Number(row.amount) || 0), 0);
 
         const expenseData = planNewMonthlyBrokerageExpense({
           client: t.client,
