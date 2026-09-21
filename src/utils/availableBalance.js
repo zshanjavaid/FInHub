@@ -4,12 +4,7 @@ import { isBrokerageExpenseRow, brokerageExpenseMonthKey, monthKeyFromYmd } from
 export { isBrokerageExpenseRow };
 
 /** Brokerage already taken off inward (transaction net). */
-export const transactionHasBrokerageDeduction = (t) => {
-  const amt = toNumber(t?.brokerageAmount);
-  if (amt > 0) return true;
-  const val = toNumber(t?.brokerageValue);
-  return val > 0;
-};
+export const transactionHasBrokerageDeduction = (t) => toNumber(t?.brokerageAmount) > 0;
 
 /**
  * Count an expense toward Available Amount only if it is not the same
@@ -31,3 +26,9 @@ export const expenseCountsTowardAvailable = (expense, transactions = []) => {
 
 export const expenseAmountTowardAvailable = (expense, transactions = []) =>
   expenseCountsTowardAvailable(expense, transactions) ? toNumber(expense.amount) : 0;
+
+export const sumExpenseAmounts = (expenses = []) =>
+  (expenses || []).reduce((sum, row) => sum + toNumber(row.amount), 0);
+
+export const sumExpensesTowardAvailable = (expenses = [], transactions = []) =>
+  (expenses || []).reduce((sum, row) => sum + expenseAmountTowardAvailable(row, transactions), 0);

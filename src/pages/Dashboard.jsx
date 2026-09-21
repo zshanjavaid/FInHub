@@ -12,10 +12,11 @@ import { syncMonthlyBrokerageExpense } from '../utils/ensureMonthlyBrokerageExpe
 import { useAuth } from '../contexts/AuthContext';
 import { getTargetAmount, setTargetAmount } from '../services/settingsService';
 import { formatMoney, signedMoneyClass } from '../utils/format';
-import { filterByDateRange, monthSlotsForRange, calendarYearMonthSlots, addIntoMonthSlots, MONTH_NAMES } from '../utils/date';
+import { filterByDateRange, monthSlotsForRange, calendarYearMonthSlots, addIntoMonthSlots, MONTH_NAMES, normalizeDateToYYYYMMDD } from '../utils/date';
 import { computeNextMonthEstimatedAmount } from '../utils/nextMonthEstimate';
-import { transactionNetAfterImpactFund } from '../utils/transactionNet';
-import { expenseAmountTowardAvailable } from '../utils/availableBalance';
+import { transactionNetAfterImpactFund, sumTransactionNetAfterImpactFund } from '../utils/transactionNet';
+import { sumExpenseAmounts } from '../utils/availableBalance';
+import { toNumber, normText } from '../utils/number';
 import { EMPTY_TRANSACTION_FORM, transactionToFormValues } from '../utils/formValues';
 import { matchesClientProject } from '../utils/projectLookup';
 import { isApproved } from '../constants/app';
@@ -35,10 +36,18 @@ import TransactionTable from '../components/TransactionTable';
 import TransactionFormModal from '../components/TransactionFormModal';
 import PortfolioLinks from '../components/PortfolioLinks';
 import DeferredMount, { ChartSkeleton } from '../components/DeferredMount';
-import { FiDollarSign, FiTarget, FiEdit2, FiBriefcase } from 'react-icons/fi';
+import { FiDollarSign, FiTarget, FiEdit2, FiBriefcase, FiCreditCard } from 'react-icons/fi';
 
 const BarChart = lazy(() => import('../components/BarChart'));
 const ActiveProjectsYearComparisonChart = lazy(() => import('../components/ActiveProjectsYearComparisonChart'));
+
+const expenseDateValue = (expense) => {
+  const fromDate = normalizeDateToYYYYMMDD(expense?.date);
+  if (fromDate) return fromDate;
+  const monthKey = String(expense?.monthKey || '').slice(0, 7);
+  if (/^\d{4}-\d{2}$/.test(monthKey)) return `${monthKey}-01`;
+  return expense?.date || '';
+};
 
 const Dashboard = () => {
   const dispatch = useDispatch();
@@ -117,7 +126,16 @@ const Dashboard = () => {
     () => (filteredTransactions || []).filter(isApproved),
     [filteredTransactions]
   );
-  const approvedExpenses = useMemo(() => (expenses || []).filter(isApproved), [expenses]);
+  const approvedExpenses = useMemo(() => {
+    let list = (expenses || []).filter(isApproved);
+    if (selectedProject) {
+      list = list.filter((row) => matchesClientProject(row, selectedProject.client, selectedProject.project));
+    } else if (selectedBroker) {
+      const broker = normText(selectedBroker);
+      list = list.filter((row) => normText(row.client) === broker);
+    }
+    return filterByDateRange(list, dateFrom, dateTo, expenseDateValue);
+  }, [expenses, selectedProject, selectedBroker, dateFrom, dateTo]);
 
   const openAddModal = () => {
     setEditingTransactionId(null);
@@ -195,11 +213,9 @@ const Dashboard = () => {
       approvedTransactions.forEach((transaction) => {
         addIntoMonthSlots(inward, transaction.date, transactionNetAfterImpactFund(transaction), slots);
       });
-      if (!selectedProject) {
-        approvedExpenses.forEach((row) => {
-          addIntoMonthSlots(expense, row.date, expenseAmountTowardAvailable(row, approvedTransactions), slots);
-        });
-      }
+      approvedExpenses.forEach((row) => {
+        addIntoMonthSlots(expense, expenseDateValue(row), toNumber(row.amount), slots);
+      });
       return { inward, expense };
     };
 
@@ -217,7 +233,7 @@ const Dashboard = () => {
 
     const yearSlots = calendarYearMonthSlots();
     return { labels: yearSlots.labels, ...fillSeries(yearSlots.slots) };
-  }, [approvedTransactions, approvedExpenses, selectedProject, dateFrom, dateTo]);
+  }, [approvedTransactions, approvedExpenses, dateFrom, dateTo]);
 
   const activeProjectCount = useMemo(() => {
     return (projects || []).filter(isDashboardActiveProject).length;
@@ -236,21 +252,23 @@ const Dashboard = () => {
     })).filter((chip) => chip.value > 0);
   }, [projects]);
 
-  const { inwardPct, expensePct, totalInward, availableAmount } = useMemo(() => {
-    const inward = (chartData.inward || []).reduce((s, v) => s + (Number(v) || 0), 0);
-    const expense = (chartData.expense || []).reduce((s, v) => s + (Number(v) || 0), 0);
-    const total = inward + expense;
-    const pct = total === 0 ? { inwardPct: 0, expensePct: 0 } : {
-      inwardPct: Math.round((inward / total) * 100),
-      expensePct: Math.round((expense / total) * 100)
-    };
+  const { inwardPct, expensePct, totalInward, totalExpense, availableAmount } = useMemo(() => {
+    const inward = sumTransactionNetAfterImpactFund(approvedTransactions);
+    const expense = sumExpenseAmounts(approvedExpenses);
+    const mix = inward + expense;
+    const pct = mix === 0
+      ? { inwardPct: 0, expensePct: 0 }
+      : {
+          inwardPct: Math.round((inward / mix) * 100),
+          expensePct: Math.round((expense / mix) * 100)
+        };
     return {
       ...pct,
       totalInward: inward,
       totalExpense: expense,
       availableAmount: inward - expense
     };
-  }, [chartData]);
+  }, [approvedTransactions, approvedExpenses]);
 
   const chartSeries = useMemo(
     () => [
@@ -316,13 +334,53 @@ const Dashboard = () => {
           />
         </FilterBar>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
+          <StatCard
+            label="Total Inward"
+            value={formatMoney(totalInward)}
+            icon={<FiTarget className="w-5 h-5" />}
+            valueClassName="text-primary-700"
+            iconClassName="text-primary-600"
+            borderClassName="border-t-primary-600"
+            hint={
+              <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                <span>
+                  Target{' '}
+                  <span className="font-mono tabular-nums text-slate-700">
+                    {targetAmount != null && targetAmount > 0 ? formatMoney(targetAmount) : 'not set'}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={openTargetModal}
+                  className="p-1.5 rounded-lg hover:bg-primary-50 text-primary-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
+                  aria-label={targetAmount != null ? 'Edit target' : 'Set target'}
+                >
+                  <FiEdit2 className="w-4 h-4" />
+                </button>
+              </div>
+            }
+          />
+          <StatCard
+            label="Total Expense"
+            value={formatMoney(totalExpense)}
+            icon={<FiCreditCard className="w-5 h-5" />}
+            valueClassName="text-red-600"
+            iconClassName="text-red-500"
+            iconWrapClassName="bg-red-50 ring-1 ring-red-100/80"
+            borderClassName="border-t-red-500"
+          />
           <StatCard
             label="Available Amount"
             value={formatMoney(availableAmount)}
             icon={<FiDollarSign className="w-5 h-5" />}
             valueClassName={signedMoneyClass(availableAmount)}
             iconClassName={availableAmount < 0 ? 'text-red-500' : 'text-primary-600'}
+            iconWrapClassName={
+              availableAmount < 0
+                ? 'bg-red-50 ring-1 ring-red-100/80'
+                : 'bg-primary-50 ring-1 ring-primary-100/80'
+            }
             borderClassName={availableAmount < 0 ? 'border-t-red-500' : 'border-t-primary-600'}
           />
           <StatCard
@@ -334,42 +392,6 @@ const Dashboard = () => {
             borderClassName="border-t-primary-600"
             chips={activeProjectCountByType}
           />
-          <div className="bg-white rounded-2xl shadow-card overflow-hidden border border-slate-200/80 border-t-[3px] border-t-primary-600 p-4 sm:p-5 md:p-6 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                <span className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-primary-100 text-primary-600 shrink-0">
-                  <FiTarget className="w-4 h-4 sm:w-5 sm:h-5" />
-                </span>
-                <p className="text-[10px] sm:text-[11px] font-light text-slate-500 uppercase tracking-[0.18em] leading-snug">
-                  Total Inward / Target
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={openTargetModal}
-                className="p-2 rounded-xl hover:bg-primary-100 text-primary-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
-                aria-label={targetAmount != null ? 'Edit target' : 'Set target'}
-              >
-                <FiEdit2 className="w-5 h-5" />
-              </button>
-            </div>
-            <p className="mt-3 sm:mt-4 text-2xl sm:text-3xl font-bold tracking-tight leading-none tabular-nums font-mono">
-              {targetAmount != null && targetAmount > 0 ? (
-                <>
-                  <span className={totalInward >= targetAmount ? 'text-emerald-600' : 'text-red-600'}>
-                    {formatMoney(totalInward)}
-                  </span>
-                  <span className="text-slate-500 font-normal"> / </span>
-                  <span className="text-slate-700">{formatMoney(targetAmount)}</span>
-                </>
-              ) : (
-                <>
-                  <span className={signedMoneyClass(totalInward)}>{formatMoney(totalInward)}</span>
-                  <span className="block text-sm font-normal text-slate-500 mt-1">Set a target amount to track progress</span>
-                </>
-              )}
-            </p>
-          </div>
         </div>
 
         <ErrorAlert messages={[projectsError, transactionsError, expensesError].filter(Boolean)} />

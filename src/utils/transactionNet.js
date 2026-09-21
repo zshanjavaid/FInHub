@@ -36,3 +36,6 @@ export const transactionNetAfterImpactFund = (t) => {
   const before = transactionNetBeforeImpactFund(t);
   return roundMoney(before - impactFundFromNet(before));
 };
+
+export const sumTransactionNetAfterImpactFund = (transactions = []) =>
+  (transactions || []).reduce((sum, row) => sum + transactionNetAfterImpactFund(row), 0);

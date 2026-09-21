@@ -132,24 +132,30 @@ export const getPreviousMonthRangeFrom = (year, month) => {
 /** Short month names for charts/labels */
 export const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+/** Calendar year and 0-based month from a date value, without timezone shift. */
+export const ymdToYearMonth = (value) => {
+  const d = normalizeDateToYYYYMMDD(value);
+  if (!d || d.length < 7) return null;
+  const year = Number(d.slice(0, 4));
+  const month = Number(d.slice(5, 7)) - 1;
+  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 0 || month > 11) return null;
+  return { year, month };
+};
+
 /** Inclusive calendar-month slots and labels between two YYYY-MM-DD dates. */
 export const monthSlotsForRange = (dateFrom, dateTo) => {
-  if (!dateFrom || !dateTo) return { valid: false, labels: [], slots: [] };
-  const start = new Date(dateFrom);
-  const end = new Date(dateTo);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+  const start = ymdToYearMonth(dateFrom);
+  const end = ymdToYearMonth(dateTo);
+  if (!start || !end) return { valid: false, labels: [], slots: [] };
+  if (start.year > end.year || (start.year === end.year && start.month > end.month)) {
     return { valid: false, labels: [], slots: [] };
   }
-  const startYear = start.getFullYear();
-  const startMonth = start.getMonth();
-  const endYear = end.getFullYear();
-  const endMonth = end.getMonth();
-  const sameYear = startYear === endYear;
+  const sameYear = start.year === end.year;
   const slots = [];
   const labels = [];
-  for (let y = startYear; y <= endYear; y++) {
-    const mStart = y === startYear ? startMonth : 0;
-    const mEnd = y === endYear ? endMonth : 11;
+  for (let y = start.year; y <= end.year; y++) {
+    const mStart = y === start.year ? start.month : 0;
+    const mEnd = y === end.year ? end.month : 11;
     for (let m = mStart; m <= mEnd; m++) {
       slots.push({ year: y, month: m });
       labels.push(sameYear ? MONTH_NAMES[m] : `${MONTH_NAMES[m]} ${String(y).slice(-2)}`);
@@ -164,10 +170,9 @@ export const calendarYearMonthSlots = (year = new Date().getFullYear()) => ({
 });
 
 export const addIntoMonthSlots = (totals, dateValue, amount, slots) => {
-  const ymd = normalizeDateToYYYYMMDD(dateValue);
-  if (!ymd) return;
-  const d = new Date(ymd);
-  const idx = slots.findIndex((r) => r.year === d.getFullYear() && r.month === d.getMonth());
+  const ym = ymdToYearMonth(dateValue);
+  if (!ym) return;
+  const idx = slots.findIndex((r) => r.year === ym.year && r.month === ym.month);
   if (idx === -1) return;
   totals[idx] += Number(amount) || 0;
 };
