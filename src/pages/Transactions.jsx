@@ -60,25 +60,12 @@ const LineChartChartJS = lazy(() => import('../components/LineChartChartJS'));
 
 const monthlyTrendInfo = (
   <div className="space-y-2 text-[11px] sm:text-xs text-slate-600 leading-relaxed">
-    <p className="font-semibold text-slate-800">How Monthly Trend is calculated</p>
+    <p className="font-semibold text-slate-800">How this total is calculated</p>
     <p>
-      <span className="font-medium text-slate-700">Each transaction net</span>
-      <br />
-      <span className="font-mono text-[10px] sm:text-[11px] text-slate-700">
-        totalAmount
-      </span>
-      <span className="text-slate-500">, or if missing: </span>
-      <span className="font-mono text-[10px] sm:text-[11px] text-slate-700">
-        amount − brokerage − additional charges
-      </span>
+      For each transaction we take the amount after brokerage and extra charges, then remove 2% for the Impact Fund.
     </p>
     <p>
-      <span className="font-medium text-slate-700">Each month</span>
-      <br />
-      <span className="font-mono text-[10px] sm:text-[11px] text-slate-700">
-        Σ (net × 0.98)
-      </span>
-      <span className="text-slate-500"> after the 2% Impact Fund deduction</span>
+      Monthly Trend adds those net amounts for every approved transaction in the selected month (or months).
     </p>
   </div>
 );
@@ -626,9 +613,6 @@ const Transactions = () => {
                         <div className="min-w-0 flex-1 flex items-center gap-1.5 sm:gap-2">
                           <h3 className={`${chartCardTitleClass} min-w-0 truncate sm:whitespace-normal`}>
                             Monthly Trend
-                            <span className="text-slate-500 font-semibold text-sm sm:text-base ml-1.5">
-                              · {monthlyTrendData.labels[0]}
-                            </span>
                           </h3>
                           <div className="relative group/info shrink-0">
                             <button

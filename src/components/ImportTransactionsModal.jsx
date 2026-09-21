@@ -245,10 +245,12 @@ const ImportTransactionsModal = ({
         project: row.mappedProject,
         monthKey,
         projectRow: row.projectRow,
-        monthGross: 0
+        monthGross: 0,
+        date: row.date
       };
       prev.monthGross += Number(row.amount) || 0;
       prev.projectRow = row.projectRow;
+      if (String(row.date || '') > String(prev.date || '')) prev.date = row.date;
       groups.set(planKey, prev);
     });
 
@@ -270,7 +272,9 @@ const ImportTransactionsModal = ({
           };
         }
 
-        const amount = computeImportMonthlyBrokerageAmount(g.projectRow, g.monthGross, g.monthKey);
+        const amount = computeImportMonthlyBrokerageAmount(g.projectRow, g.monthGross, g.monthKey, {
+          activeFromYmd: g.date
+        });
         if (!(amount > 0)) {
           return {
             key: g.key,
@@ -289,7 +293,8 @@ const ImportTransactionsModal = ({
           monthKey: g.monthKey,
           amount,
           status: 'new',
-          projectRow: g.projectRow
+          projectRow: g.projectRow,
+          date: g.date
         };
       })
       .filter((x) => x.status === 'new' || x.status === 'exists');
@@ -459,7 +464,8 @@ const ImportTransactionsModal = ({
           amount: item.amount,
           brokerageType: item.projectRow?.brokerageType || 'percentage',
           brokerageValue: item.projectRow?.brokerageValue ?? '',
-          createdBy: user?.uid || null
+          createdBy: user?.uid || null,
+          date: item.date
         });
         await dispatch(createExpense(expenseData)).unwrap();
       }

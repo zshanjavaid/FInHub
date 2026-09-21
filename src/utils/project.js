@@ -20,7 +20,9 @@ export const computeProjectBrokerageDollars = (p, options = {}) => {
   const fixed = toNumber(p.brokerageValue);
   const monthKey = options.monthKey ? String(options.monthKey).slice(0, 7) : '';
   if (monthKey && /^\d{4}-\d{2}$/.test(monthKey)) {
-    return prorateFixedAmountForMonth(p, monthKey, fixed);
+    return prorateFixedAmountForMonth(p, monthKey, fixed, {
+      activeFromYmd: options.activeFromYmd
+    });
   }
   return fixed;
 };

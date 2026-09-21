@@ -9,6 +9,7 @@ import { PAYOUT_OCCURRENCE_LABEL_BY_VALUE } from '../constants/payoutOccurrences
 import { isProjectEligibleForTransactions } from '../utils/transactionsEligibility';
 import { countExpectedPayoutsInRange, countExpectedWithCarryover, getPayoutOccurrenceLabel } from '../utils/payoutSchedule';
 import { computeProjectBrokerageDollars } from '../utils/project';
+import { firstWeekdayOnOrAfter } from '../utils/workingDays';
 
 const defaultForm = {
   client: '',
@@ -91,10 +92,73 @@ const TransactionFormModal = ({
   };
 
   /**
-   * Percentage: amount × rate.
-   * Fixed (new entries only): Mon–Fri prorated month fee, minus other approved txs
-   * in the same month. Edits keep the stored amount so existing rows are unchanged.
+   * Fixed (new entries): Mon–Fri prorated month fee from transaction date
+   * (weekend → next Monday), minus brokerage already applied this month.
+   * Edits keep the stored amount.
    */
+  const resolveFixedBrokerageBreakdown = (form) => {
+    const value = toNumber(form.brokerageValue);
+    const empty = {
+      monthFee: value,
+      alreadyApplied: 0,
+      thisShare: value,
+      effectiveFrom: '',
+      snappedFromWeekend: false
+    };
+
+    if (editingTransactionId) {
+      const stored =
+        form.brokerageAmount !== '' && form.brokerageAmount != null
+          ? toNumber(form.brokerageAmount)
+          : value;
+      return { ...empty, thisShare: stored, monthFee: stored };
+    }
+
+    const dateYmd = normalizeDateToYYYYMMDD(form.date);
+    const monthKey = dateYmd ? dateYmd.slice(0, 7) : '';
+    const projectRow = findLatestProjectByBrokerAndProject(form.client, form.project);
+    if (!monthKey || !projectRow) {
+      return { ...empty, thisShare: value, monthFee: value };
+    }
+
+    const weekdayStart = firstWeekdayOnOrAfter(dateYmd) || dateYmd;
+    const snappedFromWeekend = Boolean(dateYmd && weekdayStart && weekdayStart !== dateYmd);
+
+    const monthFee = Number(
+      computeProjectBrokerageDollars(
+        { ...projectRow, brokerageType: 'fixed', brokerageValue: value },
+        { monthKey, activeFromYmd: weekdayStart }
+      ).toFixed(2)
+    );
+
+    const clientKey = String(form.client || '').trim().toLowerCase();
+    const projectKey = String(form.project || '').trim().toLowerCase();
+    const alreadyApplied = Number(
+      (transactions || [])
+        .filter(isApproved)
+        .filter((t) => {
+          const d = normalizeDateToYYYYMMDD(t.date);
+          if (!d || d.slice(0, 7) !== monthKey) return false;
+          return (
+            String(t.client || '').trim().toLowerCase() === clientKey &&
+            String(t.project || '').trim().toLowerCase() === projectKey
+          );
+        })
+        .reduce((s, t) => s + (toNumber(t.brokerageAmount) || 0), 0)
+        .toFixed(2)
+    );
+
+    const thisShare = Math.max(0, Number((monthFee - alreadyApplied).toFixed(2)));
+
+    return {
+      monthFee,
+      alreadyApplied,
+      thisShare,
+      effectiveFrom: weekdayStart,
+      snappedFromWeekend
+    };
+  };
+
   const computeBrokerageAmount = (form) => {
     const type = String(form.brokerageType || 'percentage').trim().toLowerCase();
     const value = toNumber(form.brokerageValue);
@@ -103,42 +167,7 @@ const TransactionFormModal = ({
       return (toNumber(form.amount) * value) / 100;
     }
 
-    // Existing entries: do not re-prorate on edit
-    if (editingTransactionId) {
-      if (form.brokerageAmount !== '' && form.brokerageAmount != null) {
-        return toNumber(form.brokerageAmount);
-      }
-      return value;
-    }
-
-    const dateYmd = normalizeDateToYYYYMMDD(form.date);
-    const monthKey = dateYmd ? dateYmd.slice(0, 7) : '';
-    const projectRow = findLatestProjectByBrokerAndProject(form.client, form.project);
-
-    if (!monthKey || !projectRow) return value;
-
-    const monthFee = Number(
-      computeProjectBrokerageDollars(
-        { ...projectRow, brokerageType: 'fixed', brokerageValue: value },
-        { monthKey }
-      ).toFixed(2)
-    );
-
-    const clientKey = String(form.client || '').trim().toLowerCase();
-    const projectKey = String(form.project || '').trim().toLowerCase();
-    const othersSum = (transactions || [])
-      .filter(isApproved)
-      .filter((t) => {
-        const d = normalizeDateToYYYYMMDD(t.date);
-        if (!d || d.slice(0, 7) !== monthKey) return false;
-        return (
-          String(t.client || '').trim().toLowerCase() === clientKey &&
-          String(t.project || '').trim().toLowerCase() === projectKey
-        );
-      })
-      .reduce((s, t) => s + (toNumber(t.brokerageAmount) || 0), 0);
-
-    return Math.max(0, Number((monthFee - othersSum).toFixed(2)));
+    return resolveFixedBrokerageBreakdown(form).thisShare;
   };
 
   const handleFieldChange = (form, fieldName, value) => {
@@ -177,7 +206,7 @@ const TransactionFormModal = ({
     }
 
     const brokerageAmount = computeBrokerageAmount(form);
-    form.brokerageAmount = brokerageAmount ? brokerageAmount.toFixed(2) : '';
+    form.brokerageAmount = brokerageAmount ? brokerageAmount.toFixed(2) : '0.00';
     return form;
   };
 
@@ -253,16 +282,19 @@ const TransactionFormModal = ({
       fullWidth: true,
       render: (form) => {
         const amount = toNumber(form.amount);
-        const brokerageAmount = computeBrokerageAmount(form);
+        const isFixed = String(form.brokerageType || '').toLowerCase() === 'fixed';
+        const fixedBreakdown = isFixed ? resolveFixedBrokerageBreakdown(form) : null;
+        const brokerageAmount = isFixed ? fixedBreakdown.thisShare : computeBrokerageAmount(form);
         const additionalCharges = toNumber(form.additionalCharges);
         const netBeforeImpactFund = computeTotalAmount({ ...form, brokerageAmount });
         const impactFund = Number(((netBeforeImpactFund > 0 ? netBeforeImpactFund : 0) * 0.02).toFixed(2));
         const netTotal = Number((netBeforeImpactFund - impactFund).toFixed(2));
         const brokerageValue = toNumber(form.brokerageValue);
-        const isFixed = String(form.brokerageType || '').toLowerCase() === 'fixed';
         const brokerageLabel = isFixed
           ? 'Brokerage'
           : `Brokerage (${brokerageValue}%)`;
+        const alreadyApplied = fixedBreakdown?.alreadyApplied || 0;
+        const showAlreadyApplied = isFixed && !editingTransactionId && alreadyApplied > 0;
 
         return (
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
@@ -274,6 +306,13 @@ const TransactionFormModal = ({
               <span className="text-gray-600 font-medium">(-) {brokerageLabel}</span>
               <span className="text-red-600 font-semibold">{formatMoney(brokerageAmount)}</span>
             </div>
+            {showAlreadyApplied ? (
+              <div className="flex items-center">
+                <span className="inline-flex items-center rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-200/80">
+                  Already added for this month
+                </span>
+              </div>
+            ) : null}
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600 font-medium">(-) Additional Charges</span>
               <span className="text-red-600 font-semibold">{formatMoney(additionalCharges)}</span>

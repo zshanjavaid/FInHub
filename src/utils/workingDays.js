@@ -69,9 +69,10 @@ export const countWeekdaysInclusive = (fromYmd, toYmd) => {
  * Active Mon–Fri span for a project inside a calendar month (YYYY-MM).
  * - Start weekend → next Monday
  * - End weekend → previous Friday
+ * - Optional `activeFromYmd` further clips the start (e.g. transaction date; weekends snap via firstWeekdayOnOrAfter)
  * Returns null if no overlapping weekdays.
  */
-export const getProjectWeekdaySpanInMonth = (project, monthKey) => {
+export const getProjectWeekdaySpanInMonth = (project, monthKey, options = {}) => {
   const mk = String(monthKey || '').slice(0, 7);
   if (!/^\d{4}-\d{2}$/.test(mk)) return null;
   const [ys, ms] = mk.split('-').map(Number);
@@ -80,10 +81,12 @@ export const getProjectWeekdaySpanInMonth = (project, monthKey) => {
 
   const startYmd = normalizeDateToYYYYMMDD(project?.date);
   const endYmd = normalizeDateToYYYYMMDD(project?.contractEnding);
+  const activeFromYmd = normalizeDateToYYYYMMDD(options.activeFromYmd);
 
   let rangeFrom = monthFrom;
   let rangeTo = monthTo;
   if (startYmd && startYmd > rangeFrom) rangeFrom = startYmd;
+  if (activeFromYmd && activeFromYmd > rangeFrom) rangeFrom = activeFromYmd;
   if (endYmd && endYmd < rangeTo) rangeTo = endYmd;
   if (rangeFrom > rangeTo) return null;
 
@@ -102,11 +105,11 @@ export const getProjectWeekdaySpanInMonth = (project, monthKey) => {
  * Prorate a full-month fixed fee by Mon–Fri days worked in that month.
  * fee × (weekdays active in month ÷ weekdays in full month)
  */
-export const prorateFixedAmountForMonth = (project, monthKey, fullMonthAmount) => {
+export const prorateFixedAmountForMonth = (project, monthKey, fullMonthAmount, options = {}) => {
   const full = Number(fullMonthAmount);
   if (!Number.isFinite(full) || full <= 0) return 0;
 
-  const span = getProjectWeekdaySpanInMonth(project, monthKey);
+  const span = getProjectWeekdaySpanInMonth(project, monthKey, options);
   if (!span) return 0;
 
   const monthWeekdays = countWeekdaysInclusive(span.monthFrom, span.monthTo);

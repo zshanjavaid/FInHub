@@ -1,5 +1,6 @@
-import { normalizeDateToYYYYMMDD } from './date';
+import { normalizeDateToYYYYMMDD, todayLocalYmd } from './date';
 import { computeProjectBrokerageDollars } from './project';
+import { firstWeekdayOnOrAfter } from './workingDays';
 import { isApproved } from '../constants/app';
 
 /** Normalize text for fuzzy broker / project matching. */
@@ -357,11 +358,23 @@ export const isMonthlyBrokerageExpense = (expense, { client, project, monthKey }
 export const findExistingMonthlyBrokerage = (expenses = [], { client, project, monthKey }) =>
   (expenses || []).find((e) => isMonthlyBrokerageExpense(e, { client, project, monthKey })) || null;
 
-/** First day of YYYY-MM as expense date. */
+/** First day of YYYY-MM as expense date (fallback for historical months). */
 export const monthStartDate = (monthKey) => {
   const mk = String(monthKey || '').slice(0, 7);
   if (!/^\d{4}-\d{2}$/.test(mk)) return '';
   return `${mk}-01`;
+};
+
+/** Prefer transaction/create date; keep it inside monthKey so month filters still work. */
+export const resolveMonthlyBrokerageExpenseDate = (monthKey, dateHint = null) => {
+  const mk = String(monthKey || '').slice(0, 7);
+  const hint = normalizeDateToYYYYMMDD(dateHint);
+  const today = todayLocalYmd();
+
+  if (hint && (!mk || hint.slice(0, 7) === mk)) return hint;
+  if (mk && today.slice(0, 7) === mk) return today;
+  if (mk && /^\d{4}-\d{2}$/.test(mk)) return monthStartDate(mk);
+  return today;
 };
 
 export const buildMonthlyBrokerageExpenseData = ({
@@ -371,18 +384,20 @@ export const buildMonthlyBrokerageExpenseData = ({
   amount,
   brokerageType = 'percentage',
   brokerageValue = '',
-  createdBy = null
+  createdBy = null,
+  date = null
 }) => {
   const type = String(brokerageType || 'percentage').trim().toLowerCase() === 'fixed' ? 'fixed' : 'percentage';
+  const mk = String(monthKey || '').slice(0, 7);
   const data = {
     expenseName: String(project || '').trim() || 'Untitled project',
-    date: monthStartDate(monthKey),
+    date: resolveMonthlyBrokerageExpenseDate(mk, date),
     expenseType: 'brokerage',
     amount: Number(Number(amount).toFixed(2)),
-    comment: `Monthly brokerage for ${client} / ${project} (${monthKey})`,
+    comment: `Monthly brokerage for ${client} / ${project} (${mk})`,
     client: String(client || '').trim(),
     project: String(project || '').trim(),
-    monthKey: String(monthKey || '').slice(0, 7),
+    monthKey: mk,
     isMonthlyBrokerage: true,
     brokerageType: type,
     brokerageValue: brokerageValue === '' || brokerageValue == null ? '' : Number(brokerageValue)
@@ -397,7 +412,7 @@ export const buildMonthlyBrokerageExpenseData = ({
  * 2) Else project hours × rate × brokerage % when available
  * 3) Else percentage of that month's imported transaction total
  */
-export const computeImportMonthlyBrokerageAmount = (projectRow, monthGrossAmount = 0, monthKey = '') => {
+export const computeImportMonthlyBrokerageAmount = (projectRow, monthGrossAmount = 0, monthKey = '', options = {}) => {
   const type = String(projectRow?.brokerageType || 'percentage').trim().toLowerCase();
   const val = toNumber(projectRow?.brokerageValue);
   const mk = String(monthKey || '').slice(0, 7);
@@ -405,7 +420,12 @@ export const computeImportMonthlyBrokerageAmount = (projectRow, monthGrossAmount
   if (type === 'fixed') {
     if (!(val > 0)) return 0;
     if (mk && /^\d{4}-\d{2}$/.test(mk)) {
-      return Number(computeProjectBrokerageDollars(projectRow, { monthKey: mk }).toFixed(2));
+      return Number(
+        computeProjectBrokerageDollars(projectRow, {
+          monthKey: mk,
+          activeFromYmd: options.activeFromYmd
+        }).toFixed(2)
+      );
     }
     return Number(val.toFixed(2));
   }
@@ -441,7 +461,9 @@ export const planNewMonthlyBrokerageExpense = ({
     return null;
   }
 
-  const amount = computeImportMonthlyBrokerageAmount(projectRow, monthGrossAmount, monthKey);
+  const amount = computeImportMonthlyBrokerageAmount(projectRow, monthGrossAmount, monthKey, {
+    activeFromYmd: firstWeekdayOnOrAfter(date) || date
+  });
   if (!(amount > 0)) return null;
 
   return buildMonthlyBrokerageExpenseData({
@@ -451,7 +473,8 @@ export const planNewMonthlyBrokerageExpense = ({
     amount,
     brokerageType: projectRow.brokerageType || 'percentage',
     brokerageValue: projectRow.brokerageValue ?? '',
-    createdBy
+    createdBy,
+    date
   });
 };
 
