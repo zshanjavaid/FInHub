@@ -5,7 +5,7 @@ import AuthMobileFeatures from '../components/auth/AuthMobileFeatures';
 import '../styles/auth.css';
 
 const AuthLayout = () => (
-  <div className="min-h-screen min-h-[100dvh] flex flex-col lg:flex-row w-full bg-transparent isolate">
+  <div className="min-h-dvh flex flex-col lg:flex-row w-full bg-transparent isolate">
     <AuthFeaturePanel />
 
     <div className="flex-1 flex flex-col min-w-0 min-h-[100dvh] lg:min-h-0 bg-white lg:justify-center">

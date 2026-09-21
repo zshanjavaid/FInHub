@@ -28,9 +28,9 @@ import {
   removeTransaction,
   createTransactionsBulk
 } from '../store/transactions/transactionsSlice';
-import { normalizeDateToYYYYMMDD, filterByDateRange, monthSlotsForRange, addIntoMonthSlots } from '../utils/date';
+import { normalizeDateToYYYYMMDD, filterByDateRange, monthSlotsForRange, addIntoMonthSlots, expenseDateValue } from '../utils/date';
 import { shortenChartAxisLabel } from '../utils/chartLabels';
-import { formatMoney } from '../utils/format';
+import { formatMoney, signedMoneyClass } from '../utils/format';
 import { EMPTY_TRANSACTION_FORM, transactionToFormValues } from '../utils/formValues';
 import { toNumber, roundMoney } from '../utils/number';
 import { transactionNetAfterImpactFund, netFromGrossParts } from '../utils/transactionNet';
@@ -65,10 +65,10 @@ const monthlyTrendInfo = (
   <div className="space-y-2 text-[11px] sm:text-xs text-slate-600 leading-relaxed">
     <p className="font-semibold text-slate-800">How this total is calculated</p>
     <p>
-      For each transaction we take the amount after brokerage and extra charges, then remove 2% for the Impact Fund.
+      Transactions (Net) is the amount after brokerage and extra charges, then 2% Impact Fund, for approved rows in the selected months.
     </p>
     <p>
-      Monthly Trend adds those net amounts for every approved transaction in the selected month (or months).
+      Available Amount is that net minus approved expenses in the same months.
     </p>
   </div>
 );
@@ -120,6 +120,24 @@ const Transactions = () => {
     () => (filteredTransactions || []).filter(isApproved),
     [filteredTransactions]
   );
+
+  const approvedExpensesForTrend = useMemo(() => {
+    let list = (expenses || []).filter(isApproved);
+    if (selectedProjectId) {
+      const [client, project] = selectedProjectId.split('|');
+      const c = String(client || '').trim().toLowerCase();
+      const p = String(project || '').trim().toLowerCase();
+      list = list.filter(
+        (row) =>
+          (row.client || '').trim().toLowerCase() === c &&
+          (row.project || '').trim().toLowerCase() === p
+      );
+    } else if (selectedBroker) {
+      const broker = selectedBroker.trim().toLowerCase();
+      list = list.filter((row) => (row.client || '').trim().toLowerCase() === broker);
+    }
+    return filterByDateRange(list, dateFrom, dateTo, expenseDateValue);
+  }, [expenses, selectedProjectId, selectedBroker, dateFrom, dateTo]);
 
   const monthBuckets = useMemo(() => {
     const range = monthSlotsForRange(dateFrom, dateTo);
@@ -203,17 +221,25 @@ const Transactions = () => {
 
   const monthlyTrendData = useMemo(() => {
     const range = monthSlotsForRange(dateFrom, dateTo);
-    if (!range.valid) return { labels: [], values: [], isSingleMonth: false };
+    if (!range.valid) return { labels: [], values: [], expense: [], available: [], isSingleMonth: false };
     const monthlyTotals = new Array(range.slots.length).fill(0);
+    const monthlyExpense = new Array(range.slots.length).fill(0);
     approvedForCharts.forEach((t) => {
       addIntoMonthSlots(monthlyTotals, t.date, transactionNetAfterImpactFund(t), range.slots);
     });
+    approvedExpensesForTrend.forEach((row) => {
+      addIntoMonthSlots(monthlyExpense, expenseDateValue(row), toNumber(row.amount), range.slots);
+    });
+    const inward = monthlyTotals.map((n) => roundMoney(n));
+    const expense = monthlyExpense.map((n) => roundMoney(n));
     return {
       labels: range.labels,
-      values: monthlyTotals.map((n) => roundMoney(n)),
+      values: inward,
+      expense,
+      available: inward.map((v, i) => roundMoney(v - expense[i])),
       isSingleMonth: range.slots.length === 1
     };
-  }, [approvedForCharts, dateFrom, dateTo]);
+  }, [approvedForCharts, approvedExpensesForTrend, dateFrom, dateTo]);
 
   const projectChartData = useMemo(() => {
     const list = approvedForCharts;
@@ -549,11 +575,14 @@ const Transactions = () => {
 
         <ErrorAlert message={error} />
 
-        {(monthlyTrendData.labels.length > 0 && monthlyTrendData.values.some((v) => v > 0)) || projectChartData.labels.length > 0 ? (
+        {(monthlyTrendData.labels.length > 0 &&
+          (monthlyTrendData.values.some((v) => v !== 0) || monthlyTrendData.available.some((v) => v !== 0))) ||
+        projectChartData.labels.length > 0 ? (
           <DeferredMount>
             <Suspense fallback={<ChartSkeleton />}>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
-                {monthlyTrendData.labels.length > 0 && monthlyTrendData.values.some((v) => v > 0) && (
+                {monthlyTrendData.labels.length > 0 &&
+                  (monthlyTrendData.values.some((v) => v !== 0) || monthlyTrendData.available.some((v) => v !== 0)) && (
                   monthlyTrendData.isSingleMonth ? (
                     <div className={`${chartCardClass} flex flex-col !overflow-visible`}>
                       <div className={`${chartCardHeaderClass} flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0 overflow-visible relative z-20`}>
@@ -582,20 +611,48 @@ const Transactions = () => {
                         </div>
                       </div>
                       <div className={`${chartPlotWrapClass} flex-1 flex flex-col items-center justify-center min-h-[220px] sm:min-h-[280px] md:min-h-[360px]`}>
-                        <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-[0.08em]">
-                          Transactions (Net)
-                        </p>
-                        <p className="mt-3 text-3xl sm:text-4xl md:text-5xl font-bold text-primary-700 tabular-nums tracking-tight">
-                          {formatMoney(monthlyTrendData.values[0] || 0)}
-                        </p>
-                        <p className="mt-2 text-sm text-slate-500">
-                          Total for {monthlyTrendData.labels[0]}
+                        <div className="grid grid-cols-2 gap-4 sm:gap-8 w-full max-w-lg">
+                          <div className="text-center min-w-0">
+                            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-[0.08em]">
+                              Transactions (Net)
+                            </p>
+                            <p className="mt-2 sm:mt-3 text-2xl sm:text-3xl md:text-4xl font-bold text-primary-700 tabular-nums tracking-tight">
+                              {formatMoney(monthlyTrendData.values[0] || 0)}
+                            </p>
+                          </div>
+                          <div className="text-center min-w-0 border-l border-slate-200/80">
+                            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-[0.08em]">
+                              Available Amount
+                            </p>
+                            <p
+                              className={`mt-2 sm:mt-3 text-2xl sm:text-3xl md:text-4xl font-bold tabular-nums tracking-tight ${signedMoneyClass(
+                                monthlyTrendData.available[0] || 0,
+                                'text-slate-800'
+                              )}`}
+                            >
+                              {formatMoney(monthlyTrendData.available[0] || 0)}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="mt-4 text-sm text-slate-500 text-center">
+                          {formatMoney(monthlyTrendData.values[0] || 0)} − {formatMoney(monthlyTrendData.expense[0] || 0)} expenses
+                          <span className="text-slate-400"> · </span>
+                          {monthlyTrendData.labels[0]}
                         </p>
                       </div>
                     </div>
                   ) : (
                     <LineChartChartJS
-                      data={[{ label: 'Transactions (Net)', values: monthlyTrendData.values, color: '#0d9488' }]}
+                      data={[
+                        { label: 'Transactions (Net)', values: monthlyTrendData.values, color: '#0d9488' },
+                        {
+                          label: 'Available Amount',
+                          values: monthlyTrendData.available,
+                          color: '#334155',
+                          fill: false,
+                          dashed: true
+                        }
+                      ]}
                       labels={monthlyTrendData.labels}
                       title="Monthly Trend"
                       info={monthlyTrendInfo}

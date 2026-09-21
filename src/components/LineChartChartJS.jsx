@@ -18,6 +18,7 @@ import {
   buildLegendFont,
   buildLegendPadding
 } from '../utils/chartTheme';
+import { formatMoney } from '../utils/format';
 import { ensureChartJsRegistered } from '../utils/registerChart';
 
 ensureChartJsRegistered();
@@ -36,14 +37,16 @@ const LineChartChartJS = ({ data, labels, title = 'Line Chart', headerRight = nu
           data: dataset.values,
           borderColor: color,
           backgroundColor: (ctx) => {
+            if (dataset.fill === false) return 'transparent';
             const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, ctx.chart.height);
             gradient.addColorStop(0, color + (stacked ? '99' : '40'));
             gradient.addColorStop(1, color + (stacked ? '33' : '02'));
             return gradient;
           },
           borderWidth: compact ? 2 : 2.5,
-          fill: stacked ? (index === 0 ? 'origin' : '-1') : true,
+          fill: dataset.fill === false ? false : stacked ? (index === 0 ? 'origin' : '-1') : true,
           tension: fewPoints ? 0 : 0.35,
+          borderDash: dataset.dashed ? [6, 4] : [],
           pointRadius: fewPoints ? (compact ? 5 : 6) : 0,
           pointHoverRadius: compact ? 6 : 8,
           pointBackgroundColor: color,
@@ -93,7 +96,14 @@ const LineChartChartJS = ({ data, labels, title = 'Line Chart', headerRight = nu
           borderWidth: 1,
           cornerRadius: 12,
           displayColors: true,
-          boxPadding: 6
+          boxPadding: 6,
+          callbacks: {
+            label: (item) => {
+              const name = item.dataset?.label || '';
+              const y = item.parsed?.y;
+              return `${name}: ${formatMoney(y)}`;
+            }
+          }
         }
       },
       scales: {
