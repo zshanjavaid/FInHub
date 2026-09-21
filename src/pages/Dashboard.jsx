@@ -15,7 +15,7 @@ import { formatMoney, signedMoneyClass } from '../utils/format';
 import { filterByDateRange, monthSlotsForRange, calendarYearMonthSlots, addIntoMonthSlots, MONTH_NAMES, normalizeDateToYYYYMMDD, expenseDateValue } from '../utils/date';
 import { computeNextMonthEstimatedAmount } from '../utils/nextMonthEstimate';
 import { transactionNetAfterImpactFund, sumTransactionNetAfterImpactFund } from '../utils/transactionNet';
-import { sumExpenseAmounts, sumExpensesTowardAvailable } from '../utils/availableBalance';
+import { sumExpenseAmounts } from '../utils/availableBalance';
 import { toNumber, normText } from '../utils/number';
 import { EMPTY_TRANSACTION_FORM, transactionToFormValues } from '../utils/formValues';
 import { matchesClientProject } from '../utils/projectLookup';
@@ -265,7 +265,6 @@ const Dashboard = () => {
   const { inwardPct, expensePct, totalInward, totalExpense, availableAmount } = useMemo(() => {
     const inward = sumTransactionNetAfterImpactFund(approvedTransactions);
     const expense = sumExpenseAmounts(approvedExpenses);
-    const available = inward - sumExpensesTowardAvailable(approvedExpenses, approvedTransactions);
     const mix = inward + expense;
     const pct = mix === 0
       ? { inwardPct: 0, expensePct: 0 }
@@ -277,7 +276,7 @@ const Dashboard = () => {
       ...pct,
       totalInward: inward,
       totalExpense: expense,
-      availableAmount: available
+      availableAmount: inward - expense
     };
   }, [approvedTransactions, approvedExpenses]);
 
@@ -319,7 +318,26 @@ const Dashboard = () => {
 
   return (
     <PageContainer>
-      <PageHeader title="Overview" actions={<Button onClick={openAddModal}>Add Transaction</Button>} />
+      <PageHeader
+        title="Overview"
+        actions={
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={openTargetModal}
+              className="inline-flex items-center justify-center gap-2 h-10 px-3.5 rounded-lg border border-slate-200/90 bg-white text-slate-700 hover:border-primary-300 hover:bg-primary-50/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
+              aria-label={targetAmount != null ? 'Edit target' : 'Set target'}
+            >
+              <span className="text-[10px] font-light uppercase tracking-[0.16em] text-slate-500">Target</span>
+              <span className="text-sm font-bold tabular-nums font-mono text-slate-800">
+                {targetAmount != null && targetAmount > 0 ? formatMoney(targetAmount) : 'Set'}
+              </span>
+              <FiEdit2 className="w-4 h-4 text-primary-600" />
+            </button>
+            <Button onClick={openAddModal}>Add Transaction</Button>
+          </div>
+        }
+      />
 
         <PortfolioLinks />
 
@@ -353,24 +371,6 @@ const Dashboard = () => {
             valueClassName="text-primary-700"
             iconClassName="text-primary-600"
             borderClassName="border-t-primary-600"
-            hint={
-              <div className="flex items-center gap-1.5 text-sm text-slate-500">
-                <span>
-                  Target{' '}
-                  <span className="font-mono tabular-nums text-slate-700">
-                    {targetAmount != null && targetAmount > 0 ? formatMoney(targetAmount) : 'not set'}
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  onClick={openTargetModal}
-                  className="p-1.5 rounded-lg hover:bg-primary-50 text-primary-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
-                  aria-label={targetAmount != null ? 'Edit target' : 'Set target'}
-                >
-                  <FiEdit2 className="w-4 h-4" />
-                </button>
-              </div>
-            }
           />
           <StatCard
             label="Total Expense"
