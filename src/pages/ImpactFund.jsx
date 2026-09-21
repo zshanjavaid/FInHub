@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { formatMoney } from '../utils/format';
+import { formatMoney, signedMoneyClass } from '../utils/format';
 import { fetchTransactions } from '../store/transactions/transactionsSlice';
 import { fetchWithdrawals, createWithdrawal, updateWithdrawal, removeWithdrawal } from '../store/impactFund/impactFundSlice';
 import { FiTrendingDown, FiDollarSign, FiCreditCard } from 'react-icons/fi';
@@ -154,9 +154,9 @@ const ImpactFund = () => {
       label: 'Remaining',
       value: formatMoney(remaining),
       Icon: FiCreditCard,
-      valueClassName: 'text-emerald-600',
-      iconClassName: 'text-emerald-500',
-      borderClassName: 'border-t-emerald-500'
+      valueClassName: signedMoneyClass(remaining, 'text-emerald-600'),
+      iconClassName: remaining < 0 ? 'text-red-500' : 'text-emerald-500',
+      borderClassName: remaining < 0 ? 'border-t-red-500' : 'border-t-emerald-500'
     }
   ];
 

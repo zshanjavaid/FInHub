@@ -8,7 +8,17 @@ import PersonBadge from './PersonBadge';
 import ProjectTypeCountBar from './ProjectTypeCountBar';
 import { getEffectiveProjectStatus } from '../utils/transactionsEligibility';
 
-const ProjectTable = ({ projects, onDelete, onEdit, isLoading = false, title = 'Saved Projects', additionalFilters = null, hideFilters = [] }) => {
+const ProjectTable = ({
+  projects,
+  onDelete,
+  onEdit,
+  isLoading = false,
+  title = 'Saved Projects',
+  additionalFilters = null,
+  hideFilters = [],
+  titleActions = null,
+  ...rest
+}) => {
   const columns = [
     { key: 'client', label: 'Broker' },
     { key: 'project', label: 'Project Name' },
@@ -146,7 +156,17 @@ const ProjectTable = ({ projects, onDelete, onEdit, isLoading = false, title = '
       filters={filters}
       additionalFilters={additionalFilters}
       getRowClassName={getRowClassName}
-      titleActions={<ProjectTypeCountBar projects={projects} />}
+      titleActions={
+        titleActions ? (
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            <ProjectTypeCountBar projects={projects} />
+            {titleActions}
+          </div>
+        ) : (
+          <ProjectTypeCountBar projects={projects} />
+        )
+      }
+      {...rest}
     />
   );
 };

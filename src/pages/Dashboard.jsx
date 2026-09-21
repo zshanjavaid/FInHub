@@ -11,10 +11,11 @@ import { fetchExpenses, createExpense } from '../store/expenses/expensesSlice';
 import { buildMonthlyBrokerageExpenseIfNeeded } from '../utils/ensureMonthlyBrokerageExpense';
 import { useAuth } from '../contexts/AuthContext';
 import { getTargetAmount, setTargetAmount } from '../services/settingsService';
-import { formatMoney } from '../utils/format';
+import { formatMoney, signedMoneyClass } from '../utils/format';
 import { normalizeDateToYYYYMMDD, MONTH_NAMES } from '../utils/date';
 import { computeNextMonthEstimatedAmount } from '../utils/nextMonthEstimate';
 import { transactionNetAfterImpactFund } from '../utils/transactionNet';
+import { expenseAmountTowardAvailable } from '../utils/availableBalance';
 import { isApproved } from '../constants/app';
 import { isDashboardActiveProject, DASHBOARD_ACTIVE_PROJECT_TYPES, PROJECT_TYPE_COLORS } from '../constants/projectTypes';
 import { useClientOptions } from '../hooks/useClientOptions';
@@ -281,7 +282,7 @@ const Dashboard = () => {
             const d = new Date(eDate);
             const idx = monthsRange.findIndex((r) => r.year === d.getFullYear() && r.month === d.getMonth());
             if (idx === -1) return;
-            monthlyExpense[idx] += Number(expense.amount) || 0;
+            monthlyExpense[idx] += expenseAmountTowardAvailable(expense, approvedTransactions);
           });
         }
       }
@@ -308,7 +309,7 @@ const Dashboard = () => {
           const date = new Date(eDate);
           if (date.getFullYear() === currentYear) {
             const month = date.getMonth();
-            monthlyExpense[month] += Number(expense.amount) || 0;
+            monthlyExpense[month] += expenseAmountTowardAvailable(expense, approvedTransactions);
           }
         });
       }
@@ -423,9 +424,9 @@ const Dashboard = () => {
             label="Available Amount"
             value={formatMoney(availableAmount)}
             icon={<FiDollarSign className="w-5 h-5" />}
-            valueClassName="text-primary-600"
-            iconClassName="text-primary-600"
-            borderClassName="border-t-primary-600"
+            valueClassName={signedMoneyClass(availableAmount)}
+            iconClassName={availableAmount < 0 ? 'text-red-500' : 'text-primary-600'}
+            borderClassName={availableAmount < 0 ? 'border-t-red-500' : 'border-t-primary-600'}
           />
           <StatCard
             label="Active Projects"
@@ -466,7 +467,7 @@ const Dashboard = () => {
                 </>
               ) : (
                 <>
-                  <span className="text-primary-600">{formatMoney(totalInward)}</span>
+                  <span className={signedMoneyClass(totalInward)}>{formatMoney(totalInward)}</span>
                   <span className="block text-sm font-normal text-slate-500 mt-1">Set a target amount to track progress</span>
                 </>
               )}
@@ -494,7 +495,7 @@ const Dashboard = () => {
                     <p className="text-[10px] sm:text-xs font-light uppercase tracking-[0.16em] text-slate-500 leading-tight">
                       Next Month Estimated Amount
                     </p>
-                    <p className="mt-0.5 text-sm sm:text-base font-bold tabular-nums font-mono text-emerald-600">
+                    <p className={`mt-0.5 text-sm sm:text-base font-bold tabular-nums font-mono ${signedMoneyClass(nextMonthEstimate.estimated, 'text-emerald-600')}`}>
                       {formatMoney(nextMonthEstimate.estimated)}
                     </p>
                   </div>

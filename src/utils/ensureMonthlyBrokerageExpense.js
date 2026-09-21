@@ -1,4 +1,5 @@
 import { isApproved } from '../constants/app';
+import { transactionHasBrokerageDeduction } from './availableBalance';
 import {
   monthKeyFromYmd,
   planNewMonthlyBrokerageExpense
@@ -57,16 +58,28 @@ export const buildMonthlyBrokerageExpenseIfNeeded = ({
   const monthKey = monthKeyFromYmd(transactionData?.date);
   if (!projectRow || !monthKey) return null;
 
+  // Brokerage on the transaction is already removed from inward — do not also book an expense.
+  if (transactionHasBrokerageDeduction(transactionData)) return null;
+
   const monthGross = monthGrossForProject(transactions, client, project, monthKey, {
     excludeTxId,
     includeAmount: transactionData?.amount
   });
 
+  // Manual add/edit: honor the transaction form. 0% must not create a project-rate expense.
+  const txType = transactionData?.brokerageType;
+  const txVal = transactionData?.brokerageValue;
+  const effectiveProject = {
+    ...projectRow,
+    brokerageType: txType || projectRow.brokerageType,
+    brokerageValue: txVal !== undefined && txVal !== null ? txVal : projectRow.brokerageValue
+  };
+
   return planNewMonthlyBrokerageExpense({
     client,
     project,
     date: transactionData.date,
-    projectRow,
+    projectRow: effectiveProject,
     expenses,
     monthGrossAmount: monthGross,
     createdBy

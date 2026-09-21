@@ -3,11 +3,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../contexts/AuthContext';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
-import DataTable from '../components/DataTable';
+import TransactionTable from '../components/TransactionTable';
+import ExpenseTable from '../components/ExpenseTable';
+import ProjectTable from '../components/ProjectTable';
 import TransactionFormModal from '../components/TransactionFormModal';
 import ExpenseFormModal from '../components/ExpenseFormModal';
 import ProjectFormModal from '../components/ProjectFormModal';
-import { formatMoney } from '../utils/format';
 import { isApproved, ENTRY_STATUS } from '../constants/app';
 import {
   fetchTransactions,
@@ -19,46 +20,13 @@ import {
 import { fetchExpenses, approveExpense, editExpense, removeExpense } from '../store/expenses/expensesSlice';
 import { fetchProjects, approveProject, editProject, removeProject } from '../store/projects/projectsSlice';
 import { useClientOptions } from '../hooks/useClientOptions';
-import { EXPENSE_TYPE_LABELS, EXPENSE_TYPE_COLORS, RECURRING_MONTHS_LABELS } from '../constants/expenseTypes';
-import { PROJECT_TYPE_OPTIONS, PROJECT_TYPE_COLORS } from '../constants/projectTypes';
-import PersonBadge from '../components/PersonBadge';
+import { PROJECT_TYPE_OPTIONS } from '../constants/projectTypes';
 import { getTaxFormDefaultsFromProject, prepareProjectForFirestore } from '../utils/project';
-import { getEffectiveProjectStatus } from '../utils/transactionsEligibility';
-import { normalizeDateToYYYYMMDD } from '../utils/date';
 import ErrorAlert from '../components/ErrorAlert';
 import PageContainer from '../components/PageContainer';
 import Tabs from '../components/Tabs';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import ApproveAllConfirmModal from '../components/ApproveAllConfirmModal';
-
-const toNumber = (v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const displayNetTotal = (t) => {
-  if (Number.isFinite(Number(t.totalAmount))) return Number(t.totalAmount);
-  return toNumber(t.amount) - toNumber(t.brokerageAmount) - toNumber(t.additionalCharges);
-};
-
-const formatBrokerageRate = (t) => {
-  const type = String(t?.brokerageType || 'percentage').toLowerCase();
-  const value = toNumber(t?.brokerageValue);
-  const amount = toNumber(t?.brokerageAmount);
-  if (amount === 0 && value === 0) return '-';
-  if (type === 'percentage') {
-    if (value === 0) return '-';
-    return `${value}%`;
-  }
-  if (value === 0) return '-';
-  return formatMoney(value);
-};
-
-const formatMoneyOrDash = (v) => {
-  const n = Number(v);
-  if (!Number.isFinite(n) || n === 0) return '-';
-  return formatMoney(n);
-};
 
 const defaultTransactionForm = {
   client: '',
@@ -130,23 +98,6 @@ const PendingRequests = () => {
     () => (transactions || []).filter((t) => !isApproved(t)),
     [transactions]
   );
-
-  const pendingTransactionsSorted = useMemo(() => {
-    const list = [...(pendingTransactions || [])];
-    list.sort((a, b) => {
-      const da = normalizeDateToYYYYMMDD(a?.date) || '';
-      const db = normalizeDateToYYYYMMDD(b?.date) || '';
-      if (da !== db) {
-        if (!da) return 1;
-        if (!db) return -1;
-        return da.localeCompare(db);
-      }
-      const ca = String(a?.client || '').localeCompare(String(b?.client || ''), undefined, { sensitivity: 'base' });
-      if (ca !== 0) return ca;
-      return String(a?.project || '').localeCompare(String(b?.project || ''), undefined, { sensitivity: 'base' });
-    });
-    return list;
-  }, [pendingTransactions]);
   const pendingExpenses = useMemo(
     () => (expenses || []).filter((e) => !isApproved(e)),
     [expenses]
@@ -355,148 +306,6 @@ const PendingRequests = () => {
     await dispatch(removeProject(id)).unwrap();
   };
 
-  const transactionColumns = [
-    { key: 'client', label: 'Broker' },
-    { key: 'project', label: 'Project Name' },
-    { key: 'date', label: 'Date' },
-    { key: 'amount', label: 'Amount', render: (v) => formatMoney(v) },
-    {
-      key: 'brokerageDisplay',
-      label: 'Brokerage',
-      render: (_, t) => formatBrokerageRate(t)
-    },
-    { key: 'brokerageAmount', label: 'Brokerage Amount', render: (v) => formatMoneyOrDash(v) },
-    { key: 'additionalCharges', label: 'Additional Charges', render: (v) => formatMoneyOrDash(v) },
-    {
-      key: 'totalAmount',
-      label: 'Total (Net)',
-      render: (_, t) => formatMoney(displayNetTotal(t))
-    }
-  ];
-
-  const expenseColumns = [
-    {
-      key: 'expenseName',
-      label: 'Expense Name',
-      render: (v) => {
-        const raw = String(v || '').trim();
-        return raw.replace(/^Brokerage\s*[–-]\s*/i, '') || raw || '-';
-      }
-    },
-    { key: 'date', label: 'Date' },
-    {
-      key: 'expenseType',
-      label: 'Type',
-      render: (value, row) => {
-        if (!value) return '-';
-        const key = value?.toLowerCase();
-        let label = EXPENSE_TYPE_LABELS[key] || value;
-        if (key === 'software_tool' && row.recurring && row.recurringMonths) {
-          const period = RECURRING_MONTHS_LABELS[row.recurringMonths] ?? `${row.recurringMonths} months`;
-          label = `Software Tool (${period})`;
-        }
-        if (key === 'brokerage') {
-          const stored = String(row?.brokerageType || '').trim().toLowerCase();
-          let kind = stored === 'fixed' || stored === 'percentage' ? stored : '';
-          let rateVal = row?.brokerageValue;
-          if (!kind) {
-            const c = String(row?.client || '').trim().toLowerCase();
-            const pName = String(row?.project || '').trim().toLowerCase();
-            const p = (projects || []).find(
-              (x) =>
-                String(x?.client || '').trim().toLowerCase() === c &&
-                String(x?.project || '').trim().toLowerCase() === pName
-            );
-            if (p) {
-              kind = String(p.brokerageType || 'percentage').trim().toLowerCase() === 'fixed' ? 'fixed' : 'percentage';
-              rateVal = p.brokerageValue;
-            }
-          }
-          if (kind) {
-            const n = Number(rateVal);
-            if (Number.isFinite(n) && n !== 0) {
-              label = kind === 'fixed' ? `Brokerage · Fixed ${formatMoney(n)}` : `Brokerage · ${n}%`;
-            } else {
-              label = `Brokerage · ${kind === 'fixed' ? 'Fixed' : 'Percentage'}`;
-            }
-          }
-        }
-        const colorClass = EXPENSE_TYPE_COLORS[key] || 'bg-gray-100 text-gray-800';
-        return (
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-semibold ${colorClass}`}>
-            {label}
-          </span>
-        );
-      }
-    },
-    { key: 'amount', label: 'Amount', render: (v) => formatMoney(v) },
-    { key: 'comment', label: 'Comment/Remark' }
-  ];
-
-  const projectColumns = [
-    { key: 'client', label: 'Broker' },
-    { key: 'project', label: 'Project Name' },
-    { key: 'lead', label: 'Lead', render: (value) => <PersonBadge name={value} /> },
-    { key: 'projectManager', label: 'Project Manager', render: (value) => <PersonBadge name={value} /> },
-    { key: 'date', label: 'Date' },
-    {
-      key: 'projectType',
-      label: 'Project Type',
-      render: (value) => {
-        if (!value) return '-';
-        const colorClass = PROJECT_TYPE_COLORS[value] || 'bg-gray-100 text-gray-800';
-        return (
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${colorClass}`}>
-            {value}
-          </span>
-        );
-      }
-    },
-    {
-      key: 'projectStatus',
-      label: 'Status',
-      render: (_, project) => {
-        const isActive = getEffectiveProjectStatus(project) === 'active';
-        const colorClass = isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700';
-        return (
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${colorClass}`}>
-            {isActive ? 'Active' : 'Inactive'}
-          </span>
-        );
-      }
-    },
-    { key: 'totalMonthlyHours', label: 'Monthly Hours' },
-    { key: 'hourlyRate', label: 'Hourly Rate' },
-    { key: 'projectCost', label: 'Project Cost', render: (v) => formatMoney(v) },
-    { key: 'recruiterName', label: 'Recruiter Name' },
-    { key: 'contractEnding', label: 'End Date' },
-    {
-      key: 'brokerage',
-      label: 'Brokerage',
-      render: (_, project) => {
-        if (!project.brokerageValue) return '-';
-        return project.brokerageType === 'percentage'
-          ? `${project.brokerageValue}%`
-          : `$${project.brokerageValue}`;
-      }
-    },
-    {
-      key: 'taxDisplay',
-      label: 'Tax',
-      render: (_, project) => {
-        if (project.taxType === 'percentage' && project.taxValue !== '' && project.taxValue != null) {
-          return `${project.taxValue}%`;
-        }
-        if (project.taxType === 'fixed' && project.taxValue !== '' && project.taxValue != null) {
-          return formatMoney(project.taxValue);
-        }
-        const n = Number(project.taxAmount);
-        if (project.taxAmount === '' || project.taxAmount == null || !Number.isFinite(n) || n === 0) return '-';
-        return formatMoney(n);
-      }
-    }
-  ];
-
   const pendingTabs = [
     { id: 'transactions', label: 'Transactions', shortLabel: 'Trans.', badge: pendingTransactions.length },
     { id: 'expenses', label: 'Expenses', badge: pendingExpenses.length },
@@ -512,17 +321,14 @@ const PendingRequests = () => {
       <div className="space-y-0">
         <Tabs tabs={pendingTabs} activeId={activeTab} onChange={setActiveTab}>
           {activeTab === 'transactions' && (
-            <DataTable
-              data={pendingTransactionsSorted}
-              columns={transactionColumns}
+            <TransactionTable
+              transactions={pendingTransactions}
               title="Pending Transactions"
               isLoading={isInitialLoadingT}
               onEdit={(item) => openEditTransaction(item)}
               onApprove={(id) => onApproveTransaction(id)}
               onDelete={onDeleteTransaction}
               getCanApprove={canApprovePending}
-              searchConfig={{ enabled: true, placeholder: 'Search by broker, project, date...', searchFields: ['client', 'project', 'date'] }}
-              filters={[]}
               emptyTitle="No pending transactions"
               emptyDescription="Pending transactions will appear here for review"
               titleActions={
@@ -547,17 +353,15 @@ const PendingRequests = () => {
             />
           )}
           {activeTab === 'expenses' && (
-            <DataTable
-              data={pendingExpenses}
-              columns={expenseColumns}
+            <ExpenseTable
+              expenses={pendingExpenses}
               title="Pending Expenses"
               isLoading={isInitialLoadingE}
               onEdit={(item) => openEditExpense(item)}
               onApprove={(id) => onApproveExpense(id)}
               onDelete={onDeleteExpense}
               getCanApprove={canApprovePending}
-              searchConfig={{ enabled: true, placeholder: 'Search by name, type, date...', searchFields: ['expenseName', 'expenseType', 'date'] }}
-              filters={[]}
+              projects={projects}
               emptyTitle="No pending expenses"
               emptyDescription="Pending expenses will appear here for review"
               titleActions={
@@ -570,21 +374,14 @@ const PendingRequests = () => {
             />
           )}
           {activeTab === 'projects' && (
-            <DataTable
-              data={pendingProjects}
-              columns={projectColumns}
+            <ProjectTable
+              projects={pendingProjects}
               title="Pending Projects"
               isLoading={isInitialLoadingP}
               onEdit={(item) => openEditProject(item)}
               onApprove={(id) => onApproveProject(id)}
               onDelete={onDeleteProject}
               getCanApprove={canApprovePending}
-              searchConfig={{
-                enabled: true,
-                placeholder: 'Search by broker, project, lead, manager, date...',
-                searchFields: ['client', 'project', 'lead', 'projectManager', 'date']
-              }}
-              filters={[]}
               emptyTitle="No pending projects"
               emptyDescription="Pending projects will appear here for review"
               titleActions={

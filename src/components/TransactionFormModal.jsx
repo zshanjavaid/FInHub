@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import FormModal from './FormModal';
 import { FiUser, FiFileText, FiDollarSign, FiCalendar } from 'react-icons/fi';
-import { formatMoney } from '../utils/format';
+import { formatMoney, signedMoneyClass } from '../utils/format';
 import { HiOutlineCurrencyDollar, HiOutlinePercentBadge } from 'react-icons/hi2';
 import { normalizeDateToYYYYMMDD, todayLocalYmd } from '../utils/date';
 import { isApproved } from '../constants/app';
@@ -329,7 +329,7 @@ const TransactionFormModal = ({
             </div>
             <div className="border-t border-gray-200 pt-3 flex items-center justify-between">
               <span className="text-gray-900 font-semibold">Total Amount (Net)</span>
-              <span className="text-primary-700 font-bold text-lg">{formatMoney(netTotal)}</span>
+              <span className={`font-bold text-lg ${signedMoneyClass(netTotal, 'text-primary-700')}`}>{formatMoney(netTotal)}</span>
             </div>
           </div>
         );

@@ -1,6 +1,6 @@
 import { FiUser, FiFileText } from 'react-icons/fi';
 import DataTable from './DataTable';
-import { formatMoney } from '../utils/format';
+import { formatMoney, signedMoneyClass } from '../utils/format';
 import { compareTransactions } from '../utils/tableSort';
 import {
   transactionImpactFundAmount,
@@ -14,24 +14,34 @@ const toNumber = (v) => {
 
 const formatBrokerageRate = (t) => {
   const type = String(t?.brokerageType || 'percentage').toLowerCase();
-  const value = toNumber(t?.brokerageValue);
+  const raw = t?.brokerageValue;
+  const missing = raw === '' || raw == null;
+  const value = toNumber(raw);
   const amount = toNumber(t?.brokerageAmount);
-  if (amount === 0 && value === 0) return '-';
-  if (type === 'percentage') {
-    if (value === 0) return '-';
-    return `${value}%`;
-  }
+  if (missing && amount === 0) return '-';
+  if (type === 'percentage') return `${value}%`;
   if (value === 0) return '-';
   return `Fixed ${formatMoney(value)}`;
 };
 
-const formatMoneyOrDash = (v) => {
+const formatBrokerageAmount = (v, t) => {
   const n = Number(v);
-  if (!Number.isFinite(n) || n === 0) return '-';
-  return formatMoney(n);
+  if (!Number.isFinite(n)) return '-';
+  if (n !== 0) return formatMoney(n);
+  const rateSet = t?.brokerageValue !== '' && t?.brokerageValue != null;
+  return rateSet ? formatMoney(0) : '-';
 };
 
-const TransactionTable = ({ transactions, onDelete, onEdit, isLoading = false, title = 'Transaction Details', additionalFilters = null, hideFilters = [] }) => {
+const TransactionTable = ({
+  transactions,
+  onDelete,
+  onEdit,
+  isLoading = false,
+  title = 'Transaction Details',
+  additionalFilters = null,
+  hideFilters = [],
+  ...rest
+}) => {
   const columns = [
     { key: 'client', label: 'Broker' },
     { key: 'project', label: 'Project Name' },
@@ -42,8 +52,12 @@ const TransactionTable = ({ transactions, onDelete, onEdit, isLoading = false, t
       label: 'Brokerage',
       render: (_, t) => formatBrokerageRate(t)
     },
-    { key: 'brokerageAmount', label: 'Brokerage Amount', render: (v) => formatMoneyOrDash(v) },
-    { key: 'additionalCharges', label: 'Additional Charges', render: (v) => formatMoneyOrDash(v) },
+    { key: 'brokerageAmount', label: 'Brokerage Amount', render: (v, t) => formatBrokerageAmount(v, t) },
+    { key: 'additionalCharges', label: 'Additional Charges', render: (v) => {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n === 0) return '-';
+      return formatMoney(n);
+    } },
     {
       key: 'impactFund',
       label: 'Impact Fund (2%)',
@@ -59,7 +73,10 @@ const TransactionTable = ({ transactions, onDelete, onEdit, isLoading = false, t
     {
       key: 'totalAmount',
       label: 'Total (Net)',
-      render: (_, t) => formatMoney(transactionNetAfterImpactFund(t))
+      render: (_, t) => {
+        const net = transactionNetAfterImpactFund(t);
+        return <span className={signedMoneyClass(net, 'text-slate-800')}>{formatMoney(net)}</span>;
+      }
     }
   ];
 
@@ -105,6 +122,7 @@ const TransactionTable = ({ transactions, onDelete, onEdit, isLoading = false, t
         format: formatMoney
       }}
       sortCompare={compareTransactions}
+      {...rest}
     />
   );
 };

@@ -248,7 +248,7 @@ const DataTable = ({
                       </th>
                     ) : null}
                     <th
-                      className={`${tableBodyCellClass('text-center', 'font-bold text-primary-800 tabular-nums')} ${
+                      className={`${tableBodyCellClass('text-center', `font-bold tabular-nums ${headerSummaryNumeric < 0 ? 'text-red-600' : 'text-primary-800'}`)} ${
                         headerSummaryColIndex > 0 ? 'border-l border-primary-200/50' : ''
                       }`}
                       colSpan={1}

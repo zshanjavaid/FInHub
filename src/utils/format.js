@@ -7,3 +7,8 @@ export const formatMoney = (v) => {
   if (Number.isInteger(n) || Math.abs(n % 1) < 1e-9) return `$${Math.round(n)}`;
   return `$${n.toFixed(2)}`;
 };
+
+export const signedMoneyClass = (v, positiveClass = 'text-primary-600') => {
+  const n = Number(v);
+  return Number.isFinite(n) && n < 0 ? 'text-red-600' : positiveClass;
+};

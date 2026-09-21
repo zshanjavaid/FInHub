@@ -53,7 +53,8 @@ const ExpenseTable = ({
   title = 'Expense Details',
   additionalFilters = null,
   hideFilters = [],
-  projects = []
+  projects = [],
+  ...rest
 }) => {
   const projectByKey = (() => {
     const map = new Map();
@@ -136,6 +137,7 @@ const ExpenseTable = ({
         format: formatMoney
       }}
       sortCompare={compareExpenses}
+      {...rest}
     />
   );
 };
