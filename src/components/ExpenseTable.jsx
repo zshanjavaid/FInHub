@@ -3,15 +3,13 @@ import DataTable from './DataTable';
 import { formatMoney } from '../utils/format';
 import { EXPENSE_TYPE_LABELS, EXPENSE_TYPE_COLORS, RECURRING_MONTHS_LABELS } from '../constants/expenseTypes';
 import { compareExpenses } from '../utils/tableSort';
+import { latestProjectByIdentity, projectIdentityKey } from '../utils/projectLookup';
 
 /** Strip legacy "Brokerage – " prefix from monthly brokerage expense names. */
 const displayExpenseName = (name) => {
   const raw = String(name || '').trim();
   return raw.replace(/^Brokerage\s*[–-]\s*/i, '') || raw || '-';
 };
-
-const projectKey = (client, project) =>
-  `${String(client || '').trim().toLowerCase()}|${String(project || '').trim().toLowerCase()}`;
 
 const resolveBrokerageMeta = (row, projectByKey) => {
   const storedType = String(row?.brokerageType || '').trim().toLowerCase();
@@ -21,7 +19,7 @@ const resolveBrokerageMeta = (row, projectByKey) => {
       value: row?.brokerageValue
     };
   }
-  const key = projectKey(row?.client, row?.project);
+  const key = projectIdentityKey(row?.client, row?.project);
   const p = key !== '|' ? projectByKey.get(key) : null;
   if (!p) return null;
   return {
@@ -56,22 +54,7 @@ const ExpenseTable = ({
   projects = [],
   ...rest
 }) => {
-  const projectByKey = (() => {
-    const map = new Map();
-    (projects || []).forEach((p) => {
-      const key = projectKey(p?.client, p?.project);
-      if (key === '|') return;
-      const prev = map.get(key);
-      if (!prev) {
-        map.set(key, p);
-        return;
-      }
-      const prevAt = String(prev.updatedAt || prev.createdAt || prev.date || '');
-      const nextAt = String(p.updatedAt || p.createdAt || p.date || '');
-      if (nextAt.localeCompare(prevAt) >= 0) map.set(key, p);
-    });
-    return map;
-  })();
+  const projectByKey = latestProjectByIdentity(projects);
 
   const columns = [
     { key: 'expenseName', label: 'Expense Name', render: (v) => displayExpenseName(v) },

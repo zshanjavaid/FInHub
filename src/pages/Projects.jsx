@@ -15,7 +15,8 @@ import { PROJECT_TYPE_OPTIONS, PROJECT_TYPE_LABELS } from '../constants/projectT
 import ErrorAlert from '../components/ErrorAlert';
 import PageContainer from '../components/PageContainer';
 import ProjectInsightsSummaryCard from '../components/ProjectInsightsSummaryCard';
-import { getTaxFormDefaultsFromProject, prepareProjectForFirestore } from '../utils/project';
+import { prepareProjectForFirestore } from '../utils/project';
+import { EMPTY_PROJECT_FORM, projectToFormValues } from '../utils/formValues';
 import { projectMatchesStatusInRange } from '../utils/transactionsEligibility';
 import { addMonthsLocalYmd } from '../utils/date';
 
@@ -35,25 +36,7 @@ const Projects = () => {
   const [statusFilter, setStatusFilter] = useState('active');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState(null);
-  const [initialValues, setInitialValues] = useState({
-    client: '',
-    date: '',
-    project: '',
-    projectType: '',
-    projectStatus: 'active',
-    payoutOccurrence: 'biweekly',
-    totalMonthlyHours: '',
-    hourlyRate: '',
-    projectCost: '',
-    recruiterName: '',
-    lead: '',
-    projectManager: '',
-    contractEnding: '',
-    brokerageType: 'percentage',
-    brokerageValue: '',
-    taxType: 'percentage',
-    taxValue: ''
-  });
+  const [initialValues, setInitialValues] = useState(EMPTY_PROJECT_FORM);
 
   const filteredProjects = useMemo(() => {
     let list = (projects || []).filter((p) =>
@@ -86,50 +69,16 @@ const Projects = () => {
 
   const openAddModal = () => {
     setEditingProjectId(null);
-    const contractEndingDefault = addMonthsLocalYmd(6);
     setInitialValues({
-      client: '',
-      date: '',
-      project: '',
-      projectType: '',
-      projectStatus: 'active',
-      payoutOccurrence: 'biweekly',
-      totalMonthlyHours: '',
-      hourlyRate: '',
-      projectCost: '',
-      recruiterName: '',
-      lead: '',
-      projectManager: '',
-      contractEnding: contractEndingDefault,
-      brokerageType: 'percentage',
-      brokerageValue: '',
-      taxType: 'percentage',
-      taxValue: ''
+      ...EMPTY_PROJECT_FORM,
+      contractEnding: addMonthsLocalYmd(6)
     });
     setIsModalOpen(true);
   };
 
   const openEditModal = (project, projectId) => {
     setEditingProjectId(projectId);
-    setInitialValues({
-      client: project.client || '',
-      date: project.date || '',
-      project: project.project || '',
-      projectType: project.projectType || '',
-      projectStatus: project.projectStatus || 'active',
-      payoutOccurrence: project.payoutOccurrence || 'biweekly',
-      totalMonthlyHours: project.totalMonthlyHours || '',
-      hourlyRate: project.hourlyRate || '',
-      projectCost:
-        project.projectCost != null && project.projectCost !== '' ? String(project.projectCost) : '',
-      recruiterName: project.recruiterName || '',
-      lead: project.lead || '',
-      projectManager: project.projectManager || '',
-      contractEnding: project.contractEnding || '',
-      brokerageType: project.brokerageType || 'percentage',
-      brokerageValue: project.brokerageValue || '',
-      ...getTaxFormDefaultsFromProject(project)
-    });
+    setInitialValues(projectToFormValues(project));
     setIsModalOpen(true);
   };
 

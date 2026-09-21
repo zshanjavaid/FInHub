@@ -7,15 +7,17 @@ import {
   fetchTransactions,
   removeTransaction
 } from '../store/transactions/transactionsSlice';
-import { fetchExpenses, createExpense } from '../store/expenses/expensesSlice';
-import { buildMonthlyBrokerageExpenseIfNeeded } from '../utils/ensureMonthlyBrokerageExpense';
+import { fetchExpenses } from '../store/expenses/expensesSlice';
+import { syncMonthlyBrokerageExpense } from '../utils/ensureMonthlyBrokerageExpense';
 import { useAuth } from '../contexts/AuthContext';
 import { getTargetAmount, setTargetAmount } from '../services/settingsService';
 import { formatMoney, signedMoneyClass } from '../utils/format';
-import { normalizeDateToYYYYMMDD, MONTH_NAMES } from '../utils/date';
+import { filterByDateRange, monthSlotsForRange, calendarYearMonthSlots, addIntoMonthSlots, MONTH_NAMES } from '../utils/date';
 import { computeNextMonthEstimatedAmount } from '../utils/nextMonthEstimate';
 import { transactionNetAfterImpactFund } from '../utils/transactionNet';
 import { expenseAmountTowardAvailable } from '../utils/availableBalance';
+import { EMPTY_TRANSACTION_FORM, transactionToFormValues } from '../utils/formValues';
+import { matchesClientProject } from '../utils/projectLookup';
 import { isApproved } from '../constants/app';
 import { isDashboardActiveProject, DASHBOARD_ACTIVE_PROJECT_TYPES, PROJECT_TYPE_COLORS } from '../constants/projectTypes';
 import { useClientOptions } from '../hooks/useClientOptions';
@@ -38,18 +40,6 @@ import { FiDollarSign, FiTarget, FiEdit2, FiBriefcase } from 'react-icons/fi';
 const BarChart = lazy(() => import('../components/BarChart'));
 const ActiveProjectsYearComparisonChart = lazy(() => import('../components/ActiveProjectsYearComparisonChart'));
 
-
-const defaultForm = {
-  client: '',
-  project: '',
-  date: '',
-  amount: '',
-  brokerageType: 'percentage',
-  brokerageValue: '',
-  brokerageAmount: '',
-  additionalCharges: ''
-};
-
 const Dashboard = () => {
   const dispatch = useDispatch();
 
@@ -64,7 +54,7 @@ const Dashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransactionId, setEditingTransactionId] = useState(null);
   const [editingTransaction, setEditingTransaction] = useState(null);
-  const [initialValues, setInitialValues] = useState(defaultForm);
+  const [initialValues, setInitialValues] = useState(EMPTY_TRANSACTION_FORM);
   const [selectedBroker, setSelectedBroker] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const dateFilter = useDateFilter({ defaultToCurrentMonth: true });
@@ -116,31 +106,11 @@ const Dashboard = () => {
   const filteredTransactions = useMemo(() => {
     let list = transactions || [];
     if (selectedProject) {
-      list = list.filter(
-        (t) =>
-          (t.client || '').trim().toLowerCase() === (selectedProject.client || '').trim().toLowerCase() &&
-          (t.project || '').trim().toLowerCase() === (selectedProject.project || '').trim().toLowerCase()
-      );
+      list = list.filter((t) => matchesClientProject(t, selectedProject.client, selectedProject.project));
     } else if (selectedBroker) {
-      list = list.filter(
-        (t) => (t.client || '').trim().toLowerCase() === selectedBroker.trim().toLowerCase()
-      );
+      list = list.filter((t) => (t.client || '').trim().toLowerCase() === selectedBroker.trim().toLowerCase());
     }
-    if (dateFrom) {
-      const from = normalizeDateToYYYYMMDD(dateFrom);
-      list = list.filter((t) => {
-        const tDate = normalizeDateToYYYYMMDD(t.date);
-        return tDate && tDate >= from;
-      });
-    }
-    if (dateTo) {
-      const to = normalizeDateToYYYYMMDD(dateTo);
-      list = list.filter((t) => {
-        const tDate = normalizeDateToYYYYMMDD(t.date);
-        return tDate && tDate <= to;
-      });
-    }
-    return list;
+    return filterByDateRange(list, dateFrom, dateTo, (t) => t.date);
   }, [transactions, selectedProject, selectedBroker, dateFrom, dateTo]);
 
   const approvedTransactions = useMemo(
@@ -152,24 +122,14 @@ const Dashboard = () => {
   const openAddModal = () => {
     setEditingTransactionId(null);
     setEditingTransaction(null);
-    setInitialValues(defaultForm);
+    setInitialValues(EMPTY_TRANSACTION_FORM);
     setIsModalOpen(true);
   };
 
   const openEditModal = (transaction, transactionId) => {
     setEditingTransactionId(transactionId);
     setEditingTransaction(transaction || null);
-    setInitialValues({
-      ...defaultForm,
-      client: transaction.client || '',
-      project: transaction.project || '',
-      date: transaction.date || '',
-      amount: transaction.amount ?? '',
-      brokerageType: transaction.brokerageType || 'percentage',
-      brokerageValue: transaction.brokerageValue ?? '',
-      brokerageAmount: transaction.brokerageAmount ?? '',
-      additionalCharges: transaction.additionalCharges ?? ''
-    });
+    setInitialValues(transactionToFormValues(transaction));
     setIsModalOpen(true);
   };
 
@@ -179,32 +139,25 @@ const Dashboard = () => {
   };
 
   const onSubmit = async (transactionData) => {
+    const payload = user?.uid ? { ...transactionData, createdBy: user.uid } : transactionData;
+    const saved = editingTransactionId ? transactionData : payload;
     if (editingTransactionId) {
       await dispatch(
         editTransaction({ transactionId: editingTransactionId, transactionData })
       ).unwrap();
-      const expenseData = buildMonthlyBrokerageExpenseIfNeeded({
-        transactionData,
-        projects,
-        transactions,
-        expenses,
-        excludeTxId: editingTransactionId,
-        createdBy: user?.uid || null
-      });
-      if (expenseData) await dispatch(createExpense(expenseData)).unwrap();
-      setEditingTransactionId(null);
     } else {
-      const payload = user?.uid ? { ...transactionData, createdBy: user.uid } : transactionData;
       await dispatch(createTransaction(payload)).unwrap();
-      const expenseData = buildMonthlyBrokerageExpenseIfNeeded({
-        transactionData: payload,
-        projects,
-        transactions,
-        expenses,
-        createdBy: user?.uid || null
-      });
-      if (expenseData) await dispatch(createExpense(expenseData)).unwrap();
     }
+    await syncMonthlyBrokerageExpense(dispatch, {
+      transactionData: saved,
+      previousTransaction: editingTransaction,
+      projects,
+      transactions,
+      expenses,
+      excludeTxId: editingTransactionId || null,
+      createdBy: user?.uid || null
+    });
+    setEditingTransactionId(null);
 
     setIsModalOpen(false);
     setEditingTransaction(null);
@@ -236,90 +189,34 @@ const Dashboard = () => {
   };
 
   const chartData = useMemo(() => {
-    let labels = [];
-    let monthlyInward = [];
-    let monthlyExpense = [];
-    let monthsRange = [];
+    const fillSeries = (slots) => {
+      const inward = new Array(slots.length).fill(0);
+      const expense = new Array(slots.length).fill(0);
+      approvedTransactions.forEach((transaction) => {
+        addIntoMonthSlots(inward, transaction.date, transactionNetAfterImpactFund(transaction), slots);
+      });
+      if (!selectedProject) {
+        approvedExpenses.forEach((row) => {
+          addIntoMonthSlots(expense, row.date, expenseAmountTowardAvailable(row, approvedTransactions), slots);
+        });
+      }
+      return { inward, expense };
+    };
 
     if (dateFrom && dateTo) {
-      const start = new Date(dateFrom);
-      const end = new Date(dateTo);
-      if (start > end) {
-        labels = MONTH_NAMES;
-        monthlyInward = new Array(12).fill(0);
-        monthlyExpense = new Array(12).fill(0);
-      } else {
-        const startYear = start.getFullYear();
-        const startMonth = start.getMonth();
-        const endYear = end.getFullYear();
-        const endMonth = end.getMonth();
-        const sameYear = startYear === endYear;
-        monthsRange = [];
-        for (let y = startYear; y <= endYear; y++) {
-          const mStart = y === startYear ? startMonth : 0;
-          const mEnd = y === endYear ? endMonth : 11;
-          for (let m = mStart; m <= mEnd; m++) {
-            monthsRange.push({ year: y, month: m });
-            labels.push(sameYear ? MONTH_NAMES[m] : `${MONTH_NAMES[m]} ${String(y).slice(-2)}`);
-          }
-        }
-        monthlyInward = new Array(monthsRange.length).fill(0);
-        monthlyExpense = new Array(monthsRange.length).fill(0);
-
-        approvedTransactions.forEach((transaction) => {
-          const tDate = normalizeDateToYYYYMMDD(transaction.date);
-          if (!tDate) return;
-          const d = new Date(tDate);
-          const idx = monthsRange.findIndex((r) => r.year === d.getFullYear() && r.month === d.getMonth());
-          if (idx === -1) return;
-          monthlyInward[idx] += transactionNetAfterImpactFund(transaction);
-        });
-
-        if (!selectedProject) {
-          approvedExpenses.forEach((expense) => {
-            const eDate = normalizeDateToYYYYMMDD(expense.date);
-            if (!eDate) return;
-            const d = new Date(eDate);
-            const idx = monthsRange.findIndex((r) => r.year === d.getFullYear() && r.month === d.getMonth());
-            if (idx === -1) return;
-            monthlyExpense[idx] += expenseAmountTowardAvailable(expense, approvedTransactions);
-          });
-        }
+      const range = monthSlotsForRange(dateFrom, dateTo);
+      if (!range.valid) {
+        return {
+          labels: MONTH_NAMES,
+          inward: new Array(12).fill(0),
+          expense: new Array(12).fill(0)
+        };
       }
-    } else {
-      const currentYear = new Date().getFullYear();
-      labels = MONTH_NAMES;
-      monthlyInward = new Array(12).fill(0);
-      monthlyExpense = new Array(12).fill(0);
-
-      approvedTransactions.forEach((transaction) => {
-        const tDate = normalizeDateToYYYYMMDD(transaction.date);
-        if (!tDate) return;
-        const date = new Date(tDate);
-        if (date.getFullYear() === currentYear) {
-          const month = date.getMonth();
-          monthlyInward[month] += transactionNetAfterImpactFund(transaction);
-        }
-      });
-
-      if (!selectedProject) {
-        approvedExpenses.forEach((expense) => {
-          const eDate = normalizeDateToYYYYMMDD(expense.date);
-          if (!eDate) return;
-          const date = new Date(eDate);
-          if (date.getFullYear() === currentYear) {
-            const month = date.getMonth();
-            monthlyExpense[month] += expenseAmountTowardAvailable(expense, approvedTransactions);
-          }
-        });
-      }
+      return { labels: range.labels, ...fillSeries(range.slots) };
     }
 
-    return {
-      labels,
-      inward: monthlyInward,
-      expense: monthlyExpense
-    };
+    const yearSlots = calendarYearMonthSlots();
+    return { labels: yearSlots.labels, ...fillSeries(yearSlots.slots) };
   }, [approvedTransactions, approvedExpenses, selectedProject, dateFrom, dateTo]);
 
   const activeProjectCount = useMemo(() => {

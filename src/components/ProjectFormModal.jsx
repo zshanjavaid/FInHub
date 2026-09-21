@@ -5,27 +5,8 @@ import { HiOutlineCurrencyDollar, HiOutlinePercentBadge } from 'react-icons/hi2'
 import { getTaxFormDefaultsFromProject } from '../utils/project';
 import { PAYOUT_OCCURRENCE_OPTIONS, PAYOUT_OCCURRENCE_LABEL_BY_VALUE } from '../constants/payoutOccurrences';
 import { LEAD_OPTIONS, PROJECT_MANAGER_OPTIONS } from '../constants/projectAssignments';
+import { EMPTY_PROJECT_FORM } from '../utils/formValues';
 import { addMonthsLocalYmd, todayLocalYmd } from '../utils/date';
-
-const defaultForm = {
-  client: '',
-  date: '',
-  project: '',
-  projectType: 'Full time',
-  projectStatus: 'active',
-  payoutOccurrence: 'biweekly',
-  totalMonthlyHours: '',
-  hourlyRate: '',
-  projectCost: '',
-  recruiterName: '',
-  lead: '',
-  projectManager: '',
-  contractEnding: '',
-  brokerageType: 'percentage',
-  brokerageValue: '',
-  taxType: 'percentage',
-  taxValue: ''
-};
 
 const ProjectFormModal = ({
   isOpen,
@@ -33,7 +14,7 @@ const ProjectFormModal = ({
   title,
   clientOptions = [],
   projectTypeOptions = [],
-  initialValues = defaultForm,
+  initialValues = EMPTY_PROJECT_FORM,
   onSubmit,
   isSaving = false,
   projects = []
@@ -42,13 +23,13 @@ const ProjectFormModal = ({
   const contractEndingDefault = addMonthsLocalYmd(6);
   const taxFromInitial = getTaxFormDefaultsFromProject(initialValues);
   const normalizedInitialValues = {
-    ...defaultForm,
+    ...EMPTY_PROJECT_FORM,
     ...(initialValues || {}),
     date: initialValues && initialValues.date ? initialValues.date : today,
     projectType:
       initialValues && initialValues.projectType !== undefined && initialValues.projectType !== ''
         ? initialValues.projectType
-        : 'Full time',
+        : EMPTY_PROJECT_FORM.projectType,
     projectStatus: initialValues && initialValues.projectStatus ? initialValues.projectStatus : 'active',
     contractEnding: initialValues && initialValues.contractEnding ? initialValues.contractEnding : contractEndingDefault,
     payoutOccurrence:

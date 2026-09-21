@@ -2,29 +2,20 @@ import { useMemo } from 'react';
 import FormModal from './FormModal';
 import { FiFileText, FiDollarSign, FiMessageSquare, FiCalendar } from 'react-icons/fi';
 import { EXPENSE_TYPE_FORM_OPTIONS, RECURRING_PERIOD_FORM_OPTIONS } from '../constants/expenseTypes';
+import { EMPTY_EXPENSE_FORM } from '../utils/formValues';
 import { todayLocalYmd } from '../utils/date';
-
-const defaultForm = {
-  expenseName: '',
-  date: '',
-  expenseType: '',
-  amount: '',
-  comment: '',
-  recurring: false,
-  recurringMonths: ''
-};
 
 const ExpenseFormModal = ({
   isOpen,
   onClose,
   title,
-  initialValues = defaultForm,
+  initialValues = EMPTY_EXPENSE_FORM,
   onSubmit,
   isSaving = false
 }) => {
   const today = todayLocalYmd();
   const normalizedInitialValues = {
-    ...defaultForm,
+    ...EMPTY_EXPENSE_FORM,
     ...(initialValues || {}),
     date: (initialValues && initialValues.date) ? initialValues.date : today
   };

@@ -26,25 +26,14 @@ import {
   buildMonthlyBrokerageExpenseData,
   computeImportMonthlyBrokerageAmount
 } from '../utils/csvTransactionImport';
+import { findLatestProjectByBrokerAndProject } from '../utils/projectLookup';
 import { addMonthsLocalYmd, todayLocalYmd } from '../utils/date';
-
-const findLatestProject = (projects, broker, projectName) => {
-  if (!broker || !projectName) return null;
-  const matches = (projects || [])
-    .filter(
-      (p) =>
-        (p.client || '').trim().toLowerCase() === broker.trim().toLowerCase() &&
-        (p.project || '').trim().toLowerCase() === projectName.trim().toLowerCase()
-    )
-    .sort((a, b) => String(b.createdAt || b.date || '').localeCompare(String(a.createdAt || a.date || '')));
-  return matches[0] || null;
-};
 
 const resolveProjectMatch = (projects, broker, projectName) => {
   if (!broker || !projectName) return { kind: 'missing', project: null };
-  const approved = findLatestProject((projects || []).filter(isApproved), broker, projectName);
+  const approved = findLatestProjectByBrokerAndProject((projects || []).filter(isApproved), broker, projectName);
   if (approved) return { kind: 'approved', project: approved };
-  const any = findLatestProject(projects, broker, projectName);
+  const any = findLatestProjectByBrokerAndProject(projects, broker, projectName);
   if (any && !isApproved(any)) return { kind: 'pending', project: any };
   return { kind: 'missing', project: null };
 };

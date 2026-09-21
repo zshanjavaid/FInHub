@@ -19,20 +19,11 @@ import { useDateFilter } from '../hooks/useDateFilter';
 import ErrorAlert from '../components/ErrorAlert';
 import PageContainer from '../components/PageContainer';
 import { compareTransactions, compareWithdrawals } from '../utils/tableSort';
-
-const IMPACT_FUND_PERCENT = 0.02;
-
-const toNumber = (v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const getTransactionNetAmount = (t) => {
-  const total = t.totalAmount !== undefined && t.totalAmount !== null
-    ? toNumber(t.totalAmount)
-    : toNumber(t.amount) - toNumber(t.brokerageAmount) - toNumber(t.additionalCharges);
-  return total;
-};
+import { toNumber } from '../utils/number';
+import {
+  IMPACT_FUND_PERCENT_LABEL,
+  transactionImpactFundAmount
+} from '../utils/transactionNet';
 
 const ImpactFund = () => {
   const dispatch = useDispatch();
@@ -63,8 +54,7 @@ const ImpactFund = () => {
   const contributionHistory = useMemo(() => {
     return (transactions || [])
       .map((t) => {
-        const net = getTransactionNetAmount(t);
-        const amount = net * IMPACT_FUND_PERCENT;
+        const amount = transactionImpactFundAmount(t);
         return {
           id: t.id,
           client: t.client || '',
@@ -166,7 +156,7 @@ const ImpactFund = () => {
     { key: 'date', label: 'Date', align: 'text-left' },
     {
       key: 'amount',
-      label: 'Amount (2%)',
+      label: `Amount (${IMPACT_FUND_PERCENT_LABEL})`,
       align: 'text-right',
       render: (v) => formatMoney(v)
     }

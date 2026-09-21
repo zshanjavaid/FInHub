@@ -9,40 +9,26 @@ import { PAYOUT_OCCURRENCE_LABEL_BY_VALUE } from '../constants/payoutOccurrences
 import { isProjectEligibleForTransactions } from '../utils/transactionsEligibility';
 import { countExpectedPayoutsInRange, countExpectedWithCarryover, getPayoutOccurrenceLabel } from '../utils/payoutSchedule';
 import { computeProjectBrokerageDollars } from '../utils/project';
+import { findLatestProjectByBrokerAndProject } from '../utils/projectLookup';
+import { EMPTY_TRANSACTION_FORM } from '../utils/formValues';
+import { toNumber, roundMoney } from '../utils/number';
+import {
+  IMPACT_FUND_PERCENT_LABEL,
+  impactFundFromNet,
+  netAfterImpactFundFromParts,
+  netFromGrossParts
+} from '../utils/transactionNet';
 import { firstWeekdayOnOrAfter } from '../utils/workingDays';
-
-const defaultForm = {
-  client: '',
-  project: '',
-  date: '',
-  amount: '',
-  brokerageType: 'percentage',
-  brokerageValue: '',
-  brokerageAmount: '',
-  additionalCharges: ''
-};
-
-const toNumber = (v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const computeTotalAmount = ({ amount, brokerageAmount, additionalCharges }) => {
-  const a = toNumber(amount);
-  const bAmt = toNumber(brokerageAmount);
-  const charges = toNumber(additionalCharges);
-  return a - bAmt - charges;
-};
 
 const TransactionFormModal = ({
   isOpen,
   onClose,
   title,
-  initialValues = defaultForm,
+  initialValues = EMPTY_TRANSACTION_FORM,
   onSubmit,
   isSaving = false,
   projects = [],
-  clientOptions = [],
+  clientOptions: _clientOptions = [],
   transactions = [],
   editingTransactionId = null,
   editingTransaction = null
@@ -50,7 +36,7 @@ const TransactionFormModal = ({
   const today = todayLocalYmd();
   const [submitError, setSubmitError] = useState('');
   const normalizedInitialValues = {
-    ...defaultForm,
+    ...EMPTY_TRANSACTION_FORM,
     ...(initialValues || {}),
     date: (initialValues && initialValues.date) ? initialValues.date : today
   };
@@ -76,20 +62,8 @@ const TransactionFormModal = ({
     return [...new Set(items)].sort();
   };
 
-  const findLatestProjectByBrokerAndProject = (broker, projectName) => {
-    if (!broker || !projectName || !eligibleProjects?.length) return null;
-    const matches = eligibleProjects
-      .filter((p) =>
-        (p.client || '').trim().toLowerCase() === broker.trim().toLowerCase() &&
-        (p.project || '').trim().toLowerCase() === projectName.trim().toLowerCase()
-      )
-      .sort((a, b) => {
-        const dateA = a.createdAt || a.date || '';
-        const dateB = b.createdAt || b.date || '';
-        return dateB.localeCompare(dateA);
-      });
-    return matches[0] || null;
-  };
+  const latestEligibleProject = (broker, projectName) =>
+    findLatestProjectByBrokerAndProject(eligibleProjects, broker, projectName);
 
   /**
    * Fixed (new entries): Mon–Fri prorated month fee from transaction date
@@ -116,7 +90,7 @@ const TransactionFormModal = ({
 
     const dateYmd = normalizeDateToYYYYMMDD(form.date);
     const monthKey = dateYmd ? dateYmd.slice(0, 7) : '';
-    const projectRow = findLatestProjectByBrokerAndProject(form.client, form.project);
+    const projectRow = latestEligibleProject(form.client, form.project);
     if (!monthKey || !projectRow) {
       return { ...empty, thisShare: value, monthFee: value };
     }
@@ -124,31 +98,28 @@ const TransactionFormModal = ({
     const weekdayStart = firstWeekdayOnOrAfter(dateYmd) || dateYmd;
     const snappedFromWeekend = Boolean(dateYmd && weekdayStart && weekdayStart !== dateYmd);
 
-    const monthFee = Number(
+    const monthFee = roundMoney(
       computeProjectBrokerageDollars(
         { ...projectRow, brokerageType: 'fixed', brokerageValue: value },
         { monthKey, activeFromYmd: weekdayStart }
-      ).toFixed(2)
+      )
     );
 
-    const clientKey = String(form.client || '').trim().toLowerCase();
-    const projectKey = String(form.project || '').trim().toLowerCase();
-    const alreadyApplied = Number(
+    const alreadyApplied = roundMoney(
       (transactions || [])
         .filter(isApproved)
         .filter((t) => {
           const d = normalizeDateToYYYYMMDD(t.date);
           if (!d || d.slice(0, 7) !== monthKey) return false;
           return (
-            String(t.client || '').trim().toLowerCase() === clientKey &&
-            String(t.project || '').trim().toLowerCase() === projectKey
+            String(t.client || '').trim().toLowerCase() === String(form.client || '').trim().toLowerCase() &&
+            String(t.project || '').trim().toLowerCase() === String(form.project || '').trim().toLowerCase()
           );
         })
-        .reduce((s, t) => s + (toNumber(t.brokerageAmount) || 0), 0)
-        .toFixed(2)
+        .reduce((s, t) => s + toNumber(t.brokerageAmount), 0)
     );
 
-    const thisShare = Math.max(0, Number((monthFee - alreadyApplied).toFixed(2)));
+    const thisShare = Math.max(0, roundMoney(monthFee - alreadyApplied));
 
     return {
       monthFee,
@@ -177,7 +148,7 @@ const TransactionFormModal = ({
     }
 
     if (fieldName === 'project' && form.client && value) {
-      const latest = findLatestProjectByBrokerAndProject(form.client, value);
+      const latest = latestEligibleProject(form.client, value);
       if (latest) {
         form.brokerageType = latest.brokerageType || 'percentage';
         form.brokerageValue = latest.brokerageValue || '';
@@ -292,9 +263,9 @@ const TransactionFormModal = ({
         const fixedBreakdown = isFixed ? resolveFixedBrokerageBreakdown(form) : null;
         const brokerageAmount = isFixed ? fixedBreakdown.thisShare : computeBrokerageAmount(form);
         const additionalCharges = toNumber(form.additionalCharges);
-        const netBeforeImpactFund = computeTotalAmount({ ...form, brokerageAmount });
-        const impactFund = Number(((netBeforeImpactFund > 0 ? netBeforeImpactFund : 0) * 0.02).toFixed(2));
-        const netTotal = Number((netBeforeImpactFund - impactFund).toFixed(2));
+        const netBeforeImpactFund = netFromGrossParts({ ...form, brokerageAmount });
+        const impactFund = impactFundFromNet(netBeforeImpactFund);
+        const netTotal = netAfterImpactFundFromParts({ ...form, brokerageAmount });
         const brokerageValue = toNumber(form.brokerageValue);
         const brokerageLabel = isFixed
           ? 'Brokerage'
@@ -324,7 +295,7 @@ const TransactionFormModal = ({
               <span className="text-red-600 font-semibold">{formatMoney(additionalCharges)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600 font-medium">(-) Impact Fund (2%)</span>
+              <span className="text-gray-600 font-medium">(-) Impact Fund ({IMPACT_FUND_PERCENT_LABEL})</span>
               <span className="text-red-600 font-semibold">{formatMoney(impactFund)}</span>
             </div>
             <div className="border-t border-gray-200 pt-3 flex items-center justify-between">
@@ -352,7 +323,7 @@ const TransactionFormModal = ({
       return;
     }
 
-    const latestProject = findLatestProjectByBrokerAndProject(client, project);
+    const latestProject = latestEligibleProject(client, project);
     if (txDate && latestProject && !editingTransaction?.autoGenerated) {
       const monthKey = txDate.slice(0, 7);
       const monthStart = `${monthKey}-01`;
@@ -386,11 +357,11 @@ const TransactionFormModal = ({
     }
 
     const brokerageAmount = computeBrokerageAmount(values);
-    const totalAmount = computeTotalAmount({ ...values, brokerageAmount });
+    const totalAmount = netFromGrossParts({ ...values, brokerageAmount });
     const transactionData = {
       ...values,
-      brokerageAmount: brokerageAmount ? Number(brokerageAmount.toFixed(2)) : 0,
-      totalAmount: Number.isFinite(totalAmount) ? Number(totalAmount.toFixed(2)) : 0,
+      brokerageAmount: brokerageAmount ? roundMoney(brokerageAmount) : 0,
+      totalAmount: Number.isFinite(totalAmount) ? roundMoney(totalAmount) : 0,
       amount: toNumber(values.amount),
       brokerageValue: toNumber(values.brokerageValue),
       additionalCharges: toNumber(values.additionalCharges)

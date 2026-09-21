@@ -3,17 +3,8 @@ import { normalizeDateToYYYYMMDD } from './date';
 import { countExpectedPayoutsInRange } from './payoutSchedule';
 import { isProjectEligibleForAutoGenerateMonth } from './transactionsEligibility';
 import { transactionNetAfterImpactFund } from './transactionNet';
-
-const toNumber = (v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const projectKey = (client, project) =>
-  `${String(client || '').trim().toLowerCase()}|${String(project || '').trim().toLowerCase()}`;
-
-/** Same net inward as Dashboard Monthly Comparison / Transactions table Total (Net). */
-export const transactionNetInward = (t) => transactionNetAfterImpactFund(t);
+import { latestProjectByIdentity, matchesClientProject, projectIdentityKey } from './projectLookup';
+import { normText } from './number';
 
 const monthBounds = (year, monthIndex0) => {
   const lastDay = new Date(year, monthIndex0 + 1, 0).getDate();
@@ -24,25 +15,6 @@ const monthBounds = (year, monthIndex0) => {
     from: `${y}-${m}-01`,
     to: `${y}-${m}-${String(lastDay).padStart(2, '0')}`
   };
-};
-
-const latestProjectByKey = (projects = []) => {
-  const map = new Map();
-  (projects || []).forEach((p) => {
-    const client = (p.client || '').trim();
-    const name = (p.project || '').trim();
-    if (!client || !name) return;
-    const key = projectKey(client, name);
-    const prev = map.get(key);
-    if (!prev) {
-      map.set(key, p);
-      return;
-    }
-    const prevDate = prev.createdAt || prev.date || '';
-    const nextDate = p.createdAt || p.date || '';
-    if (String(nextDate).localeCompare(String(prevDate)) > 0) map.set(key, p);
-  });
-  return map;
 };
 
 /**
@@ -63,16 +35,10 @@ export const computeNextMonthEstimatedAmount = ({
 
   let txs = (transactions || []).filter(isApproved);
   if (selectedProject) {
-    const c = (selectedProject.client || '').trim().toLowerCase();
-    const p = (selectedProject.project || '').trim().toLowerCase();
-    txs = txs.filter(
-      (t) =>
-        (t.client || '').trim().toLowerCase() === c &&
-        (t.project || '').trim().toLowerCase() === p
-    );
+    txs = txs.filter((t) => matchesClientProject(t, selectedProject.client, selectedProject.project));
   } else if (selectedBroker) {
-    const b = selectedBroker.trim().toLowerCase();
-    txs = txs.filter((t) => (t.client || '').trim().toLowerCase() === b);
+    const b = normText(selectedBroker);
+    txs = txs.filter((t) => normText(t.client) === b);
   }
 
   const prevMonthTxs = txs.filter((t) => {
@@ -80,29 +46,27 @@ export const computeNextMonthEstimatedAmount = ({
     return ymd && ymd >= prev.from && ymd <= prev.to;
   });
 
-  const prevMonthTotal = prevMonthTxs.reduce((s, t) => s + transactionNetInward(t), 0);
+  const prevMonthTotal = prevMonthTxs.reduce((s, t) => s + transactionNetAfterImpactFund(t), 0);
 
   const inwardByProject = new Map();
   const countByProject = new Map();
   prevMonthTxs.forEach((t) => {
-    const key = projectKey(t.client, t.project);
-    inwardByProject.set(key, (inwardByProject.get(key) || 0) + transactionNetInward(t));
+    const key = projectIdentityKey(t.client, t.project);
+    inwardByProject.set(key, (inwardByProject.get(key) || 0) + transactionNetAfterImpactFund(t));
     countByProject.set(key, (countByProject.get(key) || 0) + 1);
   });
 
   let projectsList = projects || [];
   if (selectedProject) {
-    projectsList = projectsList.filter(
-      (p) =>
-        (p.client || '').trim().toLowerCase() === (selectedProject.client || '').trim().toLowerCase() &&
-        (p.project || '').trim().toLowerCase() === (selectedProject.project || '').trim().toLowerCase()
+    projectsList = projectsList.filter((p) =>
+      matchesClientProject(p, selectedProject.client, selectedProject.project)
     );
   } else if (selectedBroker) {
-    const b = selectedBroker.trim().toLowerCase();
-    projectsList = projectsList.filter((p) => (p.client || '').trim().toLowerCase() === b);
+    const b = normText(selectedBroker);
+    projectsList = projectsList.filter((p) => normText(p.client) === b);
   }
 
-  const latestByKey = latestProjectByKey(projectsList);
+  const latestByKey = latestProjectByIdentity(projectsList);
   let missingProjectsInward = 0;
 
   latestByKey.forEach((p, key) => {

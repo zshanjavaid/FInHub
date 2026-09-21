@@ -1,42 +1,9 @@
 import { isApproved } from '../constants/app';
 import { filterByDateRange } from './date';
+import { toNumber, roundMoney } from './number';
 import { computeProjectBrokerageDollars, computeProjectTaxDollars } from './project';
+import { latestProjectByIdentity, projectIdentityKey } from './projectLookup';
 import { transactionNetAfterImpactFund } from './transactionNet';
-
-const toNumber = (v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-};
-
-/** Match Transactions table Total (Net) / Dashboard Monthly Comparison. */
-export const transactionNetInwardForChart = (t) => transactionNetAfterImpactFund(t);
-
-const rowKey = (client, project) =>
-  `${String(client || '').trim()}|${String(project || '').trim()}`;
-
-const labelFromKey = (key) => {
-  const [c, pr] = key.split('|');
-  return [c, pr].filter(Boolean).join(' – ') || 'Other';
-};
-
-const latestApprovedProjectByKey = (projects) => {
-  const list = [...(projects || [])].filter(isApproved).filter((p) => {
-    const c = (p.client || '').trim();
-    const pr = (p.project || '').trim();
-    return c && pr;
-  });
-  list.sort((a, b) => {
-    const da = a.createdAt || a.date || '';
-    const db = b.createdAt || b.date || '';
-    return db.localeCompare(da);
-  });
-  const map = new Map();
-  for (const p of list) {
-    const k = rowKey(p.client, p.project);
-    if (!map.has(k)) map.set(k, p);
-  }
-  return map;
-};
 
 /**
  * Rows for inward (approved transactions) vs project costs (brokerage $, tax $, project cost)
@@ -44,7 +11,12 @@ const latestApprovedProjectByKey = (projects) => {
  * When dateFrom and dateTo are both set, transactions are limited to that inclusive range; otherwise all time.
  */
 export function buildProjectInwardCostChartRows(projects, transactions, dateFrom = null, dateTo = null) {
-  const latestByKey = latestApprovedProjectByKey(projects);
+  const approvedProjects = (projects || []).filter(isApproved).filter((p) => {
+    const c = (p.client || '').trim();
+    const pr = (p.project || '').trim();
+    return c && pr;
+  });
+  const latestByKey = latestProjectByIdentity(approvedProjects);
 
   let txList = (transactions || []).filter(isApproved);
   if (dateFrom && dateTo) {
@@ -56,8 +28,8 @@ export function buildProjectInwardCostChartRows(projects, transactions, dateFrom
     const c = (t.client || '').trim();
     const pr = (t.project || '').trim();
     if (!c || !pr) continue;
-    const k = rowKey(c, pr);
-    inwardByKey.set(k, (inwardByKey.get(k) || 0) + transactionNetInwardForChart(t));
+    const k = projectIdentityKey(c, pr);
+    inwardByKey.set(k, (inwardByKey.get(k) || 0) + transactionNetAfterImpactFund(t));
   }
 
   const keys = new Set(latestByKey.keys());
@@ -69,17 +41,16 @@ export function buildProjectInwardCostChartRows(projects, transactions, dateFrom
     let tax = 0;
     let projectCost = 0;
     if (p) {
-      brokerage = Number(computeProjectBrokerageDollars(p).toFixed(2));
-      tax = Number(computeProjectTaxDollars(p).toFixed(2));
+      brokerage = roundMoney(computeProjectBrokerageDollars(p));
+      tax = roundMoney(computeProjectTaxDollars(p));
       const pc = p.projectCost;
-      projectCost =
-        pc === '' || pc == null ? 0 : Number(toNumber(pc).toFixed(2));
+      projectCost = pc === '' || pc == null ? 0 : roundMoney(toNumber(pc));
     }
     const costTotal = brokerage + tax + projectCost;
     if (inward <= 0 && costTotal <= 0) continue;
     rows.push({
       key: k,
-      label: labelFromKey(k),
+      label: [p?.client, p?.project].filter(Boolean).join(' – ') || 'Other',
       inward,
       brokerage,
       tax,

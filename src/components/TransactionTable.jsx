@@ -1,16 +1,13 @@
 import { FiUser, FiFileText } from 'react-icons/fi';
 import DataTable from './DataTable';
 import { formatMoney, signedMoneyClass } from '../utils/format';
+import { toNumber } from '../utils/number';
 import { compareTransactions } from '../utils/tableSort';
 import {
+  IMPACT_FUND_PERCENT_LABEL,
   transactionImpactFundAmount,
   transactionNetAfterImpactFund
 } from '../utils/transactionNet';
-
-const toNumber = (v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-};
 
 const formatBrokerageRate = (t) => {
   const type = String(t?.brokerageType || 'percentage').toLowerCase();
@@ -60,7 +57,7 @@ const TransactionTable = ({
     } },
     {
       key: 'impactFund',
-      label: 'Impact Fund (2%)',
+      label: `Impact Fund (${IMPACT_FUND_PERCENT_LABEL})`,
       render: (_, t) => {
         const amt = transactionImpactFundAmount(t);
         return amt > 0 ? (

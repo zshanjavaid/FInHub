@@ -18,19 +18,10 @@ import { fetchProjects } from '../store/projects/projectsSlice';
 import { filterByDateRange } from '../utils/date';
 import { useDateFilter } from '../hooks/useDateFilter';
 import { isApproved } from '../constants/app';
-import { EXPENSE_TYPE_LABELS, EXPENSE_TYPE_LABEL_TO_VALUE, EXPENSE_TYPE_OPTIONS, RECURRING_MONTHS_LABELS } from '../constants/expenseTypes';
+import { EXPENSE_TYPE_LABELS, EXPENSE_TYPE_LABEL_TO_VALUE, EXPENSE_TYPE_OPTIONS } from '../constants/expenseTypes';
 import ErrorAlert from '../components/ErrorAlert';
 import PageContainer from '../components/PageContainer';
-
-const defaultForm = {
-  expenseName: '',
-  date: '',
-  expenseType: '',
-  amount: '',
-  comment: '',
-  recurring: false,
-  recurringMonths: ''
-};
+import { EMPTY_EXPENSE_FORM, expenseToFormValues } from '../utils/formValues';
 
 const typeParamToLabel = (param) => {
   const raw = String(param || '').trim().toLowerCase();
@@ -56,7 +47,7 @@ const Expenses = () => {
   const [selectedType, setSelectedType] = useState(() => typeParamToLabel(searchParams.get('type')));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState(null);
-  const [initialValues, setInitialValues] = useState(defaultForm);
+  const [initialValues, setInitialValues] = useState(EMPTY_EXPENSE_FORM);
 
   useEffect(() => {
     const fromUrl = typeParamToLabel(searchParams.get('type'));
@@ -101,23 +92,13 @@ const Expenses = () => {
 
   const openAddModal = () => {
     setEditingExpenseId(null);
-    setInitialValues(defaultForm);
+    setInitialValues(EMPTY_EXPENSE_FORM);
     setIsModalOpen(true);
   };
 
   const openEditModal = (expense, expenseId) => {
     setEditingExpenseId(expenseId);
-    const expenseTypeLabel = EXPENSE_TYPE_LABELS[expense.expenseType?.toLowerCase()] || expense.expenseType || '';
-    setInitialValues({
-      ...defaultForm,
-      expenseName: expense.expenseName || '',
-      date: expense.date || '',
-      expenseType: expenseTypeLabel,
-      amount: expense.amount ?? '',
-      comment: expense.comment || '',
-      recurring: !!expense.recurring,
-      recurringMonths: RECURRING_MONTHS_LABELS[expense.recurringMonths] ?? expense.recurringMonths ?? ''
-    });
+    setInitialValues(expenseToFormValues(expense));
     setIsModalOpen(true);
   };
 

@@ -1,7 +1,9 @@
-import { normalizeDateToYYYYMMDD, todayLocalYmd } from './date';
-import { computeProjectBrokerageDollars } from './project';
-import { firstWeekdayOnOrAfter } from './workingDays';
 import { isApproved } from '../constants/app';
+import { normalizeDateToYYYYMMDD, todayLocalYmd } from './date';
+import { toNumber, roundMoney } from './number';
+import { computeProjectBrokerageDollars } from './project';
+import { matchesClientProject } from './projectLookup';
+import { firstWeekdayOnOrAfter } from './workingDays';
 
 /** Normalize text for fuzzy broker / project matching. */
 export const normalizeMatchText = (value) =>
@@ -292,11 +294,6 @@ const amountKey = (amount) => {
 
 export const dupeKey = (dateYmd, amount) => `${dateYmd}|${amountKey(amount)}`;
 
-const toNumber = (v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-};
-
 /**
  * CSV import stores the bank amount as-is.
  * Brokerage is handled once per project/month as an expense — not on each transaction.
@@ -336,23 +333,14 @@ export const brokerageExpenseMonthKey = (expense) => {
   return monthKeyFromYmd(expense?.date);
 };
 
+export const isBrokerageExpenseRow = (expense) =>
+  !!expense?.isMonthlyBrokerage || String(expense?.expenseType || '').toLowerCase() === 'brokerage';
+
 export const isMonthlyBrokerageExpense = (expense, { client, project, monthKey }) => {
-  if (!expense) return false;
+  if (!isBrokerageExpenseRow(expense)) return false;
   const mk = brokerageExpenseMonthKey(expense);
   if (!mk || mk !== monthKey) return false;
-
-  const eClient = (expense.client || '').trim().toLowerCase();
-  const eProject = (expense.project || '').trim().toLowerCase();
-  const c = (client || '').trim().toLowerCase();
-  const p = (project || '').trim().toLowerCase();
-
-  if (expense.isMonthlyBrokerage && eClient === c && eProject === p) return true;
-
-  if (String(expense.expenseType || '').toLowerCase() === 'brokerage' && eClient === c && eProject === p) {
-    return true;
-  }
-
-  return false;
+  return matchesClientProject(expense, client, project);
 };
 
 export const findExistingMonthlyBrokerage = (expenses = [], { client, project, monthKey }) =>
@@ -393,7 +381,7 @@ export const buildMonthlyBrokerageExpenseData = ({
     expenseName: String(project || '').trim() || 'Untitled project',
     date: resolveMonthlyBrokerageExpenseDate(mk, date),
     expenseType: 'brokerage',
-    amount: Number(Number(amount).toFixed(2)),
+    amount: roundMoney(amount),
     comment: `Monthly brokerage for ${client} / ${project} (${mk})`,
     client: String(client || '').trim(),
     project: String(project || '').trim(),
@@ -420,23 +408,23 @@ export const computeImportMonthlyBrokerageAmount = (projectRow, monthGrossAmount
   if (type === 'fixed') {
     if (!(val > 0)) return 0;
     if (mk && /^\d{4}-\d{2}$/.test(mk)) {
-      return Number(
+      return roundMoney(
         computeProjectBrokerageDollars(projectRow, {
           monthKey: mk,
           activeFromYmd: options.activeFromYmd
-        }).toFixed(2)
+        })
       );
     }
-    return Number(val.toFixed(2));
+    return roundMoney(val);
   }
 
-  const fromProject = Number(computeProjectBrokerageDollars(projectRow).toFixed(2));
+  const fromProject = roundMoney(computeProjectBrokerageDollars(projectRow));
   if (fromProject > 0) return fromProject;
 
   if (!(val > 0)) return 0;
   const gross = toNumber(monthGrossAmount);
   if (!(gross > 0)) return 0;
-  return Number((gross * (val / 100)).toFixed(2));
+  return roundMoney(gross * (val / 100));
 };
 
 /**

@@ -132,6 +132,46 @@ export const getPreviousMonthRangeFrom = (year, month) => {
 /** Short month names for charts/labels */
 export const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+/** Inclusive calendar-month slots and labels between two YYYY-MM-DD dates. */
+export const monthSlotsForRange = (dateFrom, dateTo) => {
+  if (!dateFrom || !dateTo) return { valid: false, labels: [], slots: [] };
+  const start = new Date(dateFrom);
+  const end = new Date(dateTo);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+    return { valid: false, labels: [], slots: [] };
+  }
+  const startYear = start.getFullYear();
+  const startMonth = start.getMonth();
+  const endYear = end.getFullYear();
+  const endMonth = end.getMonth();
+  const sameYear = startYear === endYear;
+  const slots = [];
+  const labels = [];
+  for (let y = startYear; y <= endYear; y++) {
+    const mStart = y === startYear ? startMonth : 0;
+    const mEnd = y === endYear ? endMonth : 11;
+    for (let m = mStart; m <= mEnd; m++) {
+      slots.push({ year: y, month: m });
+      labels.push(sameYear ? MONTH_NAMES[m] : `${MONTH_NAMES[m]} ${String(y).slice(-2)}`);
+    }
+  }
+  return { valid: true, labels, slots };
+};
+
+export const calendarYearMonthSlots = (year = new Date().getFullYear()) => ({
+  labels: [...MONTH_NAMES],
+  slots: MONTH_NAMES.map((_, month) => ({ year, month }))
+});
+
+export const addIntoMonthSlots = (totals, dateValue, amount, slots) => {
+  const ymd = normalizeDateToYYYYMMDD(dateValue);
+  if (!ymd) return;
+  const d = new Date(ymd);
+  const idx = slots.findIndex((r) => r.year === d.getFullYear() && r.month === d.getMonth());
+  if (idx === -1) return;
+  totals[idx] += Number(amount) || 0;
+};
+
 /**
  * Filter a list by date range (inclusive). getDate(item) should return the item's date (any format supported by normalizeDateToYYYYMMDD).
  */

@@ -4,6 +4,7 @@ import { FiDollarSign, FiTrendingUp, FiPieChart, FiMenu, FiArrowRight, FiArrowLe
 import { fetchProjects, createProject } from '../store/projects/projectsSlice';
 import { formatMoney } from '../utils/format';
 import { getProjectMonthlyAllocationAmount, prepareProjectForFirestore } from '../utils/project';
+import { EMPTY_PROJECT_FORM } from '../utils/formValues';
 import { addMonthsLocalYmd } from '../utils/date';
 import { isApproved } from '../constants/app';
 import { PROJECT_TYPE_OPTIONS } from '../constants/projectTypes';
@@ -16,8 +17,7 @@ import ErrorAlert from '../components/ErrorAlert';
 import Loader from '../components/Loader';
 import Button from '../components/Button';
 import ProjectFormModal from '../components/ProjectFormModal';
-
-const projectKey = (p) => `${(p.client || '').trim().toLowerCase()}|${(p.project || '').trim().toLowerCase()}`;
+import { projectIdentityKey } from '../utils/projectLookup';
 
 const ProjectCard = ({ project, isDragging, onDragStart, onDragEnd, moveButton }) => (
   <div
@@ -80,24 +80,7 @@ const ProjectAllocation = () => {
   const [draggedKey, setDraggedKey] = useState(null);
   const [dragOverZone, setDragOverZone] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [initialValues, setInitialValues] = useState({
-    client: '',
-    date: '',
-    project: '',
-    projectType: '',
-    projectStatus: 'active',
-    totalMonthlyHours: '',
-    hourlyRate: '',
-    projectCost: '',
-    recruiterName: '',
-    lead: '',
-    projectManager: '',
-    contractEnding: '',
-    brokerageType: 'percentage',
-    brokerageValue: '',
-    taxType: 'percentage',
-    taxValue: ''
-  });
+  const [initialValues, setInitialValues] = useState(EMPTY_PROJECT_FORM);
 
   useEffect(() => {
     document.title = 'Project Allocation | FinHub';
@@ -111,7 +94,7 @@ const ProjectAllocation = () => {
     const list = (projects || []).filter(isApproved).filter((p) => (p.projectStatus || 'active') === 'active');
     return list
       .map((p) => {
-        const key = projectKey(p);
+        const key = projectIdentityKey(p.client, p.project);
         const cost = getProjectMonthlyAllocationAmount(p);
         return { ...p, key, cost };
       })
@@ -204,22 +187,8 @@ const ProjectAllocation = () => {
   const openAddModal = () => {
     const contractEndingDefault = addMonthsLocalYmd(6);
     setInitialValues({
-      client: '',
-      date: '',
-      project: '',
-      projectType: '',
-      projectStatus: 'active',
-      totalMonthlyHours: '',
-      hourlyRate: '',
-      projectCost: '',
-      recruiterName: '',
-      lead: '',
-      projectManager: '',
-      contractEnding: contractEndingDefault,
-      brokerageType: 'percentage',
-      brokerageValue: '',
-      taxType: 'percentage',
-      taxValue: ''
+      ...EMPTY_PROJECT_FORM,
+      contractEnding: contractEndingDefault
     });
     setIsModalOpen(true);
   };

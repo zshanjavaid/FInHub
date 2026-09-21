@@ -21,52 +21,21 @@ import { fetchExpenses, approveExpense, editExpense, removeExpense } from '../st
 import { fetchProjects, approveProject, editProject, removeProject } from '../store/projects/projectsSlice';
 import { useClientOptions } from '../hooks/useClientOptions';
 import { PROJECT_TYPE_OPTIONS } from '../constants/projectTypes';
-import { getTaxFormDefaultsFromProject, prepareProjectForFirestore } from '../utils/project';
+import { prepareProjectForFirestore } from '../utils/project';
+import { syncMonthlyBrokerageExpense } from '../utils/ensureMonthlyBrokerageExpense';
+import {
+  EMPTY_TRANSACTION_FORM,
+  EMPTY_EXPENSE_FORM,
+  EMPTY_PROJECT_FORM,
+  transactionToFormValues,
+  expenseToFormValues,
+  projectToFormValues
+} from '../utils/formValues';
 import ErrorAlert from '../components/ErrorAlert';
 import PageContainer from '../components/PageContainer';
 import Tabs from '../components/Tabs';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import ApproveAllConfirmModal from '../components/ApproveAllConfirmModal';
-
-const defaultTransactionForm = {
-  client: '',
-  project: '',
-  date: '',
-  amount: '',
-  brokerageType: 'percentage',
-  brokerageValue: '',
-  brokerageAmount: '',
-  additionalCharges: ''
-};
-
-const defaultExpenseForm = {
-  expenseName: '',
-  date: '',
-  expenseType: '',
-  amount: '',
-  comment: '',
-  recurring: false,
-  recurringMonths: ''
-};
-
-const defaultProjectForm = {
-  client: '',
-  date: '',
-  project: '',
-  projectType: '',
-  projectStatus: 'active',
-  totalMonthlyHours: '',
-  hourlyRate: '',
-  projectCost: '',
-  recruiterName: '',
-  lead: '',
-  projectManager: '',
-  contractEnding: '',
-  brokerageType: 'percentage',
-  brokerageValue: '',
-  taxType: 'percentage',
-  taxValue: ''
-};
 
 const PendingRequests = () => {
   const dispatch = useDispatch();
@@ -87,9 +56,9 @@ const PendingRequests = () => {
   const [editingTransactionId, setEditingTransactionId] = useState(null);
   const [editingExpenseId, setEditingExpenseId] = useState(null);
   const [editingProjectId, setEditingProjectId] = useState(null);
-  const [initialValuesTransaction, setInitialValuesTransaction] = useState(defaultTransactionForm);
-  const [initialValuesExpense, setInitialValuesExpense] = useState(defaultExpenseForm);
-  const [initialValuesProject, setInitialValuesProject] = useState(defaultProjectForm);
+  const [initialValuesTransaction, setInitialValuesTransaction] = useState(EMPTY_TRANSACTION_FORM);
+  const [initialValuesExpense, setInitialValuesExpense] = useState(EMPTY_EXPENSE_FORM);
+  const [initialValuesProject, setInitialValuesProject] = useState(EMPTY_PROJECT_FORM);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [isResetTxOpen, setIsResetTxOpen] = useState(false);
   const [isResettingTx, setIsResettingTx] = useState(false);
@@ -214,55 +183,17 @@ const PendingRequests = () => {
 
   const openEditTransaction = (transaction) => {
     setEditingTransaction(transaction || null);
-    setInitialValuesTransaction({
-      ...defaultTransactionForm,
-      client: transaction.client || '',
-      project: transaction.project || '',
-      date: transaction.date || '',
-      amount: transaction.amount ?? '',
-      brokerageType: transaction.brokerageType || 'percentage',
-      brokerageValue: transaction.brokerageValue ?? '',
-      brokerageAmount: transaction.brokerageAmount ?? '',
-      additionalCharges: transaction.additionalCharges ?? ''
-    });
+    setInitialValuesTransaction(transactionToFormValues(transaction));
     setEditingTransactionId(transaction.id);
   };
 
   const openEditExpense = (expense) => {
-    const expenseTypeLabel = EXPENSE_TYPE_LABELS[expense.expenseType?.toLowerCase()] || expense.expenseType || '';
-    setInitialValuesExpense({
-      ...defaultExpenseForm,
-      expenseName: expense.expenseName || '',
-      date: expense.date || '',
-      expenseType: expenseTypeLabel,
-      amount: expense.amount ?? '',
-      comment: expense.comment || '',
-      recurring: !!expense.recurring,
-      recurringMonths: RECURRING_MONTHS_LABELS[expense.recurringMonths] ?? expense.recurringMonths ?? ''
-    });
+    setInitialValuesExpense(expenseToFormValues(expense));
     setEditingExpenseId(expense.id);
   };
 
   const openEditProject = (project) => {
-    setInitialValuesProject({
-      ...defaultProjectForm,
-      client: project.client || '',
-      date: project.date || '',
-      project: project.project || '',
-      projectType: project.projectType || '',
-      projectStatus: project.projectStatus || 'active',
-      totalMonthlyHours: project.totalMonthlyHours || '',
-      hourlyRate: project.hourlyRate || '',
-      projectCost:
-        project.projectCost != null && project.projectCost !== '' ? String(project.projectCost) : '',
-      recruiterName: project.recruiterName || '',
-      lead: project.lead || '',
-      projectManager: project.projectManager || '',
-      contractEnding: project.contractEnding || '',
-      brokerageType: project.brokerageType || 'percentage',
-      brokerageValue: project.brokerageValue || '',
-      ...getTaxFormDefaultsFromProject(project)
-    });
+    setInitialValuesProject(projectToFormValues(project));
     setEditingProjectId(project.id);
   };
 
@@ -276,6 +207,15 @@ const PendingRequests = () => {
   const submitEditTransaction = async (transactionData) => {
     if (!editingTransactionId) return;
     await dispatch(editTransaction({ transactionId: editingTransactionId, transactionData })).unwrap();
+    await syncMonthlyBrokerageExpense(dispatch, {
+      transactionData,
+      previousTransaction: editingTransaction,
+      projects,
+      transactions,
+      expenses,
+      excludeTxId: editingTransactionId,
+      createdBy: user?.uid || null
+    });
     setEditingTransactionId(null);
     setEditingTransaction(null);
   };

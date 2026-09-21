@@ -28,10 +28,12 @@ import {
   removeTransaction,
   createTransactionsBulk
 } from '../store/transactions/transactionsSlice';
-import { normalizeDateToYYYYMMDD, filterByDateRange, MONTH_NAMES } from '../utils/date';
+import { normalizeDateToYYYYMMDD, filterByDateRange, monthSlotsForRange, addIntoMonthSlots } from '../utils/date';
 import { shortenChartAxisLabel } from '../utils/chartLabels';
 import { formatMoney } from '../utils/format';
-import { transactionNetAfterImpactFund } from '../utils/transactionNet';
+import { EMPTY_TRANSACTION_FORM, transactionToFormValues } from '../utils/formValues';
+import { toNumber, roundMoney } from '../utils/number';
+import { transactionNetAfterImpactFund, netFromGrossParts } from '../utils/transactionNet';
 import { isApproved } from '../constants/app';
 import { useDateFilter } from '../hooks/useDateFilter';
 import { useClientOptions } from '../hooks/useClientOptions';
@@ -50,7 +52,7 @@ import {
   planNewMonthlyBrokerageExpense
 } from '../utils/csvTransactionImport';
 import {
-  buildMonthlyBrokerageExpenseIfNeeded,
+  syncMonthlyBrokerageExpense,
   findLatestProjectByBrokerAndProject,
   monthGrossForProject
 } from '../utils/ensureMonthlyBrokerageExpense';
@@ -70,17 +72,6 @@ const monthlyTrendInfo = (
   </div>
 );
 
-const defaultForm = {
-  client: '',
-  project: '',
-  date: '',
-  amount: '',
-  brokerageType: 'percentage',
-  brokerageValue: '',
-  brokerageAmount: '',
-  additionalCharges: ''
-};
-
 const Transactions = () => {
   const dispatch = useDispatch();
   const { user } = useAuth();
@@ -98,7 +89,7 @@ const Transactions = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransactionId, setEditingTransactionId] = useState(null);
   const [editingTransaction, setEditingTransaction] = useState(null);
-  const [initialValues, setInitialValues] = useState(defaultForm);
+  const [initialValues, setInitialValues] = useState(EMPTY_TRANSACTION_FORM);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState('');
@@ -214,43 +205,17 @@ const Transactions = () => {
   }, [dateFrom, dateTo]);
 
   const monthlyTrendData = useMemo(() => {
-    const list = approvedForCharts;
-    let labels = [];
-    let monthsRange = [];
-    if (dateFrom && dateTo) {
-      const start = new Date(dateFrom);
-      const end = new Date(dateTo);
-      if (start <= end) {
-        const startYear = start.getFullYear();
-        const startMonth = start.getMonth();
-        const endYear = end.getFullYear();
-        const endMonth = end.getMonth();
-        const sameYear = startYear === endYear;
-        for (let y = startYear; y <= endYear; y++) {
-          const mStart = y === startYear ? startMonth : 0;
-          const mEnd = y === endYear ? endMonth : 11;
-          for (let m = mStart; m <= mEnd; m++) {
-            labels.push(sameYear ? MONTH_NAMES[m] : `${MONTH_NAMES[m]} ${String(y).slice(-2)}`);
-            monthsRange.push({ year: y, month: m });
-          }
-        }
-        const monthlyTotals = new Array(monthsRange.length).fill(0);
-        list.forEach((t) => {
-          const tDate = normalizeDateToYYYYMMDD(t.date);
-          if (!tDate) return;
-          const d = new Date(tDate);
-          const idx = monthsRange.findIndex((r) => r.year === d.getFullYear() && r.month === d.getMonth());
-          if (idx === -1) return;
-          monthlyTotals[idx] += transactionNetAfterImpactFund(t);
-        });
-        return {
-          labels,
-          values: monthlyTotals.map((n) => Number(n.toFixed(2))),
-          isSingleMonth: monthsRange.length === 1
-        };
-      }
-    }
-    return { labels: [], values: [], isSingleMonth: false };
+    const range = monthSlotsForRange(dateFrom, dateTo);
+    if (!range.valid) return { labels: [], values: [], isSingleMonth: false };
+    const monthlyTotals = new Array(range.slots.length).fill(0);
+    approvedForCharts.forEach((t) => {
+      addIntoMonthSlots(monthlyTotals, t.date, transactionNetAfterImpactFund(t), range.slots);
+    });
+    return {
+      labels: range.labels,
+      values: monthlyTotals.map((n) => roundMoney(n)),
+      isSingleMonth: range.slots.length === 1
+    };
   }, [approvedForCharts, dateFrom, dateTo]);
 
   const projectChartData = useMemo(() => {
@@ -300,7 +265,7 @@ const Transactions = () => {
   const openAddModal = () => {
     setEditingTransactionId(null);
     setEditingTransaction(null);
-    setInitialValues(defaultForm);
+    setInitialValues(EMPTY_TRANSACTION_FORM);
     setIsModalOpen(true);
   };
 
@@ -314,17 +279,7 @@ const Transactions = () => {
   const openEditModal = (transaction, transactionId) => {
     setEditingTransactionId(transactionId);
     setEditingTransaction(transaction || null);
-    setInitialValues({
-      ...defaultForm,
-      client: transaction.client || '',
-      project: transaction.project || '',
-      date: transaction.date || '',
-      amount: transaction.amount ?? '',
-      brokerageType: transaction.brokerageType || 'percentage',
-      brokerageValue: transaction.brokerageValue ?? '',
-      brokerageAmount: transaction.brokerageAmount ?? '',
-      additionalCharges: transaction.additionalCharges ?? ''
-    });
+    setInitialValues(transactionToFormValues(transaction));
     setIsModalOpen(true);
   };
 
@@ -333,18 +288,17 @@ const Transactions = () => {
     setEditingTransaction(null);
   };
 
-  /** Same as CSV import: one monthly brokerage expense per client/project/month. */
-  const ensureMonthlyBrokerageExpense = async (transactionData, { excludeTxId = null } = {}) => {
-    const expenseData = buildMonthlyBrokerageExpenseIfNeeded({
+  /** Keep the monthly brokerage expense in sync with transaction brokerage. */
+  const ensureMonthlyBrokerageExpense = async (transactionData, { excludeTxId = null, previousTransaction = null } = {}) => {
+    await syncMonthlyBrokerageExpense(dispatch, {
       transactionData,
+      previousTransaction,
       projects,
       transactions,
       expenses,
       excludeTxId,
       createdBy: user?.uid || null
     });
-    if (!expenseData) return;
-    await dispatch(createExpense(expenseData)).unwrap();
   };
 
   const onSubmit = async (transactionData) => {
@@ -352,7 +306,10 @@ const Transactions = () => {
       await dispatch(
         editTransaction({ transactionId: editingTransactionId, transactionData })
       ).unwrap();
-      await ensureMonthlyBrokerageExpense(transactionData, { excludeTxId: editingTransactionId });
+      await ensureMonthlyBrokerageExpense(transactionData, {
+        excludeTxId: editingTransactionId,
+        previousTransaction: editingTransaction
+      });
       setEditingTransactionId(null);
     } else {
       const payload = user?.uid ? { ...transactionData, createdBy: user.uid } : transactionData;
@@ -366,19 +323,6 @@ const Transactions = () => {
 
   const onDelete = async (transactionId) => {
     await dispatch(removeTransaction(transactionId)).unwrap();
-  };
-
-  const toNumber = (v) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  };
-
-  const computeBrokerageAmountFromProject = (project, grossAmount, monthKey = '') => {
-    const type = String(project?.brokerageType || 'percentage').trim().toLowerCase();
-    const val = toNumber(project?.brokerageValue);
-    if (type === 'percentage') return grossAmount * (val / 100);
-    if (monthKey) return computeProjectBrokerageDollars(project, { monthKey });
-    return val;
   };
 
   const payoutShareCount = (project) => {
@@ -410,11 +354,15 @@ const Transactions = () => {
       const p = it.projectRow;
       if (isFreelanceProject(p)) return;
       const gross = toNumber(p?.totalMonthlyHours) * toNumber(p?.hourlyRate);
-      const brokerageAmount = computeBrokerageAmountFromProject(p, gross, it.monthKey);
+      const brokerageAmount = computeProjectBrokerageDollars(p, { monthKey: it.monthKey });
       const tax = computeProjectTaxDollars(p);
       const projectCost = toNumber(p?.projectCost);
-      const additionalCharges = Number((tax + projectCost).toFixed(2));
-      const totalAmount = Number((gross - brokerageAmount - additionalCharges).toFixed(2));
+      const additionalCharges = roundMoney(tax + projectCost);
+      const totalAmount = roundMoney(netFromGrossParts({
+        amount: gross,
+        brokerageAmount,
+        additionalCharges
+      }));
       const shareCount = payoutShareCount(p);
 
       const existingRows = it.existing || [];
@@ -458,9 +406,13 @@ const Transactions = () => {
         const rowGross = grossParts[i] ?? 0;
         const rowBrokerage = brokerageParts[i] ?? 0;
         const rowAdditional = additionalParts[i] ?? 0;
-        let rowTotal = Number((rowGross - rowBrokerage - rowAdditional).toFixed(2));
+        let rowTotal = roundMoney(netFromGrossParts({
+          amount: rowGross,
+          brokerageAmount: rowBrokerage,
+          additionalCharges: rowAdditional
+        }));
         if (i === it.missing - 1) {
-          rowTotal = Number((targetTotalRem - newTotalRunning).toFixed(2));
+          rowTotal = roundMoney(targetTotalRem - newTotalRunning);
         } else {
           newTotalRunning += rowTotal;
         }
@@ -469,11 +421,11 @@ const Transactions = () => {
           client: it.client,
           project: it.project,
           date,
-          amount: Number(rowGross.toFixed(2)),
+          amount: roundMoney(rowGross),
           brokerageType: p?.brokerageType || 'percentage',
           brokerageValue: toNumber(p?.brokerageValue),
-          brokerageAmount: Number(rowBrokerage.toFixed(2)),
-          additionalCharges: Number(rowAdditional.toFixed(2)),
+          brokerageAmount: roundMoney(rowBrokerage),
+          additionalCharges: roundMoney(rowAdditional),
           totalAmount: rowTotal,
           autoGenerated: true,
           payoutShareCount: shareCount

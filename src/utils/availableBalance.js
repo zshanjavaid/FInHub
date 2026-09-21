@@ -1,16 +1,14 @@
-import { monthKeyFromYmd } from './csvTransactionImport';
+import { toNumber, normText } from './number';
+import { isBrokerageExpenseRow, brokerageExpenseMonthKey, monthKeyFromYmd } from './csvTransactionImport';
 
-const norm = (s) => String(s || '').trim().toLowerCase();
-
-export const isBrokerageExpenseRow = (expense) =>
-  !!expense?.isMonthlyBrokerage || String(expense?.expenseType || '').toLowerCase() === 'brokerage';
+export { isBrokerageExpenseRow };
 
 /** Brokerage already taken off inward (transaction net). */
 export const transactionHasBrokerageDeduction = (t) => {
-  const amt = Number(t?.brokerageAmount);
-  if (Number.isFinite(amt) && amt > 0) return true;
-  const val = Number(t?.brokerageValue);
-  return Number.isFinite(val) && val > 0;
+  const amt = toNumber(t?.brokerageAmount);
+  if (amt > 0) return true;
+  const val = toNumber(t?.brokerageValue);
+  return val > 0;
 };
 
 /**
@@ -19,19 +17,17 @@ export const transactionHasBrokerageDeduction = (t) => {
  */
 export const expenseCountsTowardAvailable = (expense, transactions = []) => {
   if (!isBrokerageExpenseRow(expense)) return true;
-  const monthKey = monthKeyFromYmd(expense.date) || String(expense.monthKey || '').slice(0, 7);
+  const monthKey = brokerageExpenseMonthKey(expense);
   if (!monthKey) return true;
-  const client = norm(expense.client);
-  const project = norm(expense.project);
   const alreadyDeducted = (transactions || []).some((t) => {
     if (!transactionHasBrokerageDeduction(t)) return false;
     if (monthKeyFromYmd(t.date) !== monthKey) return false;
-    if (client && norm(t.client) !== client) return false;
-    if (project && norm(t.project) !== project) return false;
+    if (normText(expense.client) && normText(t.client) !== normText(expense.client)) return false;
+    if (normText(expense.project) && normText(t.project) !== normText(expense.project)) return false;
     return true;
   });
   return !alreadyDeducted;
 };
 
 export const expenseAmountTowardAvailable = (expense, transactions = []) =>
-  expenseCountsTowardAvailable(expense, transactions) ? Number(expense.amount) || 0 : 0;
+  expenseCountsTowardAvailable(expense, transactions) ? toNumber(expense.amount) : 0;

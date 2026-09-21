@@ -1,9 +1,5 @@
+import { toNumber } from './number';
 import { prorateFixedAmountForMonth } from './workingDays';
-
-const toNumber = (v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-};
 
 /**
  * Brokerage in dollars.
