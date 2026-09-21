@@ -56,7 +56,12 @@ const ModernDatePicker = ({
   minDate,
   maxDate,
   popperPlacement = 'bottom-start',
-  popperClassName
+  popperClassName,
+  required = false,
+  error = false,
+  errorMessage = '',
+  icon = null,
+  leftIcon = null
 }) => {
   const inputId = useId();
   const isMonth = granularity === 'month';
@@ -77,35 +82,52 @@ const ModernDatePicker = ({
     onChange?.(isMonth ? format(date, 'yyyy-MM') : format(date, 'yyyy-MM-dd'));
   };
 
+  const iconElement = icon || leftIcon;
+  const inputClass = [
+    error ? 'finhub-datepicker-input-error' : '',
+    iconElement ? 'finhub-datepicker-input-icon' : ''
+  ].filter(Boolean).join(' ');
+
   return (
     <div className={`flex flex-col min-w-0 ${className}`}>
       {label ? (
         <label
           htmlFor={inputId}
-          className="text-sm font-light mb-2.5 text-slate-700 capitalize tracking-[0.12em]"
+          className="text-sm font-light mb-2.5 text-gray-700 capitalize tracking-[0.12em]"
         >
           {label}
+          {required ? <span className="text-red-500 font-bold ml-0.5">*</span> : null}
         </label>
       ) : null}
-      <DatePicker
-        id={inputId}
-        selected={selected}
-        onChange={handleChange}
-        dateFormat={isMonth ? 'MMMM yyyy' : 'MMM d, yyyy'}
-        showMonthYearPicker={isMonth}
-        showMonthDropdown={!isMonth}
-        showYearDropdown={!isMonth}
-        dropdownMode="select"
-        yearDropdownItemNumber={80}
-        scrollableYearDropdown={!isMonth}
-        minDate={minDate}
-        maxDate={maxDate}
-        placeholderText={resolvedPlaceholder}
-        popperPlacement={popperPlacement}
-        popperClassName={popperClassName || 'react-datepicker-popper-elevated'}
-        popperProps={{ strategy: 'fixed' }}
-        customInput={<PickerInput />}
-      />
+      <div className="relative">
+        {iconElement ? (
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-[1] flex items-center">
+            {iconElement}
+          </div>
+        ) : null}
+        <DatePicker
+          id={inputId}
+          selected={selected}
+          onChange={handleChange}
+          dateFormat={isMonth ? 'MMMM yyyy' : 'MMM d, yyyy'}
+          showMonthYearPicker={isMonth}
+          showMonthDropdown={!isMonth}
+          showYearDropdown={!isMonth}
+          dropdownMode="select"
+          yearDropdownItemNumber={80}
+          scrollableYearDropdown={!isMonth}
+          minDate={minDate}
+          maxDate={maxDate}
+          placeholderText={resolvedPlaceholder}
+          popperPlacement={popperPlacement}
+          popperClassName={popperClassName || 'react-datepicker-popper-elevated'}
+          popperProps={{ strategy: 'fixed' }}
+          customInput={<PickerInput className={inputClass} />}
+        />
+      </div>
+      {errorMessage ? (
+        <p className="mt-1.5 text-xs text-red-600 font-medium">{errorMessage}</p>
+      ) : null}
     </div>
   );
 };

@@ -5,7 +5,7 @@ export const Overlay = ({ className = '', children, onClick, style, ...rest }) =
   <MotionDiv
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
+    exit={{ opacity: 0, pointerEvents: 'none' }}
     transition={overlayTransition}
     className={className}
     style={style}
@@ -21,7 +21,7 @@ export const OverlayButton = ({ className = '', children, ...rest }) => (
     type="button"
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
+    exit={{ opacity: 0, pointerEvents: 'none' }}
     transition={overlayTransition}
     className={className}
     {...rest}

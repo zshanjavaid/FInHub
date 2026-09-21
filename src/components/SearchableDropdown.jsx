@@ -21,7 +21,10 @@ const SearchableDropdown = ({
   leftIcon = null,
   className = '',
   layout = 'full',
-  onOpenChange = null
+  onOpenChange = null,
+  required = false,
+  error = false,
+  errorMessage = ''
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -156,6 +159,7 @@ const SearchableDropdown = ({
         }
       >
         {label}
+        {required ? <span className="text-red-500 font-bold ml-0.5">*</span> : null}
       </label>
       <div className="relative" ref={triggerRef}>
         {leftIcon && (
@@ -169,9 +173,13 @@ const SearchableDropdown = ({
           onFocus={handleInputFocus}
           onBlur={handleInputBlur}
           placeholder={placeholder}
-          className={`w-full border border-slate-200/90 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 focus-visible:ring-2 focus-visible:ring-primary-500/25 bg-white pr-10 shadow-[inset_0_1px_0_rgb(255_255_255/0.8)] ${
-            isFilter ? 'px-3 py-2 text-sm' : 'px-4 py-2.5'
-          } ${leftIcon ? 'pl-10' : ''}`}
+          aria-invalid={error || undefined}
+          aria-required={required || undefined}
+          className={`w-full border rounded-xl focus:outline-none focus:ring-2 bg-white pr-10 shadow-[inset_0_1px_0_rgb(255_255_255/0.8)] ${
+            error
+              ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+              : 'border-slate-200/90 focus:border-primary-500 focus:ring-primary-500/15 focus-visible:ring-primary-500/25'
+          } ${isFilter ? 'px-3 py-2 text-sm' : 'px-4 py-2.5'} ${leftIcon ? 'pl-10' : ''}`}
         />
         <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
           <FiChevronDown
@@ -179,6 +187,9 @@ const SearchableDropdown = ({
           />
         </div>
       </div>
+      {errorMessage ? (
+        <p className="mt-1.5 text-xs text-red-600 font-medium">{errorMessage}</p>
+      ) : null}
 
       {showMenu &&
         createPortal(

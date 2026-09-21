@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import FormModal from './FormModal';
-import { FiUser } from 'react-icons/fi';
+import { FiUser, FiCalendar } from 'react-icons/fi';
 import { HiOutlineCurrencyDollar, HiOutlinePercentBadge } from 'react-icons/hi2';
 import { getTaxFormDefaultsFromProject } from '../utils/project';
 import { PAYOUT_OCCURRENCE_OPTIONS, PAYOUT_OCCURRENCE_LABEL_BY_VALUE } from '../constants/payoutOccurrences';
@@ -97,6 +97,7 @@ const ProjectFormModal = ({
         type: 'searchable-dropdown',
         name: 'client',
         label: 'Broker',
+        required: true,
         options: clientOptions,
         placeholder: clientOptions.length > 0 ? 'Type or select broker...' : 'Enter broker name...',
         icon: <FiUser className="w-5 h-5 text-gray-400" />
@@ -104,18 +105,22 @@ const ProjectFormModal = ({
       {
         type: 'text',
         name: 'project',
-        label: 'Project Name'
+        label: 'Project Name',
+        required: true
       },
       {
         type: 'date',
         name: 'date',
         label: 'Date',
-        defaultValue: today
+        required: true,
+        defaultValue: today,
+        icon: <FiCalendar className="w-5 h-5 text-gray-400" />
       },
       {
         type: 'dropdown',
         name: 'projectType',
         label: 'Project Type',
+        required: true,
         options: projectTypeOptions,
         hidePlaceholder: true
       },
@@ -155,17 +160,23 @@ const ProjectFormModal = ({
         type: 'date',
         name: 'contractEnding',
         label: 'End Date',
-        defaultValue: contractEndingDefault
+        required: true,
+        defaultValue: contractEndingDefault,
+        icon: <FiCalendar className="w-5 h-5 text-gray-400" />
       },
       {
         type: 'number',
         name: 'totalMonthlyHours',
-        label: 'Total Monthly Hours'
+        label: 'Total Monthly Hours',
+        required: true,
+        min: 0.01
       },
       {
         type: 'number',
         name: 'hourlyRate',
         label: 'Hourly Rate',
+        required: true,
+        min: 0.01,
         icon: <HiOutlineCurrencyDollar className="w-5 h-5 text-gray-400" />
       },
       {
@@ -230,6 +241,30 @@ const ProjectFormModal = ({
     [clientOptions, projectTypeOptions, today, contractEndingDefault]
   );
 
+  const handleSubmit = async (values) => {
+    const client = String(values.client || '').trim();
+    const project = String(values.project || '').trim();
+    const date = String(values.date || '').trim();
+    const hours = Number(values.totalMonthlyHours);
+    const rate = Number(values.hourlyRate);
+    if (
+      !client ||
+      !project ||
+      !date ||
+      values.totalMonthlyHours === '' ||
+      values.totalMonthlyHours == null ||
+      !Number.isFinite(hours) ||
+      hours <= 0 ||
+      values.hourlyRate === '' ||
+      values.hourlyRate == null ||
+      !Number.isFinite(rate) ||
+      rate <= 0
+    ) {
+      return;
+    }
+    await onSubmit?.(values);
+  };
+
   return (
     <FormModal
       isOpen={isOpen}
@@ -237,7 +272,7 @@ const ProjectFormModal = ({
       title={title}
       fields={fields}
       initialValues={normalizedInitialValues}
-      onSubmit={onSubmit}
+      onSubmit={handleSubmit}
       isSaving={isSaving}
       onFieldChange={handleFieldChange}
       panelClassName="max-w-3xl"

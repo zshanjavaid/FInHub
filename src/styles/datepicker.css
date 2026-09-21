@@ -216,33 +216,48 @@
   color: #ffffff;
 }
 
-/* Match FinHub InputField / filter controls */
+/* Match FinHub InputField (px-4 py-2.5, 1px slate-200, rounded-xl, focus ring) */
 .finhub-datepicker-input {
   width: 100%;
   min-width: 0;
-  height: 2.5rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
+  height: auto;
+  padding: 0.625rem 1rem;
+  font-size: inherit;
   line-height: 1.25rem;
   color: #1e293b;
   background-color: #ffffff;
-  border: 2px solid #cbd5e1;
+  border: 1px solid #e2e8f0;
   border-radius: 0.75rem;
   cursor: pointer;
 }
 
+.finhub-datepicker-input-icon {
+  padding-left: 2.5rem;
+}
+
 .finhub-datepicker-input:hover {
-  border-color: #94a3b8;
+  border-color: #e2e8f0;
 }
 
 .finhub-datepicker-input:focus {
   outline: none;
   border-color: #0d9488;
-  box-shadow: none;
+  box-shadow: 0 0 0 2px rgb(13 148 136 / 0.2);
+}
+
+.finhub-datepicker-input-error {
+  border-color: #ef4444;
+}
+
+.finhub-datepicker-input-error:hover,
+.finhub-datepicker-input-error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgb(239 68 68 / 0.2);
 }
 
 .filter-date-field .finhub-datepicker-input {
   height: 2.5rem;
   padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
   border-radius: 0.75rem;
 }

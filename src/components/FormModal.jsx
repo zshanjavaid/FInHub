@@ -9,6 +9,22 @@ import Button from './Button';
 
 const resolveMaybeFn = (value, form) => (typeof value === 'function' ? value(form) : value);
 
+const fieldErrorMessage = (field, form) => {
+  const isRequired = typeof field.required === 'function' ? field.required(form) : !!field.required;
+  if (!isRequired) return '';
+  const raw = form[field.name];
+  const label = field.label || 'This field';
+  if (field.type === 'number') {
+    if (raw === '' || raw == null) return `${label} is required`;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return `${label} is required`;
+    if (field.min != null && n < field.min) return `${label} must be greater than 0`;
+    return '';
+  }
+  if (String(raw ?? '').trim() === '') return `${label} is required`;
+  return '';
+};
+
 const FormModal = ({
   isOpen,
   onClose,
@@ -33,15 +49,23 @@ const FormModal = ({
   };
 
   const [form, setForm] = useState(normalizedInitialValues);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
     if (isOpen) {
       setForm(normalizedInitialValues);
+      setFieldErrors({});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const onFieldChange = (fieldName, value) => {
+    setFieldErrors((prev) => {
+      if (!prev[fieldName]) return prev;
+      const next = { ...prev };
+      delete next[fieldName];
+      return next;
+    });
     setForm((prev) => {
       let updated = { ...prev, [fieldName]: value };
 
@@ -64,7 +88,20 @@ const FormModal = ({
     });
   };
 
-  const handleSave = async () => {
+  const handleSave = async (e) => {
+    e?.preventDefault?.();
+    const visibleFields = fields.filter(
+      (field) => typeof field.showWhen !== 'function' || field.showWhen(form)
+    );
+    const nextErrors = {};
+    visibleFields.forEach((field) => {
+      const message = fieldErrorMessage(field, form);
+      if (message) nextErrors[field.name] = message;
+    });
+    if (Object.keys(nextErrors).length) {
+      setFieldErrors(nextErrors);
+      return;
+    }
     await onSubmit?.(form);
   };
 
@@ -77,7 +114,10 @@ const FormModal = ({
       value: form[field.name] || '',
       onChange: (value) => onFieldChange(field.name, typeof value === 'object' && value.target ? value.target.value : value),
       placeholder: resolvedPlaceholder,
-      className: field.className
+      className: field.className,
+      required: typeof field.required === 'function' ? field.required(form) : !!field.required,
+      error: !!fieldErrors[field.name],
+      errorMessage: fieldErrors[field.name] || ''
     };
 
     switch (field.type) {
@@ -115,6 +155,7 @@ const FormModal = ({
         return (
           <ModernDatePicker
             {...commonProps}
+            icon={field.icon}
             onChange={(val) => onFieldChange(field.name, val)}
           />
         );
@@ -286,7 +327,7 @@ const FormModal = ({
         panelClassNameOverride || (columnsPerRow >= 3 ? 'max-w-4xl' : 'max-w-2xl')
       }
     >
-      <div className="space-y-4 sm:space-y-6 min-w-0">
+      <form className="space-y-4 sm:space-y-6 min-w-0" onSubmit={handleSave} noValidate>
         {rows.map((row, rowIndex) => {
           if (row.type === 'section') {
             return (
@@ -365,6 +406,7 @@ const FormModal = ({
         <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4 border-t border-slate-200">
           <Button
             variant="secondary"
+            type="button"
             onClick={() => {
               setForm(normalizedInitialValues);
               onClose();
@@ -373,11 +415,11 @@ const FormModal = ({
           >
             Cancel
           </Button>
-          <Button onClick={handleSave} className="w-full sm:flex-1" disabled={isSaving} loading={isSaving}>
+          <Button type="submit" className="w-full sm:flex-1" disabled={isSaving} loading={isSaving}>
             {isSaving ? 'Saving…' : 'Save'}
           </Button>
         </div>
-      </div>
+      </form>
     </Modal>
   );
 };
