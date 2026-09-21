@@ -1,5 +1,7 @@
+import { Rise } from '../motion';
+
 const PageHeader = ({ title, subtitle = null, actions = null, meta = null, className = '' }) => (
-  <div
+  <Rise
     className={`flex flex-col gap-4 sm:gap-5 md:flex-row md:items-end md:justify-between w-full min-w-0 ${className}`}
   >
     <div className="min-w-0 flex-1">
@@ -26,7 +28,7 @@ const PageHeader = ({ title, subtitle = null, actions = null, meta = null, class
         ) : null}
       </div>
     )}
-  </div>
+  </Rise>
 );
 
 export default PageHeader;

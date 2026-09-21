@@ -1,3 +1,5 @@
+import { Press } from '../motion';
+
 const Button = ({
   children,
   onClick,
@@ -29,7 +31,7 @@ const Button = ({
         : 'finhub-btn-primary';
 
   return (
-    <button
+    <Press
       type={type}
       onClick={onClick}
       disabled={busy}
@@ -47,7 +49,7 @@ const Button = ({
           children
         )}
       </span>
-    </button>
+    </Press>
   );
 };
 

@@ -3,6 +3,7 @@ import { Link, Outlet } from 'react-router-dom';
 import { LuPanelLeft, LuPanelLeftClose } from 'react-icons/lu';
 import Sidebar from '../components/Sidebar';
 import Logo from '../components/Logo';
+import { AnimatePresence, OverlayButton, Press } from '../motion';
 
 const DESKTOP_MEDIA = '(min-width: 1024px)';
 const SIDEBAR_MOTION = 'transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none';
@@ -41,18 +42,16 @@ const MainLayout = () => {
 
   return (
     <div className="relative flex h-screen overflow-hidden bg-transparent">
-      {!isDesktop && (
-        <button
-          type="button"
-          className={`fixed inset-0 z-40 bg-slate-900/55 backdrop-blur-[2px] lg:hidden transition-opacity duration-300 ease-out motion-reduce:transition-none ${
-            isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
-          aria-label="Close menu"
-          aria-hidden={!isSidebarOpen}
-          tabIndex={isSidebarOpen ? 0 : -1}
-          onClick={closeSidebar}
-        />
-      )}
+      <AnimatePresence>
+        {!isDesktop && isSidebarOpen ? (
+          <OverlayButton
+            key="fh-sidebar-overlay"
+            className="fixed inset-0 z-40 bg-slate-900/55 backdrop-blur-[2px] lg:hidden"
+            aria-label="Close menu"
+            onClick={closeSidebar}
+          />
+        ) : null}
+      </AnimatePresence>
       <Sidebar
         isOpen={isSidebarOpen}
         isDesktop={isDesktop}
@@ -74,7 +73,7 @@ const MainLayout = () => {
               <Logo compact />
             </Link>
 
-            <button
+            <Press
               type="button"
               onClick={toggleSidebar}
               className="p-2 rounded-xl hover:bg-slate-100/90 transition-colors duration-150 text-slate-500 hover:text-primary-700 shrink-0 ml-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
@@ -86,7 +85,7 @@ const MainLayout = () => {
               ) : (
                 <LuPanelLeft className="w-6 h-6" aria-hidden />
               )}
-            </button>
+            </Press>
           </div>
         </header>
         <main className="relative z-[1] overflow-auto flex-1 min-h-0 w-full min-w-0">

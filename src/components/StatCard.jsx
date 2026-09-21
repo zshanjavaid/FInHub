@@ -1,3 +1,5 @@
+import { Lift } from '../motion';
+
 const StatCard = ({
   label,
   value,
@@ -7,7 +9,7 @@ const StatCard = ({
   borderClassName = 'border-t-primary-600',
   chips = []
 }) => (
-  <div
+  <Lift
     className={`bg-white rounded-2xl shadow-card overflow-hidden border border-slate-200/80 border-t-[3px] min-w-0 isolate ${borderClassName} transition-shadow duration-300 hover:shadow-card-hover`}
   >
     <div className="p-4 sm:p-5 md:p-6 flex flex-col gap-3 min-[1250px]:flex-row min-[1250px]:justify-between min-[1250px]:items-start min-[1250px]:gap-4">
@@ -43,7 +45,7 @@ const StatCard = ({
         </div>
       )}
     </div>
-  </div>
+  </Lift>
 );
 
 export default StatCard;

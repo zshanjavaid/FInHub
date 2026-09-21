@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FiSearch, FiChevronDown, FiFileText, FiMoreVertical } from 'react-icons/fi';
 import SearchableDropdown from './SearchableDropdown';
 import Loader from './Loader';
@@ -304,6 +305,7 @@ const DataTable = ({
                             {hasRowAction ? (
                             <div className="relative inline-block">
                               <button
+                                type="button"
                                 onClick={(e) => {
                                   const rect = e.currentTarget.getBoundingClientRect();
                                   const canApprove = !!(onApprove && getCanApprove && getCanApprove(item));
@@ -336,70 +338,75 @@ const DataTable = ({
             </table>
           </div>
 
-          {openDropdownIndex && (
-            <>
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setOpenDropdownIndex(null)}
-              ></div>
-              <div
-                className="fixed w-36 bg-white rounded-xl shadow-modal border border-slate-200 z-50 py-1"
-                style={{
-                  top: `${dropdownPosition.top}px`,
-                  right: `${dropdownPosition.right}px`
-                }}
-              >
-                {(() => {
-                  const item = currentData.find((_, idx) => {
-                    const id = currentData[idx].id ?? `row-${idx}`;
-                    return id === openDropdownIndex;
-                  });
-                  const canApprove = item && onApprove && getCanApprove && getCanApprove(item);
-                  return (
-                    <>
-                      {onEdit && (
-                        <button
-                          onClick={() => {
-                            if (item) onEdit(item, item.id);
-                            setOpenDropdownIndex(null);
-                          }}
-                          className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-t-xl font-semibold"
-                        >
-                          Edit
-                        </button>
-                      )}
-                      {canApprove && (
-                        <button
-                          onClick={() => {
-                            if (item) {
-                              onApprove(item.id);
+          {openDropdownIndex &&
+            createPortal(
+              <>
+                <div
+                  className="fixed inset-0 z-[110]"
+                  onClick={() => setOpenDropdownIndex(null)}
+                />
+                <div
+                  className="fixed w-36 bg-white rounded-xl shadow-modal border border-slate-200 z-[120] py-1"
+                  style={{
+                    top: `${dropdownPosition.top}px`,
+                    right: `${dropdownPosition.right}px`
+                  }}
+                >
+                  {(() => {
+                    const item = currentData.find((_, idx) => {
+                      const id = currentData[idx].id ?? `row-${idx}`;
+                      return id === openDropdownIndex;
+                    });
+                    const canApprove = item && onApprove && getCanApprove && getCanApprove(item);
+                    return (
+                      <>
+                        {onEdit && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (item) onEdit(item, item.id);
                               setOpenDropdownIndex(null);
-                            }
-                          }}
-                          className={`w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 font-semibold ${!onEdit ? 'rounded-t-lg' : ''}`}
-                        >
-                          Approve
-                        </button>
-                      )}
-                      {onDelete && (
-                        <button
-                          onClick={() => {
-                            if (item) {
-                              setDeleteTarget({ id: item.id, item });
-                              setOpenDropdownIndex(null);
-                            }
-                          }}
-                          className={`w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-semibold ${!onEdit && !canApprove ? 'rounded-t-xl' : ''} rounded-b-xl`}
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-            </>
-          )}
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-t-xl font-semibold"
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {canApprove && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (item) {
+                                onApprove(item.id);
+                                setOpenDropdownIndex(null);
+                              }
+                            }}
+                            className={`w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 font-semibold ${!onEdit ? 'rounded-t-lg' : ''}`}
+                          >
+                            Approve
+                          </button>
+                        )}
+                        {onDelete && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (item) {
+                                setDeleteTarget({ id: item.id, item });
+                                setOpenDropdownIndex(null);
+                              }
+                            }}
+                            className={`w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-semibold ${!onEdit && !canApprove ? 'rounded-t-xl' : ''} rounded-b-xl`}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </>,
+              document.body
+            )}
 
         </>
       )}

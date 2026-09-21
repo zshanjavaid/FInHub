@@ -1,3 +1,5 @@
+import { Press } from '../motion';
+
 const tabGridColsClass = (count) => {
   if (count <= 1) return 'grid-cols-1';
   if (count === 2) return 'grid-cols-2';
@@ -17,7 +19,7 @@ const Tabs = ({ tabs = [], activeId, onChange, children }) => {
           {tabs.map((tab) => {
             const isActive = activeId === tab.id;
             return (
-              <button
+              <Press
                 key={tab.id}
                 type="button"
                 role="tab"
@@ -48,7 +50,7 @@ const Tabs = ({ tabs = [], activeId, onChange, children }) => {
                     {tab.badge}
                   </span>
                 )}
-              </button>
+              </Press>
             );
           })}
         </nav>

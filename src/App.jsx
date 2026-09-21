@@ -4,6 +4,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { useAuth } from './contexts/AuthContext';
 import { db } from './firebase';
 import { MAX_USERS } from './constants/app';
+import { MotionProvider } from './motion';
 import MainLayout from './layouts/MainLayout';
 import AuthLayout from './layouts/AuthLayout';
 import Loader from './components/Loader';
@@ -91,9 +92,11 @@ function AppRoutes() {
 
 function App() {
   return (
-    <Router>
-      <AppRoutes />
-    </Router>
+    <MotionProvider>
+      <Router>
+        <AppRoutes />
+      </Router>
+    </MotionProvider>
   );
 }
 
