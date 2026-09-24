@@ -10,12 +10,20 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist.zip
 *.local
 
 # Environment variables
 .env
 .env.local
 .env.production
+.env*.local
+
+# Firebase CLI cache
+.firebase/
+
+# Graphify knowledge graph (regenerate with `graphify extract . --code-only`)
+graphify-out/
 
 # Editor directories and files
 .vscode/*

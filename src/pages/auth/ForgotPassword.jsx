@@ -23,17 +23,21 @@ const ForgotPassword = () => {
     setError('');
     setSuccess(false);
     setSubmitting(true);
+    const trimmed = email.trim();
     try {
-      await resetPassword(email.trim());
+      await resetPassword(trimmed);
       setSuccess(true);
     } catch (err) {
       const code = err.code;
-      let message = 'Failed to send reset email.';
-      if (code === 'auth/user-not-found') message = 'No account found for this email.';
-      else if (code === 'auth/too-many-requests') message = 'Too many attempts. Please try again later.';
-      else if (code === 'auth/network-request-failed') message = 'Network error. Check your connection.';
-      else if (err.message) message = err.message;
-      setError(message);
+      if (code === 'auth/too-many-requests') {
+        setError('Too many attempts. Please try again later.');
+      } else if (code === 'auth/network-request-failed') {
+        setError('Network error. Check your connection.');
+      } else if (code === 'auth/invalid-email') {
+        setError('Enter a valid email address.');
+      } else {
+        setSuccess(true);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -41,16 +45,19 @@ const ForgotPassword = () => {
 
   return (
     <AuthCard title="Reset password" subtitle="We'll email you a link to choose a new password.">
-      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+      <form onSubmit={handleSubmit} noValidate className="space-y-4 sm:space-y-5">
         <ErrorAlert message={error} />
         {success && (
           <div className="rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-800" role="status">
-            Check your email for a link to reset your password.
+          Check your inbox if an account exists for that address. If it does, you will receive a reset link.
           </div>
         )}
         <InputField
           label="Email"
           type="email"
+          name="email"
+          autoComplete="email"
+          required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Enter your email"

@@ -26,9 +26,13 @@ const InputField = ({
   disabled = false,
   error = false,
   errorMessage = '',
-  required = false
+  required = false,
+  name,
+  autoComplete,
+  id
 }) => {
   const inputRef = useRef(null);
+  const inputId = id || (name ? `field-${name}` : undefined);
 
   useEffect(() => {
     if (type !== 'number') return undefined;
@@ -71,7 +75,7 @@ const InputField = ({
   return (
     <div className={`flex flex-col ${className}`}>
       {label ? (
-        <label className="text-sm font-light mb-2.5 text-gray-700 capitalize tracking-[0.12em]">
+        <label htmlFor={inputId} className="text-sm font-light mb-2.5 text-gray-700 capitalize tracking-[0.12em]">
           {label}
           {required ? <span className="text-red-500 font-bold ml-0.5">*</span> : null}
         </label>
@@ -89,11 +93,15 @@ const InputField = ({
         )}
         <input
           ref={inputRef}
+          id={inputId}
+          name={name}
           type={type}
           value={value}
           onChange={onChange}
           placeholder={placeholder}
           disabled={disabled}
+          required={required || undefined}
+          autoComplete={autoComplete}
           aria-invalid={error || undefined}
           aria-required={required || undefined}
           className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none bg-white [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${

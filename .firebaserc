@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "financemanagement-c464a",
+    "local": "financemanagement-c464a",
+    "production": "fixelfinance-b232f"
+  }
+}

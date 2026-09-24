@@ -1,0 +1,4 @@
+Contact: https://finhub.fixelcloud.co/
+Canonical: https://finhub.fixelcloud.co/.well-known/security.txt
+Preferred-Languages: en
+Expires: 2027-09-22T00:00:00.000Z

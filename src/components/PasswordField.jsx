@@ -7,14 +7,20 @@ const PasswordField = ({
   onChange,
   placeholder = 'Enter password',
   leftIcon = null,
-  className = ''
+  className = '',
+  name,
+  autoComplete,
+  required = false,
+  id
 }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const inputId = id || (name ? `field-${name}` : undefined);
 
   return (
     <div className={`flex flex-col ${className}`}>
-      <label className="text-sm font-light mb-2.5 text-gray-700 capitalize tracking-[0.12em]">
+      <label htmlFor={inputId} className="text-sm font-light mb-2.5 text-gray-700 capitalize tracking-[0.12em]">
         {label}
+        {required ? <span className="text-red-500 font-bold ml-0.5">*</span> : null}
       </label>
       <div className="relative">
         {leftIcon && (
@@ -23,10 +29,14 @@ const PasswordField = ({
           </div>
         )}
         <input
+          id={inputId}
+          name={name}
           type={showPassword ? 'text' : 'password'}
           value={value}
           onChange={onChange}
           placeholder={placeholder}
+          required={required || undefined}
+          autoComplete={autoComplete}
           className={`w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary-500 bg-white pr-12 ${leftIcon ? 'pl-10' : 'pl-4'}`}
         />
         <button

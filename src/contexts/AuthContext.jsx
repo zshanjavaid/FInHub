@@ -1,10 +1,12 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  reload
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -21,23 +23,53 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [provisioned, setProvisioned] = useState(false);
+  const skipUserPaint = useRef(false);
 
   const ensureUserDoc = async (u) => {
-    if (!u) return;
+    if (!u) return false;
     const userRef = doc(db, 'users', u.uid);
     const snap = await getDoc(userRef);
-    if (!snap.exists()) {
-      await setDoc(userRef, {
-        email: u.email ?? '',
-        createdAt: serverTimestamp()
-      });
-    }
+    if (snap.exists()) return true;
+    await setDoc(userRef, {
+      email: u.email ?? '',
+      createdAt: serverTimestamp()
+    });
+    return true;
   };
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
+      if (skipUserPaint.current) {
+        if (!u) {
+          skipUserPaint.current = false;
+          setUser(null);
+          setProvisioned(false);
+          setLoading(false);
+          return;
+        }
+        try {
+          await ensureUserDoc(u);
+        } catch {
+          // Signup will surface a real error if the user doc cannot be created.
+        }
+        return;
+      }
+      if (!u) {
+        setUser(null);
+        setProvisioned(false);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      let ok = false;
+      try {
+        ok = await ensureUserDoc(u);
+      } catch {
+        ok = false;
+      }
+      setProvisioned(ok);
       setUser(u);
-      if (u) await ensureUserDoc(u);
       setLoading(false);
     });
     return unsub;
@@ -53,17 +85,34 @@ export const AuthProvider = ({ children }) => {
       err.code = 'auth/max-users';
       throw err;
     }
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const u = userCredential.user;
-    await setDoc(doc(db, 'users', u.uid), {
-      email: u.email ?? '',
-      createdAt: serverTimestamp()
-    });
-    await setDoc(configRef, {
-      hasUsers: true,
-      userCount: userCount + 1
-    }, { merge: true });
-    return userCredential;
+    skipUserPaint.current = true;
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const u = userCredential.user;
+      await setDoc(doc(db, 'users', u.uid), {
+        email: u.email ?? '',
+        createdAt: serverTimestamp()
+      });
+      await setDoc(configRef, {
+        hasUsers: true,
+        userCount: userCount + 1
+      }, { merge: true });
+      try {
+        await sendEmailVerification(u);
+      } catch {
+        // Account exists; they can sign in without verifying.
+      }
+      await signOut(auth);
+      return userCredential;
+    } catch (err) {
+      skipUserPaint.current = false;
+      try {
+        if (auth.currentUser) await signOut(auth);
+      } catch {
+        // Keep the original signup error.
+      }
+      throw err;
+    }
   };
 
   const login = (email, password) =>
@@ -73,13 +122,32 @@ export const AuthProvider = ({ children }) => {
 
   const resetPassword = (email) => sendPasswordResetEmail(auth, email);
 
+  const sendVerificationEmail = useCallback(async () => {
+    if (!auth.currentUser) {
+      const err = new Error('Not signed in.');
+      err.code = 'auth/unauthenticated';
+      throw err;
+    }
+    await sendEmailVerification(auth.currentUser);
+  }, []);
+
+  const reloadUser = useCallback(async () => {
+    if (!auth.currentUser) return null;
+    await reload(auth.currentUser);
+    setUser(auth.currentUser);
+    return auth.currentUser;
+  }, []);
+
   const value = {
     user,
     loading,
+    provisioned,
     signup,
     login,
     logout,
-    resetPassword
+    resetPassword,
+    sendVerificationEmail,
+    reloadUser
   };
 
   return (

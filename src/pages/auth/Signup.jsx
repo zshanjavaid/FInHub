@@ -25,7 +25,7 @@ const validatePassword = (password) => {
 
 const Signup = () => {
   const navigate = useNavigate();
-  const { signup, logout } = useAuth();
+  const { signup } = useAuth();
   const [form, setForm] = useState({ email: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -54,16 +54,15 @@ const Signup = () => {
     setSubmitting(true);
     try {
       await signup(form.email.trim(), form.password);
-      await logout();
       navigate('/', { replace: true });
     } catch (err) {
       const code = err.code;
       let message = 'Sign up failed.';
       if (code === 'auth/email-already-in-use') message = 'This email is already registered.';
-      else if (code === 'auth/max-users') message = err.message || 'Maximum number of accounts reached.';
+      else if (code === 'auth/max-users') message = 'Maximum number of accounts reached.';
       else if (code === 'auth/too-many-requests') message = 'Too many attempts. Please try again later.';
       else if (code === 'auth/network-request-failed') message = 'Network error. Check your connection.';
-      else if (err.message) message = err.message;
+      else if (code === 'permission-denied') message = 'Maximum number of accounts reached.';
       setError(message);
     } finally {
       setSubmitting(false);
@@ -72,11 +71,14 @@ const Signup = () => {
 
   return (
     <AuthCard title="Create account" subtitle="Register to access your FinHub workspace.">
-      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+      <form onSubmit={handleSubmit} noValidate className="space-y-4 sm:space-y-5">
         <ErrorAlert message={error} />
         <InputField
           label="Email"
           type="email"
+          name="email"
+          autoComplete="email"
+          required
           value={form.email}
           onChange={(e) => handleChange('email', e.target.value)}
           placeholder="Enter your email"
@@ -85,6 +87,9 @@ const Signup = () => {
         <div>
           <PasswordField
             label="Password"
+            name="password"
+            autoComplete="new-password"
+            required
             value={form.password}
             onChange={(e) => handleChange('password', e.target.value)}
             placeholder="Enter password"
@@ -110,6 +115,9 @@ const Signup = () => {
         </div>
         <PasswordField
           label="Confirm password"
+          name="confirmPassword"
+          autoComplete="new-password"
+          required
           value={form.confirmPassword}
           onChange={(e) => handleChange('confirmPassword', e.target.value)}
           placeholder="Confirm password"

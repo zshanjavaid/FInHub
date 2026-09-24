@@ -19,6 +19,7 @@ const ProjectAllocation = lazy(() => import('./pages/ProjectAllocation'));
 const Signup = lazy(() => import('./pages/auth/Signup'));
 const Login = lazy(() => import('./pages/auth/Login'));
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
+const Unauthorized = lazy(() => import('./pages/auth/Unauthorized'));
 
 /** Single full-screen loader — avoids a second top-of-page spinner. */
 const FullScreenLoader = () => (
@@ -28,7 +29,7 @@ const FullScreenLoader = () => (
 );
 
 function AppRoutes() {
-  const { user, loading } = useAuth();
+  const { user, loading, provisioned } = useAuth();
   const [authConfig, setAuthConfig] = useState({ loading: true, userCount: 0 });
 
   useEffect(() => {
@@ -51,6 +52,19 @@ function AppRoutes() {
   }, [user]);
 
   if (loading) return <FullScreenLoader />;
+
+  if (user && !provisioned) {
+    return (
+      <Suspense fallback={<FullScreenLoader />}>
+        <Routes>
+          <Route path="/" element={<AuthLayout />}>
+            <Route index element={<Unauthorized />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    );
+  }
 
   if (!user) {
     if (authConfig.loading) return <FullScreenLoader />;

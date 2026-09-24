@@ -2,25 +2,89 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Keep in sync with src/constants/app.js MAX_USERS
+    function maxUsers() {
+      return 2;
+    }
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function userDocPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function configPath() {
+      return /databases/$(database)/documents/app/config;
+    }
+
+    function currentUserCount() {
+      return exists(configPath())
+        && ('userCount' in get(configPath()).data)
+        && get(configPath()).data.userCount is int
+        ? get(configPath()).data.userCount
+        : 0;
+    }
+
+    // Signed-in user that completed signup (has a users/{uid} doc).
+    function isProvisionedUser() {
+      return signedIn() && exists(userDocPath());
+    }
+
+    function configKeysOk() {
+      return request.resource.data.keys().hasOnly(['hasUsers', 'userCount']);
+    }
+
     match /app/config {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow create: if signedIn()
+        && configKeysOk()
+        && request.resource.data.hasUsers == true
+        && request.resource.data.userCount is int
+        && request.resource.data.userCount == 1
+        && currentUserCount() == 0;
+      allow update: if signedIn()
+        && request.resource.data.hasUsers == true
+        && request.resource.data.userCount is int
+        && resource.data.userCount is int
+        && request.resource.data.userCount == resource.data.userCount + 1
+        && request.resource.data.userCount <= maxUsers();
+      allow delete: if false;
     }
+
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isSelf(userId);
+      allow create: if isSelf(userId)
+        && currentUserCount() < maxUsers()
+        && request.resource.data.keys().hasOnly(['email', 'createdAt'])
+        && request.resource.data.email == request.auth.token.email;
+      allow update: if isSelf(userId)
+        && request.resource.data.email == resource.data.email
+        && (
+          !('createdAt' in resource.data)
+          || request.resource.data.createdAt == resource.data.createdAt
+        );
+      allow delete: if false;
     }
+
     match /projects/{projectId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isProvisionedUser();
     }
     match /transactions/{transactionId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isProvisionedUser();
     }
     match /expenses/{expenseId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isProvisionedUser();
     }
     match /impactFundWithdrawals/{withdrawalId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isProvisionedUser();
     }
+
     match /{document=**} {
       allow read, write: if false;
     }

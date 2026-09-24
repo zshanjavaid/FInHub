@@ -1,3 +1,4 @@
+/** Keep in sync with firestore.rules maxUsers(). */
 export const MAX_USERS = 2;
 
 export const ENTRY_STATUS = {
