@@ -32,6 +32,13 @@ function AppRoutes() {
   const { user, loading, provisioned } = useAuth();
   const [authConfig, setAuthConfig] = useState({ loading: true, userCount: 0 });
 
+  // Warm the dashboard chunk as soon as auth is ready so the page title can paint sooner (LCP).
+  useEffect(() => {
+    if (user && provisioned) {
+      void import('./pages/Dashboard');
+    }
+  }, [user, provisioned]);
+
   useEffect(() => {
     if (user) return;
     let cancelled = false;

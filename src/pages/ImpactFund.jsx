@@ -14,13 +14,14 @@ import Modal, { modalActionsClass } from '../components/Modal';
 import InputField from '../components/InputField';
 import TextareaField from '../components/TextareaField';
 import FilterBar from '../components/FilterBar';
-import SearchableDropdown from '../components/SearchableDropdown';
+import BrokerProjectFilters from '../components/BrokerProjectFilters';
 import { filterByDateRange } from '../utils/date';
 import { useDateFilter } from '../hooks/useDateFilter';
 import ErrorAlert from '../components/ErrorAlert';
 import PageContainer from '../components/PageContainer';
 import { compareTransactions, compareWithdrawals } from '../utils/tableSort';
 import { toNumber } from '../utils/number';
+import { matchesSelectedBroker } from '../utils/brokerFilter';
 import { isApproved } from '../constants/app';
 import {
   IMPACT_FUND_PERCENT_LABEL,
@@ -88,9 +89,7 @@ const ImpactFund = () => {
   const filteredContributionHistory = useMemo(() => {
     let list = filterByDateRange(contributionHistory, dateFrom, dateTo, (item) => item.date);
     if (selectedBroker) {
-      list = list.filter(
-        (item) => (item.client || '').trim().toLowerCase() === selectedBroker.trim().toLowerCase()
-      );
+      list = list.filter((item) => matchesSelectedBroker(item, selectedBroker));
     }
     return list;
   }, [contributionHistory, selectedBroker, dateFrom, dateTo]);
@@ -245,13 +244,10 @@ const ImpactFund = () => {
             ) : null
           }
         >
-          <SearchableDropdown
-            label="Broker"
-            value={selectedBroker}
-            onChange={setSelectedBroker}
-            options={brokerNames}
-            placeholder="All Brokers"
-            layout="filter"
+          <BrokerProjectFilters
+            brokerOptions={brokerNames}
+            selectedBroker={selectedBroker}
+            onBrokerChange={setSelectedBroker}
           />
         </FilterBar>
 

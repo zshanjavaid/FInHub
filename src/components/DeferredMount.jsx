@@ -1,10 +1,4 @@
-/**
- * Keeps chart mount API stable. Charts mount immediately so scrolling never
- * swaps a pulsing skeleton for a canvas (that swap is what felt like a flash).
- */
-const DeferredMount = ({ children, className = '' }) => (
-  <div className={`min-w-0 ${className}`}>{children}</div>
-);
+import { useInViewOnce } from '../hooks/useInViewOnce';
 
 const ChartSkeleton = ({ className = '' }) => (
   <div
@@ -22,6 +16,20 @@ const ChartSkeleton = ({ className = '' }) => (
     </div>
   </div>
 );
+
+/**
+ * Mounts children only when near the app scrollport (once).
+ * Keeps Chart.js / heavy plots out of the initial paint path.
+ * Skeleton is static (no pulse) to avoid a flashy swap.
+ */
+const DeferredMount = ({ children, rootMargin = '320px 0px', fallback = null, className = '' }) => {
+  const [ref, inView] = useInViewOnce(rootMargin);
+  return (
+    <div ref={ref} className={`min-w-0 ${className}`}>
+      {inView ? children : fallback ?? <ChartSkeleton />}
+    </div>
+  );
+};
 
 export { ChartSkeleton };
 export default DeferredMount;

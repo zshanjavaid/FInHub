@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,7 +7,6 @@ import Button from '../components/Button';
 import FilterBar from '../components/FilterBar';
 import SearchableDropdown from '../components/SearchableDropdown';
 import ExpenseTable from '../components/ExpenseTable';
-import ExpenseFormModal from '../components/ExpenseFormModal';
 import {
   createExpense,
   editExpense,
@@ -23,6 +22,7 @@ import ErrorAlert from '../components/ErrorAlert';
 import PageContainer from '../components/PageContainer';
 import { EMPTY_EXPENSE_FORM, expenseToFormValues } from '../utils/formValues';
 
+const ExpenseFormModal = lazy(() => import('../components/ExpenseFormModal'));
 const typeParamToLabel = (param) => {
   const raw = String(param || '').trim().toLowerCase();
   if (!raw) return '';
@@ -149,15 +149,19 @@ const Expenses = () => {
           projects={projects}
         />
 
-        <ExpenseFormModal
-        key={editingExpenseId || 'new'}
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title={editingExpenseId ? 'Edit Expense' : 'Add Expense'}
-        initialValues={initialValues}
-        onSubmit={onSubmit}
-        isSaving={isLoading}
-      />
+        {isModalOpen ? (
+          <Suspense fallback={null}>
+            <ExpenseFormModal
+              key={editingExpenseId || 'new'}
+              isOpen={isModalOpen}
+              onClose={closeModal}
+              title={editingExpenseId ? 'Edit Expense' : 'Add Expense'}
+              initialValues={initialValues}
+              onSubmit={onSubmit}
+              isSaving={isLoading}
+            />
+          </Suspense>
+        ) : null}
     </PageContainer>
   );
 };

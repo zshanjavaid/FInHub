@@ -43,17 +43,6 @@ export const normalizeDateToYYYYMMDD = (value) => {
   return todayLocalYmd(d);
 };
 
-/** Return { from, to } as YYYY-MM-DD for the current month */
-export const getThisMonthRange = () => {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = d.getMonth();
-  const from = `${y}-${String(m + 1).padStart(2, '0')}-01`;
-  const lastDay = new Date(y, m + 1, 0).getDate();
-  const to = `${y}-${String(m + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-  return { from, to };
-};
-
 /** Return { from, to } as YYYY-MM-DD for a calendar month (month is 1–12). */
 export const getCalendarMonthRange = (year, month1To12) => {
   const y = Number(year);
@@ -110,24 +99,6 @@ export const getPreviousYearMonth = () => {
   return from.slice(0, 7);
 };
 
-export const getMonthRangeFromDate = (dateStr) => {
-  const d = normalizeDateToYYYYMMDD(dateStr);
-  if (!d) return null;
-  const [y, m] = d.split('-').map(Number);
-  const from = `${y}-${String(m).padStart(2, '0')}-01`;
-  const lastDay = new Date(y, m, 0).getDate();
-  const to = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-  return { from, to, year: y, month: m - 1 };
-};
-
-export const getPreviousMonthRangeFrom = (year, month) => {
-  const prevY = month === 0 ? year - 1 : year;
-  const prevM = month === 0 ? 11 : month - 1;
-  const from = `${prevY}-${String(prevM + 1).padStart(2, '0')}-01`;
-  const lastDay = new Date(prevY, prevM + 1, 0).getDate();
-  const to = `${prevY}-${String(prevM + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-  return { from, to };
-};
 
 /** Short month names for charts/labels */
 export const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

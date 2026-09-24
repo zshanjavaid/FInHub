@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../contexts/AuthContext';
 import PageHeader from '../components/PageHeader';
@@ -6,9 +6,6 @@ import Button from '../components/Button';
 import TransactionTable from '../components/TransactionTable';
 import ExpenseTable from '../components/ExpenseTable';
 import ProjectTable from '../components/ProjectTable';
-import TransactionFormModal from '../components/TransactionFormModal';
-import ExpenseFormModal from '../components/ExpenseFormModal';
-import ProjectFormModal from '../components/ProjectFormModal';
 import { isApproved, ENTRY_STATUS } from '../constants/app';
 import {
   fetchTransactions,
@@ -36,6 +33,10 @@ import PageContainer from '../components/PageContainer';
 import Tabs from '../components/Tabs';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import ApproveAllConfirmModal from '../components/ApproveAllConfirmModal';
+
+const TransactionFormModal = lazy(() => import('../components/TransactionFormModal'));
+const ExpenseFormModal = lazy(() => import('../components/ExpenseFormModal'));
+const ProjectFormModal = lazy(() => import('../components/ProjectFormModal'));
 
 const PendingRequests = () => {
   const dispatch = useDispatch();
@@ -336,43 +337,55 @@ const PendingRequests = () => {
         </Tabs>
       </div>
 
-      <TransactionFormModal
-        key={editingTransactionId ? `tx-${editingTransactionId}` : 'pending-tx-new'}
-        isOpen={!!editingTransactionId}
-        onClose={closeEditTransaction}
-        title="Edit Transaction"
-        initialValues={initialValuesTransaction}
-        onSubmit={submitEditTransaction}
-        isSaving={isLoadingT}
-        projects={projects}
-        clientOptions={clientOptions}
-        transactions={transactions}
-        editingTransactionId={editingTransactionId}
-        editingTransaction={editingTransaction}
-      />
+      {editingTransactionId ? (
+        <Suspense fallback={null}>
+          <TransactionFormModal
+            key={`tx-${editingTransactionId}`}
+            isOpen
+            onClose={closeEditTransaction}
+            title="Edit Transaction"
+            initialValues={initialValuesTransaction}
+            onSubmit={submitEditTransaction}
+            isSaving={isLoadingT}
+            projects={projects}
+            clientOptions={clientOptions}
+            transactions={transactions}
+            editingTransactionId={editingTransactionId}
+            editingTransaction={editingTransaction}
+          />
+        </Suspense>
+      ) : null}
 
-      <ExpenseFormModal
-        key={editingExpenseId ? `expense-${editingExpenseId}` : 'pending-expense-new'}
-        isOpen={!!editingExpenseId}
-        onClose={closeEditExpense}
-        title="Edit Expense"
-        initialValues={initialValuesExpense}
-        onSubmit={submitEditExpense}
-        isSaving={isLoadingE}
-      />
+      {editingExpenseId ? (
+        <Suspense fallback={null}>
+          <ExpenseFormModal
+            key={`expense-${editingExpenseId}`}
+            isOpen
+            onClose={closeEditExpense}
+            title="Edit Expense"
+            initialValues={initialValuesExpense}
+            onSubmit={submitEditExpense}
+            isSaving={isLoadingE}
+          />
+        </Suspense>
+      ) : null}
 
-      <ProjectFormModal
-        key={editingProjectId ? `project-${editingProjectId}` : 'pending-project-new'}
-        isOpen={!!editingProjectId}
-        onClose={closeEditProject}
-        title="Edit Project"
-        clientOptions={clientOptions}
-        projectTypeOptions={PROJECT_TYPE_OPTIONS}
-        initialValues={initialValuesProject}
-        onSubmit={submitEditProject}
-        isSaving={isLoadingP}
-        projects={projects}
-      />
+      {editingProjectId ? (
+        <Suspense fallback={null}>
+          <ProjectFormModal
+            key={`project-${editingProjectId}`}
+            isOpen
+            onClose={closeEditProject}
+            title="Edit Project"
+            clientOptions={clientOptions}
+            projectTypeOptions={PROJECT_TYPE_OPTIONS}
+            initialValues={initialValuesProject}
+            onSubmit={submitEditProject}
+            isSaving={isLoadingP}
+            projects={projects}
+          />
+        </Suspense>
+      ) : null}
 
       <DeleteConfirmModal
         isOpen={isResetTxOpen}

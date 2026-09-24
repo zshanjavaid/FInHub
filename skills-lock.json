@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "computedHash": "b146008599c31057cef1c145774cea5d5afb30e8f43fa802e47a4b461419aaaf"
+    },
+    "refactoring-optimization": {
+      "source": "jablonkai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/refactoring-optimization/SKILL.md",
+      "computedHash": "24dd04bcb7d878497d8eaff4e4c64fdb076f266e40dca85e3d79ae0d54c84254"
+    }
+  }
+}

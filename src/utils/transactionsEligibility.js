@@ -34,34 +34,6 @@ export const getEffectiveProjectStatus = (project, asOf = new Date()) => {
   return 'active';
 };
 
-export const isActiveProject = (project, asOf = new Date()) =>
-  getEffectiveProjectStatus(project, asOf) === 'active';
-
-/**
- * True if the project was active at any point during [monthStart, monthEnd].
- * Active: started on/before month end, and not ended before month start.
- */
-export const wasProjectActiveInMonth = (project, monthStart, monthEnd) =>
-  projectStatusInMonth(project, monthStart, monthEnd) === 'active';
-
-/**
- * Status of a project during a calendar month:
- * - 'active' — started by month end and still active after month end
- * - 'inactive' — ended on or before month end
- * - null — not started yet that month
- */
-export const projectStatusInMonth = (project, monthStart, monthEnd) => {
-  const startYmd = normalizeDateToYYYYMMDD(project?.date);
-  const rangeStart = normalizeDateToYYYYMMDD(monthStart);
-  const rangeEnd = normalizeDateToYYYYMMDD(monthEnd);
-  if (!startYmd || !rangeStart || !rangeEnd) return null;
-  if (startYmd > rangeEnd) return null;
-
-  const endedYmd = projectLifecycleEndYmd(project);
-  if (endedYmd && endedYmd <= rangeEnd) return 'inactive';
-  return 'active';
-};
-
 /**
  * Completion / ended date (End Date preferred). Alias for chart + inactive filters.
  */
@@ -85,37 +57,6 @@ export const uniqueProjectsForTrend = (projects = []) => {
     map.set(key, p);
   });
   return [...map.values()];
-};
-
-/**
- * One row per broker+project (latest by createdAt/date). Use for cost charts, not headcounts.
- */
-export const latestProjectsByKey = (projects = []) => {
-  const map = new Map();
-  (projects || []).forEach((p) => {
-    const client = (p?.client || '').trim();
-    const name = (p?.project || '').trim();
-    if (!client || !name) return;
-    const key = projectIdentityKey(p);
-    const prev = map.get(key);
-    if (!prev) {
-      map.set(key, p);
-      return;
-    }
-    const prevDate = String(prev.createdAt || prev.updatedAt || prev.date || '');
-    const nextDate = String(p.createdAt || p.updatedAt || p.date || '');
-    if (nextDate.localeCompare(prevDate) >= 0) map.set(key, p);
-  });
-  return [...map.values()];
-};
-
-/** True only in the calendar month the project start date falls in. */
-export const wasProjectStartedInMonth = (project, monthStart, monthEnd) => {
-  const startYmd = normalizeDateToYYYYMMDD(project?.date);
-  const rangeStart = normalizeDateToYYYYMMDD(monthStart);
-  const rangeEnd = normalizeDateToYYYYMMDD(monthEnd);
-  if (!startYmd || !rangeStart || !rangeEnd) return false;
-  return startYmd >= rangeStart && startYmd <= rangeEnd;
 };
 
 /** True only in the calendar month the project was marked inactive / ended. */
@@ -220,4 +161,3 @@ export const isProjectEligibleForTransactions = (project, monthsAfterInactive = 
   if (!todayYmd) return false;
   return todayYmd <= untilYmd;
 };
-

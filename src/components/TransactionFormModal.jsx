@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import FormModal from './FormModal';
-import { FiUser, FiFileText, FiDollarSign, FiCalendar } from 'react-icons/fi';
+import { FiUser, FiFileText, FiDollarSign, FiCalendar, FiPercent } from 'react-icons/fi';
 import { formatMoney, signedMoneyClass } from '../utils/format';
 import { usePrivacyHidden } from '../contexts/PrivacyContext';
-import { HiOutlineCurrencyDollar, HiOutlinePercentBadge } from 'react-icons/hi2';
 import { normalizeDateToYYYYMMDD, todayLocalYmd } from '../utils/date';
 import { isApproved } from '../constants/app';
 import { PAYOUT_OCCURRENCE_LABEL_BY_VALUE } from '../constants/payoutOccurrences';
@@ -243,8 +242,8 @@ const TransactionFormModal = ({
         type: 'number',
         placeholder: (form) => form.brokerageType === 'percentage' ? 'Enter percentage...' : 'Enter amount...',
         icon: (form) => form.brokerageType === 'percentage'
-          ? <HiOutlinePercentBadge className="w-5 h-5 text-gray-400" />
-          : <HiOutlineCurrencyDollar className="w-5 h-5 text-gray-400" />
+          ? <FiPercent className="w-5 h-5 text-gray-400" />
+          : <FiDollarSign className="w-5 h-5 text-gray-400" />
       },
       inlineInput: true
     },

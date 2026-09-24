@@ -7,9 +7,12 @@ import { latestProjectByIdentity, matchesClientProject, projectIdentityKey } fro
 import { normText } from './number';
 
 const monthBounds = (year, monthIndex0) => {
-  const lastDay = new Date(year, monthIndex0 + 1, 0).getDate();
-  const y = String(year);
-  const m = String(monthIndex0 + 1).padStart(2, '0');
+  // Normalize so Jan (monthIndex0 - 1) → Dec prior year, Dec + 1 → Jan next year.
+  const d = new Date(year, monthIndex0, 1);
+  const y = d.getFullYear();
+  const m0 = d.getMonth();
+  const lastDay = new Date(y, m0 + 1, 0).getDate();
+  const m = String(m0 + 1).padStart(2, '0');
   return {
     monthKey: `${y}-${m}`,
     from: `${y}-${m}-01`,

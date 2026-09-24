@@ -1,10 +1,10 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FiHome, FiFileText, FiRepeat, FiTrendingDown, FiDollarSign, FiInbox, FiLayout, FiLogOut, FiPercent } from 'react-icons/fi';
 import { useSelector } from 'react-redux';
 import { useAuth } from '../contexts/AuthContext';
 import Logo from './Logo';
-import { isApproved } from '../constants/app';
+import { selectPendingCount } from '../store/selectors';
 import {
   sidebarShellClass,
   sidebarSectionBorderClass,
@@ -18,21 +18,10 @@ import {
 const Sidebar = ({ isOpen = true, isDesktop = true, onClose, motionClass = '' }) => {
   const location = useLocation();
   const { logout } = useAuth();
-  const transactions = useSelector((state) => state.transactions.items);
-  const expenses = useSelector((state) => state.expenses.items);
-  const projects = useSelector((state) => state.projects.items);
+  const pendingCount = useSelector(selectPendingCount);
   const navRef = useRef(null);
   const itemRefs = useRef({});
   const [indicator, setIndicator] = useState({ top: 0, height: 0, ready: false });
-
-  const pendingCount = useMemo(
-    () =>
-      [transactions, expenses, projects].reduce(
-        (sum, list) => sum + (list || []).filter((item) => !isApproved(item)).length,
-        0
-      ),
-    [transactions, expenses, projects]
-  );
 
   const expenseTypeParam = useMemo(() => {
     if (location.pathname !== '/expenses') return '';
@@ -71,22 +60,28 @@ const Sidebar = ({ isOpen = true, isDesktop = true, onClose, motionClass = '' })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, expenseTypeParam, pendingCount]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const el = itemRefs.current[activeKey];
-    const nav = navRef.current;
-    if (!el || !nav) return undefined;
+    if (!el) return undefined;
 
+    let raf = 0;
     const update = () => {
-      setIndicator({
-        top: el.offsetTop,
-        height: el.offsetHeight,
-        ready: true
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        setIndicator({
+          top: el.offsetTop,
+          height: el.offsetHeight,
+          ready: true
+        });
       });
     };
 
     update();
     window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', update);
+    };
   }, [activeKey, pendingCount]);
 
   const asideClass = `fixed left-0 top-0 z-50 h-full w-64 max-w-[85vw] ${motionClass} ${
@@ -107,15 +102,16 @@ const Sidebar = ({ isOpen = true, isDesktop = true, onClose, motionClass = '' })
         </div>
 
         <nav ref={navRef} className="relative flex-1 px-3 py-4 sm:px-3.5 sm:py-5 space-y-1 overflow-y-auto" aria-label="Main">
-          <div
-            className="finhub-nav-indicator pointer-events-none absolute left-3 right-3 sm:left-3.5 sm:right-3.5 rounded-xl bg-gradient-to-r from-primary-500/30 to-primary-500/10 shadow-[inset_3px_0_0_0_#2dd4bf]"
-            style={{
-              top: indicator.top,
-              height: indicator.height,
-              opacity: indicator.ready ? 1 : 0
-            }}
-            aria-hidden
-          />
+          {indicator.ready ? (
+            <div
+              className="finhub-nav-indicator pointer-events-none absolute left-3 right-3 sm:left-3.5 sm:right-3.5 rounded-xl bg-gradient-to-r from-primary-500/30 to-primary-500/10 shadow-[inset_3px_0_0_0_#2dd4bf]"
+              style={{
+                transform: `translate3d(0, ${indicator.top}px, 0)`,
+                height: indicator.height
+              }}
+              aria-hidden
+            />
+          ) : null}
 
           {menuItems.map((item) => {
             const isActive = isItemActive(item);

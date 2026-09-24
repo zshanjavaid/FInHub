@@ -227,45 +227,6 @@ svg.fh-icon-live--logout {
   animation: fh-icon-logout 2s ease-in-out infinite;
 }
 
-@keyframes fh-pulse-ring {
-  0% {
-    transform: scale(0.92);
-    opacity: 0.55;
-  }
-  70% {
-    transform: scale(1.08);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(1.08);
-    opacity: 0;
-  }
-}
-
-@keyframes fh-icon-wiggle {
-  0%,
-  100% {
-    transform: rotate(0deg);
-  }
-  25% {
-    transform: rotate(-8deg);
-  }
-  50% {
-    transform: rotate(8deg);
-  }
-  75% {
-    transform: rotate(-4deg);
-  }
-}
-
-.fh-pulse-ring {
-  animation: fh-pulse-ring 1.3s ease-out infinite;
-}
-
-.fh-icon-wiggle {
-  animation: fh-icon-wiggle 1.6s ease-in-out infinite;
-}
-
 .fh-auth-mesh {
   position: relative;
   overflow: hidden;
@@ -456,10 +417,10 @@ svg.fh-icon-live--logout {
 }
 
 .finhub-nav-indicator {
+  top: 0;
   transition:
-    top 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-    height 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.2s ease;
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* ——— FinHub buttons — fill hover ——— */
@@ -567,11 +528,6 @@ svg.fh-icon-live--logout {
   }
 
   .fh-icon-live {
-    animation: none !important;
-  }
-
-  .fh-pulse-ring,
-  .fh-icon-wiggle {
     animation: none !important;
   }
 }

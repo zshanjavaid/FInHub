@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { FiDollarSign, FiTrendingUp, FiPieChart, FiMenu, FiArrowRight, FiArrowLeft } from 'react-icons/fi';
 import { fetchProjects, createProject } from '../store/projects/projectsSlice';
@@ -17,8 +17,9 @@ import StatCard from '../components/StatCard';
 import ErrorAlert from '../components/ErrorAlert';
 import Loader from '../components/Loader';
 import Button from '../components/Button';
-import ProjectFormModal from '../components/ProjectFormModal';
 import { projectIdentityKey } from '../utils/projectLookup';
+
+const ProjectFormModal = lazy(() => import('../components/ProjectFormModal'));
 
 const ProjectCard = ({ project, isDragging, onDragStart, onDragEnd, moveButton }) => {
   usePrivacyHidden();
@@ -322,18 +323,22 @@ const ProjectAllocation = () => {
         </DropZone>
       </div>
 
-      <ProjectFormModal
-        key="allocation-new"
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title="Add Project"
-        clientOptions={clientOptions}
-        projectTypeOptions={PROJECT_TYPE_OPTIONS}
-        initialValues={initialValues}
-        onSubmit={onSubmitProject}
-        isSaving={isLoading}
-        projects={projects}
-      />
+      {isModalOpen ? (
+        <Suspense fallback={null}>
+          <ProjectFormModal
+            key="allocation-new"
+            isOpen={isModalOpen}
+            onClose={closeModal}
+            title="Add Project"
+            clientOptions={clientOptions}
+            projectTypeOptions={PROJECT_TYPE_OPTIONS}
+            initialValues={initialValues}
+            onSubmit={onSubmitProject}
+            isSaving={isLoading}
+            projects={projects}
+          />
+        </Suspense>
+      ) : null}
     </PageContainer>
   );
 };

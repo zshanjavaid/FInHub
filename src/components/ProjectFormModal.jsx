@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import FormModal from './FormModal';
-import { FiUser, FiCalendar } from 'react-icons/fi';
-import { HiOutlineCurrencyDollar, HiOutlinePercentBadge } from 'react-icons/hi2';
+import { FiUser, FiCalendar, FiDollarSign, FiPercent } from 'react-icons/fi';
 import { getTaxFormDefaultsFromProject } from '../utils/project';
 import { PAYOUT_OCCURRENCE_OPTIONS, PAYOUT_OCCURRENCE_LABEL_BY_VALUE } from '../constants/payoutOccurrences';
 import { LEAD_OPTIONS, PROJECT_MANAGER_OPTIONS } from '../constants/projectAssignments';
@@ -158,13 +157,13 @@ const ProjectFormModal = ({
         label: 'Hourly Rate',
         required: true,
         min: 0.01,
-        icon: <HiOutlineCurrencyDollar className="w-5 h-5 text-gray-400" />
+        icon: <FiDollarSign className="w-5 h-5 text-gray-400" />
       },
       {
         type: 'number',
         name: 'projectCost',
         label: 'Project Cost',
-        icon: <HiOutlineCurrencyDollar className="w-5 h-5 text-gray-400" />
+        icon: <FiDollarSign className="w-5 h-5 text-gray-400" />
       },
       {
         type: 'text',
@@ -188,9 +187,9 @@ const ProjectFormModal = ({
             form.brokerageType === 'percentage' ? 'Enter percentage...' : 'Enter amount...',
           icon: (form) =>
             form.brokerageType === 'percentage' ? (
-              <HiOutlinePercentBadge className="w-5 h-5 text-gray-400" />
+              <FiPercent className="w-5 h-5 text-gray-400" />
             ) : (
-              <HiOutlineCurrencyDollar className="w-5 h-5 text-gray-400" />
+              <FiDollarSign className="w-5 h-5 text-gray-400" />
             )
         },
         twinRow: true
@@ -212,9 +211,9 @@ const ProjectFormModal = ({
           placeholder: (form) => (form.taxType === 'percentage' ? 'Enter percentage...' : 'Enter amount...'),
           icon: (form) =>
             form.taxType === 'percentage' ? (
-              <HiOutlinePercentBadge className="w-5 h-5 text-gray-400" />
+              <FiPercent className="w-5 h-5 text-gray-400" />
             ) : (
-              <HiOutlineCurrencyDollar className="w-5 h-5 text-gray-400" />
+              <FiDollarSign className="w-5 h-5 text-gray-400" />
             )
         }
       }

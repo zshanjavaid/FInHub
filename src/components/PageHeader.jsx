@@ -1,10 +1,9 @@
-import { Rise } from '../motion';
-
 const PageHeader = ({ title, subtitle = null, actions = null, meta = null, className = '' }) => (
-  <Rise
+  <div
     className={`flex flex-col gap-4 sm:gap-5 md:flex-row md:items-end md:justify-between w-full min-w-0 ${className}`}
   >
     <div className="min-w-0 flex-1">
+      {/* Visible on first paint — do not wrap in opacity-0 motion (hurts LCP). */}
       <h1 className="text-4xl sm:text-5xl md:text-[3.25rem] font-extrabold text-slate-900 tracking-tight leading-[0.95]">
         {title}
       </h1>
@@ -12,7 +11,11 @@ const PageHeader = ({ title, subtitle = null, actions = null, meta = null, class
         <span className="h-0.5 w-8 rounded-full bg-primary-600" />
         <span className="h-px flex-1 max-w-[4rem] bg-slate-200" />
       </div>
-      {subtitle ? <div className="mt-4 max-w-prose text-sm sm:text-base font-light text-slate-500 leading-relaxed">{subtitle}</div> : null}
+      {subtitle ? (
+        <div className="mt-4 max-w-prose text-sm sm:text-base font-light text-slate-500 leading-relaxed">
+          {subtitle}
+        </div>
+      ) : null}
     </div>
     {(meta || actions) && (
       <div className="flex flex-col gap-2 w-full md:w-auto md:items-end md:shrink-0 min-w-0 pb-0.5">
@@ -28,7 +31,7 @@ const PageHeader = ({ title, subtitle = null, actions = null, meta = null, class
         ) : null}
       </div>
     )}
-  </Rise>
+  </div>
 );
 
 export default PageHeader;

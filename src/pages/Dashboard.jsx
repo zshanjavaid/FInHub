@@ -17,9 +17,11 @@ import { filterByDateRange, monthSlotsForRange, calendarYearMonthSlots, addIntoM
 import { computeNextMonthEstimatedAmount } from '../utils/nextMonthEstimate';
 import { transactionNetAfterImpactFund, sumTransactionNetAfterImpactFund } from '../utils/transactionNet';
 import { sumExpenseAmounts } from '../utils/availableBalance';
-import { toNumber, normText } from '../utils/number';
+import { toNumber } from '../utils/number';
+import { matchesSelectedBroker } from '../utils/brokerFilter';
 import { EMPTY_TRANSACTION_FORM, transactionToFormValues } from '../utils/formValues';
 import { matchesClientProject } from '../utils/projectLookup';
+import { buildProjectFilterOptions } from '../utils/projectFilterOptions';
 import { isApproved } from '../constants/app';
 import { isDashboardActiveProject, DASHBOARD_ACTIVE_PROJECT_TYPES, PROJECT_TYPE_COLORS } from '../constants/projectTypes';
 import { useClientOptions } from '../hooks/useClientOptions';
@@ -28,19 +30,19 @@ import PageHeader from '../components/PageHeader';
 import PageContainer from '../components/PageContainer';
 import Button from '../components/Button';
 import FilterBar from '../components/FilterBar';
-import SearchableDropdown from '../components/SearchableDropdown';
+import BrokerProjectFilters from '../components/BrokerProjectFilters';
 import StatCard from '../components/StatCard';
 import ErrorAlert from '../components/ErrorAlert';
 import Modal, { modalActionsClass } from '../components/Modal';
 import InputField from '../components/InputField';
 import TransactionTable from '../components/TransactionTable';
-import TransactionFormModal from '../components/TransactionFormModal';
 import PortfolioLinks from '../components/PortfolioLinks';
 import DeferredMount, { ChartSkeleton } from '../components/DeferredMount';
 import { FiDollarSign, FiTarget, FiEdit2, FiBriefcase, FiCreditCard } from 'react-icons/fi';
 
 const BarChart = lazy(() => import('../components/BarChart'));
 const ActiveProjectsYearComparisonChart = lazy(() => import('../components/ActiveProjectsYearComparisonChart'));
+const TransactionFormModal = lazy(() => import('../components/TransactionFormModal'));
 
 const Dashboard = () => {
   usePrivacyHidden();
@@ -86,20 +88,15 @@ const Dashboard = () => {
 
   const clientOptions = useClientOptions(projects);
 
-  const projectOptions = useMemo(() => {
-    const list = projects || [];
-    const forBroker = selectedBroker
-      ? list.filter(
-          (p) => (p.client || '').trim().toLowerCase() === selectedBroker.trim().toLowerCase()
-        )
-      : list;
-    return forBroker
-      .filter((p) => p.id)
-      .map((p) => ({
-        value: p.id,
-        label: selectedBroker ? (p.project || p.id) : [p.client, p.project].filter(Boolean).join(' – ') || p.id
-      }));
-  }, [projects, selectedBroker]);
+  const projectOptions = useMemo(
+    () =>
+      buildProjectFilterOptions(projects, {
+        selectedBroker,
+        valueMode: 'id',
+        requireId: true
+      }),
+    [projects, selectedBroker]
+  );
 
   const selectedProject = useMemo(() => {
     if (!selectedProjectId || !projects?.length) return null;
@@ -111,7 +108,7 @@ const Dashboard = () => {
     if (selectedProject) {
       list = list.filter((t) => matchesClientProject(t, selectedProject.client, selectedProject.project));
     } else if (selectedBroker) {
-      list = list.filter((t) => (t.client || '').trim().toLowerCase() === selectedBroker.trim().toLowerCase());
+      list = list.filter((t) => matchesSelectedBroker(t, selectedBroker));
     }
     return filterByDateRange(list, dateFrom, dateTo, (t) => t.date);
   }, [transactions, selectedProject, selectedBroker, dateFrom, dateTo]);
@@ -125,8 +122,7 @@ const Dashboard = () => {
     if (selectedProject) {
       list = list.filter((row) => matchesClientProject(row, selectedProject.client, selectedProject.project));
     } else if (selectedBroker) {
-      const broker = normText(selectedBroker);
-      list = list.filter((row) => normText(row.client) === broker);
+      list = list.filter((row) => matchesSelectedBroker(row, selectedBroker));
     }
     return filterByDateRange(list, dateFrom, dateTo, expenseDateValue);
   }, [expenses, selectedProject, selectedBroker, dateFrom, dateTo]);
@@ -312,8 +308,7 @@ const Dashboard = () => {
           (row.project || '').trim().toLowerCase() === p
       );
     } else if (selectedBroker) {
-      const b = selectedBroker.trim().toLowerCase();
-      list = list.filter((row) => (row.client || '').trim().toLowerCase() === b);
+      list = list.filter((row) => matchesSelectedBroker(row, selectedBroker));
     }
     return list;
   }, [projects, selectedBroker, selectedProject]);
@@ -344,24 +339,14 @@ const Dashboard = () => {
         <PortfolioLinks />
 
         <FilterBar dateFilter={dateFilter}>
-          <SearchableDropdown
-            label="Broker"
-            value={selectedBroker}
-            onChange={(v) => {
-              setSelectedBroker(v);
-              setSelectedProjectId('');
-            }}
-            options={clientOptions}
-            placeholder="All Brokers"
-            layout="filter"
-          />
-          <SearchableDropdown
-            label="Project"
-            value={projectOptions.find((p) => p.value === selectedProjectId)?.label ?? ''}
-            onChange={(label) => setSelectedProjectId(projectOptions.find((p) => p.label === label)?.value ?? '')}
-            options={projectOptions.map((p) => p.label)}
-            placeholder={selectedBroker ? 'All Projects' : 'Select broker first'}
-            layout="filter"
+          <BrokerProjectFilters
+            brokerOptions={clientOptions}
+            selectedBroker={selectedBroker}
+            onBrokerChange={setSelectedBroker}
+            showProject
+            projectOptions={projectOptions}
+            selectedProjectValue={selectedProjectId}
+            onProjectChange={setSelectedProjectId}
           />
         </FilterBar>
 
@@ -452,20 +437,24 @@ const Dashboard = () => {
           hideFilters={['client', 'project']}
         />
 
-      <TransactionFormModal
-        key={editingTransactionId || 'new'}
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title={editingTransactionId ? 'Edit Transaction' : 'Add Transaction'}
-        initialValues={initialValues}
-        onSubmit={onSubmit}
-        isSaving={isLoading}
-        projects={projects}
-        clientOptions={clientOptions}
-        transactions={transactions}
-        editingTransactionId={editingTransactionId}
-        editingTransaction={editingTransaction}
-      />
+      {isModalOpen ? (
+        <Suspense fallback={null}>
+          <TransactionFormModal
+            key={editingTransactionId || 'new'}
+            isOpen={isModalOpen}
+            onClose={closeModal}
+            title={editingTransactionId ? 'Edit Transaction' : 'Add Transaction'}
+            initialValues={initialValues}
+            onSubmit={onSubmit}
+            isSaving={isLoading}
+            projects={projects}
+            clientOptions={clientOptions}
+            transactions={transactions}
+            editingTransactionId={editingTransactionId}
+            editingTransaction={editingTransaction}
+          />
+        </Suspense>
+      ) : null}
 
       <Modal isOpen={isTargetModalOpen} onClose={closeTargetModal} title="Set Target Amount">
         <div className="space-y-4 min-w-0">

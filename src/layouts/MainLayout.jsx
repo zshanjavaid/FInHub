@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, Outlet } from 'react-router-dom';
-import { LuPanelLeft, LuPanelLeftClose } from 'react-icons/lu';
+import { FiMenu, FiSidebar } from 'react-icons/fi';
 import Sidebar from '../components/Sidebar';
 import Logo from '../components/Logo';
 import PrivacyToggleButton from '../components/PrivacyToggleButton';
@@ -92,9 +92,9 @@ const MainLayout = () => {
                     aria-expanded={isSidebarOpen}
                   >
                     {isSidebarOpen ? (
-                      <LuPanelLeftClose className="w-6 h-6" aria-hidden />
+                      <FiSidebar className="w-6 h-6" aria-hidden />
                     ) : (
-                      <LuPanelLeft className="w-6 h-6" aria-hidden />
+                      <FiMenu className="w-6 h-6" aria-hidden />
                     )}
                   </Press>
                 </div>

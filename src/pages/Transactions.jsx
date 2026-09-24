@@ -6,10 +6,8 @@ import { usePrivacyHidden } from '../contexts/PrivacyContext';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
 import FilterBar from '../components/FilterBar';
-import SearchableDropdown from '../components/SearchableDropdown';
+import BrokerProjectFilters from '../components/BrokerProjectFilters';
 import TransactionTable from '../components/TransactionTable';
-import TransactionFormModal from '../components/TransactionFormModal';
-import ImportTransactionsModal from '../components/ImportTransactionsModal';
 import Modal, { modalActionsClass, modalScrollTableWrapClass, modalScrollTableInnerClass } from '../components/Modal';
 import DeferredMount, { ChartSkeleton } from '../components/DeferredMount';
 import { tableElementClass, tableHeadCellClass, tableBodyCellClass } from '../constants/tableStyles';
@@ -34,6 +32,7 @@ import { shortenChartAxisLabel } from '../utils/chartLabels';
 import { formatMoney, signedMoneyClass } from '../utils/format';
 import { EMPTY_TRANSACTION_FORM, transactionToFormValues } from '../utils/formValues';
 import { toNumber, roundMoney } from '../utils/number';
+import { matchesSelectedBroker } from '../utils/brokerFilter';
 import { transactionNetAfterImpactFund, netFromGrossParts } from '../utils/transactionNet';
 import { transactionHasBrokerageDeduction } from '../utils/availableBalance';
 import { isApproved } from '../constants/app';
@@ -49,6 +48,7 @@ import {
 } from '../utils/transactionsEligibility';
 import { buildExpectedTransactionDatesForMonth, countExpectedPayoutsInRange, getPayoutOccurrenceLabel } from '../utils/payoutSchedule';
 import { computeProjectTaxDollars, computeProjectBrokerageDollars } from '../utils/project';
+import { buildProjectFilterOptions } from '../utils/projectFilterOptions';
 import {
   monthKeyFromYmd,
   planNewMonthlyBrokerageExpense
@@ -61,6 +61,8 @@ import {
 
 const BarChart = lazy(() => import('../components/BarChart'));
 const LineChartChartJS = lazy(() => import('../components/LineChartChartJS'));
+const TransactionFormModal = lazy(() => import('../components/TransactionFormModal'));
+const ImportTransactionsModal = lazy(() => import('../components/ImportTransactionsModal'));
 
 const monthlyTrendInfo = (
   <div className="space-y-2 text-[11px] sm:text-xs text-slate-600 leading-relaxed">
@@ -101,7 +103,7 @@ const Transactions = () => {
   const filteredTransactions = useMemo(() => {
     let list = filterByDateRange(transactions || [], dateFrom, dateTo, (t) => t.date);
     if (selectedBroker) {
-      list = list.filter((t) => (t.client || '').trim().toLowerCase() === selectedBroker.trim().toLowerCase());
+      list = list.filter((t) => matchesSelectedBroker(t, selectedBroker));
     }
     if (selectedProjectId) {
       const [client, project] = selectedProjectId.split('|');
@@ -135,8 +137,7 @@ const Transactions = () => {
           (row.project || '').trim().toLowerCase() === p
       );
     } else if (selectedBroker) {
-      const broker = selectedBroker.trim().toLowerCase();
-      list = list.filter((row) => (row.client || '').trim().toLowerCase() === broker);
+      list = list.filter((row) => matchesSelectedBroker(row, selectedBroker));
     }
     return filterByDateRange(list, dateFrom, dateTo, expenseDateValue);
   }, [expenses, selectedProjectId, selectedBroker, dateFrom, dateTo]);
@@ -278,14 +279,14 @@ const Transactions = () => {
   const clientOptions = useClientOptions(eligibleProjectsForTx);
   const allClientOptions = useClientOptions(projects);
 
-  const projectOptions = useMemo(() => {
-    const list = eligibleProjectsForTx;
-    const filtered = selectedBroker ? list.filter((p) => (p.client || '').trim() === selectedBroker) : list;
-    return filtered.map((p) => ({
-      value: `${(p.client || '').trim()}|${(p.project || '').trim()}`,
-      label: [p.client, p.project].filter(Boolean).join(' – ') || 'Unnamed'
-    }));
-  }, [eligibleProjectsForTx, selectedBroker]);
+  const projectOptions = useMemo(
+    () =>
+      buildProjectFilterOptions(eligibleProjectsForTx, {
+        selectedBroker,
+        valueMode: 'identity'
+      }),
+    [eligibleProjectsForTx, selectedBroker]
+  );
 
   const openAddModal = () => {
     setEditingTransactionId(null);
@@ -547,31 +548,14 @@ const Transactions = () => {
       />
 
         <FilterBar dateFilter={dateFilter}>
-          <SearchableDropdown
-            label="Broker"
-            value={selectedBroker}
-            onChange={(v) => {
-              setSelectedBroker(v);
-              setSelectedProjectId('');
-            }}
-            options={clientOptions}
-            placeholder="All Brokers"
-            layout="filter"
-          />
-          <SearchableDropdown
-            label="Project"
-            value={projectOptions.find((p) => p.value === selectedProjectId)?.label ?? ''}
-            onChange={(label) => {
-              if (!label) {
-                setSelectedProjectId('');
-                return;
-              }
-              const match = projectOptions.find((p) => p.label === label);
-              if (match) setSelectedProjectId(match.value);
-            }}
-            options={projectOptions.map((p) => p.label)}
-            placeholder={selectedBroker ? 'All Projects' : 'Select broker first'}
-            layout="filter"
+          <BrokerProjectFilters
+            brokerOptions={clientOptions}
+            selectedBroker={selectedBroker}
+            onBrokerChange={setSelectedBroker}
+            showProject
+            projectOptions={projectOptions}
+            selectedProjectValue={selectedProjectId}
+            onProjectChange={setSelectedProjectId}
           />
         </FilterBar>
 
@@ -683,30 +667,38 @@ const Transactions = () => {
           hideFilters={['client', 'project']}
         />
 
-      <TransactionFormModal
-        key={editingTransactionId || 'new'}
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title={editingTransactionId ? 'Edit Transaction' : 'Add Transaction'}
-        initialValues={initialValues}
-        onSubmit={onSubmit}
-        isSaving={isLoading}
-        projects={projects}
-        clientOptions={clientOptions}
-        transactions={transactions}
-        editingTransactionId={editingTransactionId}
-        editingTransaction={editingTransaction}
-      />
+      {isModalOpen ? (
+        <Suspense fallback={null}>
+          <TransactionFormModal
+            key={editingTransactionId || 'new'}
+            isOpen={isModalOpen}
+            onClose={closeModal}
+            title={editingTransactionId ? 'Edit Transaction' : 'Add Transaction'}
+            initialValues={initialValues}
+            onSubmit={onSubmit}
+            isSaving={isLoading}
+            projects={projects}
+            clientOptions={clientOptions}
+            transactions={transactions}
+            editingTransactionId={editingTransactionId}
+            editingTransaction={editingTransaction}
+          />
+        </Suspense>
+      ) : null}
 
-      <ImportTransactionsModal
-        isOpen={isImportOpen}
-        onClose={() => setIsImportOpen(false)}
-        projects={projects}
-        transactions={transactions}
-        expenses={expenses}
-        clientOptions={allClientOptions.length ? allClientOptions : clientOptions}
-        user={user}
-      />
+      {isImportOpen ? (
+        <Suspense fallback={null}>
+          <ImportTransactionsModal
+            isOpen={isImportOpen}
+            onClose={() => setIsImportOpen(false)}
+            projects={projects}
+            transactions={transactions}
+            expenses={expenses}
+            clientOptions={allClientOptions.length ? allClientOptions : clientOptions}
+            user={user}
+          />
+        </Suspense>
+      ) : null}
 
       <Modal isOpen={isGenerateOpen} onClose={closeGenerateModal} title="Generate transactions" panelClassName="max-w-3xl">
         <div className="space-y-4 min-w-0">

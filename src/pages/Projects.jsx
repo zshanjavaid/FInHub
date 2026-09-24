@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../contexts/AuthContext';
 import { createProject, editProject, fetchProjects, removeProject } from '../store/projects/projectsSlice';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
 import FilterBar from '../components/FilterBar';
+import BrokerProjectFilters from '../components/BrokerProjectFilters';
 import SearchableDropdown from '../components/SearchableDropdown';
 import ProjectTable from '../components/ProjectTable';
-import ProjectFormModal from '../components/ProjectFormModal';
 import { useDateFilter } from '../hooks/useDateFilter';
 import { useClientOptions } from '../hooks/useClientOptions';
 import { isApproved } from '../constants/app';
@@ -18,7 +18,10 @@ import ProjectInsightsSummaryCard from '../components/ProjectInsightsSummaryCard
 import { prepareProjectForFirestore } from '../utils/project';
 import { EMPTY_PROJECT_FORM, projectToFormValues } from '../utils/formValues';
 import { projectMatchesStatusInRange } from '../utils/transactionsEligibility';
+import { matchesSelectedBroker } from '../utils/brokerFilter';
 import { addMonthsLocalYmd } from '../utils/date';
+
+const ProjectFormModal = lazy(() => import('../components/ProjectFormModal'));
 
 const PROJECT_STATUS_FILTER_LABELS = ['All', 'Active', 'Inactive'];
 
@@ -42,7 +45,7 @@ const Projects = () => {
     let list = (projects || []).filter((p) =>
       projectMatchesStatusInRange(p, statusFilter, dateFrom, dateTo)
     );
-    if (selectedBroker) list = list.filter((p) => (p.client || '').trim() === selectedBroker);
+    if (selectedBroker) list = list.filter((p) => matchesSelectedBroker(p, selectedBroker));
     if (selectedProjectType) list = list.filter((p) => (p.projectType || '').trim() === selectedProjectType);
     return list;
   }, [projects, dateFrom, dateTo, selectedBroker, selectedProjectType, statusFilter]);
@@ -106,13 +109,10 @@ const Projects = () => {
       <PageHeader title="Projects" actions={<Button onClick={openAddModal}>Add Project</Button>} />
 
       <FilterBar dateFilter={dateFilter}>
-        <SearchableDropdown
-          label="Broker"
-          value={selectedBroker}
-          onChange={setSelectedBroker}
-          options={clientOptions}
-          placeholder="All Brokers"
-          layout="filter"
+        <BrokerProjectFilters
+          brokerOptions={clientOptions}
+          selectedBroker={selectedBroker}
+          onBrokerChange={setSelectedBroker}
         />
         <SearchableDropdown
           label="Project Type"
@@ -159,18 +159,22 @@ const Projects = () => {
         hideFilters={['client', 'projectType']}
       />
 
-      <ProjectFormModal
-        key={editingProjectId || 'new'}
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title={editingProjectId ? 'Edit Project' : 'Add Project'}
-        clientOptions={clientOptions}
-        projectTypeOptions={PROJECT_TYPE_OPTIONS}
-        initialValues={initialValues}
-        onSubmit={onSubmit}
-        isSaving={isLoading}
-        projects={projects}
-      />
+      {isModalOpen ? (
+        <Suspense fallback={null}>
+          <ProjectFormModal
+            key={editingProjectId || 'new'}
+            isOpen={isModalOpen}
+            onClose={closeModal}
+            title={editingProjectId ? 'Edit Project' : 'Add Project'}
+            clientOptions={clientOptions}
+            projectTypeOptions={PROJECT_TYPE_OPTIONS}
+            initialValues={initialValues}
+            onSubmit={onSubmit}
+            isSaving={isLoading}
+            projects={projects}
+          />
+        </Suspense>
+      ) : null}
     </PageContainer>
   );
 };

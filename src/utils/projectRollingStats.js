@@ -5,20 +5,46 @@ import { projectInactiveEventYmd } from './transactionsEligibility';
 
 const inRange = (ymd, start, end) => Boolean(ymd && start && end && ymd >= start && ymd <= end);
 
-const countCurrentWindow = (projects, currStartYmd, currEndYmd) => {
-  let onboardCurr = 0;
-  let endedCurr = 0;
+const projectDisplayName = (p) => {
+  const name = String(p?.project || '').trim();
+  if (name) return name;
+  const client = String(p?.client || '').trim();
+  return client || 'Unnamed';
+};
+
+const listCurrentWindow = (projects, currStartYmd, currEndYmd) => {
+  const onboardProjects = [];
+  const endedProjects = [];
   for (const p of projects) {
     const onboard = normalizeDateToYYYYMMDD(p.date);
     const ended = projectInactiveEventYmd(p);
-    if (inRange(onboard, currStartYmd, currEndYmd)) onboardCurr += 1;
-    if (inRange(ended, currStartYmd, currEndYmd)) endedCurr += 1;
+    if (inRange(onboard, currStartYmd, currEndYmd)) {
+      onboardProjects.push({
+        id: p.id || `${projectDisplayName(p)}-onboard-${onboard}`,
+        name: projectDisplayName(p),
+        date: onboard
+      });
+    }
+    if (inRange(ended, currStartYmd, currEndYmd)) {
+      endedProjects.push({
+        id: p.id || `${projectDisplayName(p)}-ended-${ended}`,
+        name: projectDisplayName(p),
+        date: ended
+      });
+    }
   }
-  return { onboardCurr, endedCurr };
+  onboardProjects.sort((a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name));
+  endedProjects.sort((a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name));
+  return {
+    onboardCurr: onboardProjects.length,
+    endedCurr: endedProjects.length,
+    onboardProjects,
+    endedProjects
+  };
 };
 
 /**
- * Rolling 3-month window ending today (counts only; no prior-window comparison).
+ * Rolling 3-month window ending today (counts + project name lists).
  */
 export function computeRollingWindowStats(projects = []) {
   const today = startOfDay(new Date());
@@ -29,22 +55,13 @@ export function computeRollingWindowStats(projects = []) {
   const currEndYmd = normalizeDateToYYYYMMDD(currEnd);
 
   const approved = (projects || []).filter(isApproved);
-  const counts = countCurrentWindow(approved, currStartYmd, currEndYmd);
+  const window = listCurrentWindow(approved, currStartYmd, currEndYmd);
 
   return {
     rangeLabel: `${format(currStart, 'MMM d')} – ${format(currEnd, 'MMM d, yyyy')}`,
-    onboardCurr: counts.onboardCurr,
-    endedCurr: counts.endedCurr
-  };
-}
-
-/** Same calendar window as rolling stats: last 3 months through today (inclusive YYYY-MM-DD). */
-export function getRollingThreeMonthWindowYmd() {
-  const today = startOfDay(new Date());
-  const currStart = addMonths(today, -3);
-  const currEnd = today;
-  return {
-    from: normalizeDateToYYYYMMDD(currStart),
-    to: normalizeDateToYYYYMMDD(currEnd)
+    onboardCurr: window.onboardCurr,
+    endedCurr: window.endedCurr,
+    onboardProjects: window.onboardProjects,
+    endedProjects: window.endedProjects
   };
 }
