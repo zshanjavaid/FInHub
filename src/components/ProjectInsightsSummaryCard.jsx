@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { FiBarChart2 } from 'react-icons/fi';
 import { computeRollingWindowStats } from '../utils/projectRollingStats';
+import { usePrivacyHidden } from '../contexts/PrivacyContext';
+import { PRIVACY_MASK } from '../privacy/privacyStore';
 import {
   chartCardClass,
   chartCardHeaderClass,
@@ -17,6 +19,7 @@ const StatValue = ({ value, valueClassName = 'text-slate-900', title }) => (
 
 /** 3-month onboard / ended activity (all approved projects — ignores page filters). */
 const ProjectInsightsSummaryCard = ({ projects = [], activityProjects = null }) => {
+  const privacyHidden = usePrivacyHidden();
   const activitySource = activityProjects != null ? activityProjects : projects;
 
   const { rangeLabel, onboardCurr, endedCurr } = useMemo(
@@ -61,8 +64,8 @@ const ProjectInsightsSummaryCard = ({ projects = [], activityProjects = null }) 
             </div>
             <div className="rounded-lg bg-slate-50 border border-slate-100 px-2.5 py-2">
               <StatValue
-                value={onboardCurr}
-                valueClassName="text-primary-800"
+                value={privacyHidden ? PRIVACY_MASK : onboardCurr}
+                valueClassName={privacyHidden ? 'text-slate-400' : 'text-primary-800'}
                 title="Projects whose start date falls in this window."
               />
             </div>
@@ -77,8 +80,8 @@ const ProjectInsightsSummaryCard = ({ projects = [], activityProjects = null }) 
             </div>
             <div className="rounded-lg bg-amber-50/80 border border-amber-100/90 px-2.5 py-2">
               <StatValue
-                value={endedCurr}
-                valueClassName="text-amber-900"
+                value={privacyHidden ? PRIVACY_MASK : endedCurr}
+                valueClassName={privacyHidden ? 'text-slate-400' : 'text-amber-900'}
                 title="Projects whose End Date falls in this window (inactive / completed)."
               />
             </div>

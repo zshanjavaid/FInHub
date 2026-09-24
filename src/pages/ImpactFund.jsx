@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { formatMoney, signedMoneyClass } from '../utils/format';
+import { usePrivacyHidden } from '../contexts/PrivacyContext';
 import { fetchTransactions } from '../store/transactions/transactionsSlice';
 import { fetchWithdrawals, createWithdrawal, updateWithdrawal, removeWithdrawal } from '../store/impactFund/impactFundSlice';
 import { FiTrendingDown, FiDollarSign, FiCreditCard } from 'react-icons/fi';
@@ -27,6 +28,7 @@ import {
 } from '../utils/transactionNet';
 
 const ImpactFund = () => {
+  const hidden = usePrivacyHidden();
   const dispatch = useDispatch();
   const transactions = useSelector((state) => state.transactions.items);
   const withdrawals = useSelector((state) => state.impactFund.withdrawals);
@@ -42,6 +44,10 @@ const ImpactFund = () => {
   const [activeTab, setActiveTab] = useState('contrib');
   const [selectedBroker, setSelectedBroker] = useState('');
   const [withdrawError, setWithdrawError] = useState('');
+  const safeWithdrawError =
+    hidden && withdrawError
+      ? 'Amount cannot exceed available balance.'
+      : withdrawError;
 
   useEffect(() => {
     document.title = 'Impact Fund | FinHub';
@@ -337,8 +343,8 @@ const ImpactFund = () => {
               required
               error={!!withdrawError}
             />
-            {withdrawError && (
-              <p className="text-sm text-red-600 mt-1" role="alert">{withdrawError}</p>
+            {safeWithdrawError && (
+              <p className="text-sm text-red-600 mt-1" role="alert">{safeWithdrawError}</p>
             )}
           </div>
           <TextareaField

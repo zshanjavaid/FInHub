@@ -10,6 +10,8 @@ import {
   chartPlotHeightClass
 } from '../constants/chartCardStyles';
 import { useCompactChart } from '../hooks/useCompactChart';
+import { usePrivacyHidden } from '../contexts/PrivacyContext';
+import PrivacyChartPlaceholder from './PrivacyChartPlaceholder';
 import {
   themeText,
   themeMuted,
@@ -25,6 +27,7 @@ ensureChartJsRegistered();
 
 const LineChartChartJS = ({ data, labels, title = 'Line Chart', headerRight = null, info = null, className = '', stacked = false }) => {
   const compact = useCompactChart();
+  const privacyHidden = usePrivacyHidden();
 
   const chartData = useMemo(() => {
     const fewPoints = (labels || []).length <= 2;
@@ -32,9 +35,10 @@ const LineChartChartJS = ({ data, labels, title = 'Line Chart', headerRight = nu
       labels,
       datasets: (data || []).map((dataset, index) => {
         const color = dataset.color || '#0d9488';
+        const values = privacyHidden ? (dataset.values || []).map(() => 0) : dataset.values;
         return {
           label: dataset.label,
-          data: dataset.values,
+          data: values,
           borderColor: color,
           backgroundColor: (ctx) => {
             if (dataset.fill === false) return 'transparent';
@@ -59,7 +63,7 @@ const LineChartChartJS = ({ data, labels, title = 'Line Chart', headerRight = nu
         };
       })
     };
-  }, [data, labels, compact, stacked]);
+  }, [data, labels, compact, stacked, privacyHidden]);
 
   const options = useMemo(
     () => ({
@@ -169,9 +173,13 @@ const LineChartChartJS = ({ data, labels, title = 'Line Chart', headerRight = nu
         {headerRight ? <div className="shrink-0 text-right ml-auto">{headerRight}</div> : null}
       </div>
       <div className={`${chartPlotWrapClass} flex-1 flex flex-col min-h-0`}>
-        <div className={`${chartPlotHeightClass} flex-1`}>
-          <Line data={chartData} options={options} />
-        </div>
+        {privacyHidden ? (
+          <PrivacyChartPlaceholder />
+        ) : (
+          <div className={`${chartPlotHeightClass} flex-1`}>
+            <Line data={chartData} options={options} />
+          </div>
+        )}
       </div>
     </div>
   );

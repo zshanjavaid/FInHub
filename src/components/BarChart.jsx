@@ -10,6 +10,8 @@ import {
   chartPlotHeightClass
 } from '../constants/chartCardStyles';
 import { useCompactChart } from '../hooks/useCompactChart';
+import { usePrivacyHidden } from '../contexts/PrivacyContext';
+import PrivacyChartPlaceholder from './PrivacyChartPlaceholder';
 import {
   themePrimary,
   themeText,
@@ -25,6 +27,7 @@ ensureChartJsRegistered();
 
 const BarChart = ({ data, labels, title = 'Bar Chart', fullLabels = null, headerRight = null }) => {
   const compact = useCompactChart();
+  const privacyHidden = usePrivacyHidden();
   const tipLabels = fullLabels && fullLabels.length === (labels || []).length ? fullLabels : labels;
 
   const chartData = useMemo(
@@ -32,7 +35,7 @@ const BarChart = ({ data, labels, title = 'Bar Chart', fullLabels = null, header
       labels,
       datasets: (data || []).map((dataset) => ({
         label: dataset.label,
-        data: dataset.values,
+        data: privacyHidden ? (dataset.values || []).map(() => 0) : dataset.values,
         backgroundColor: dataset.color || themePrimary,
         borderColor: dataset.color || themePrimary,
         borderWidth: 0,
@@ -40,7 +43,7 @@ const BarChart = ({ data, labels, title = 'Bar Chart', fullLabels = null, header
         borderSkipped: false
       }))
     }),
-    [data, labels]
+    [data, labels, privacyHidden]
   );
 
   const options = useMemo(
@@ -127,9 +130,13 @@ const BarChart = ({ data, labels, title = 'Bar Chart', fullLabels = null, header
         {headerRight ? <div className="shrink-0 text-right ml-auto">{headerRight}</div> : null}
       </div>
       <div className={chartPlotWrapClass}>
-        <div className={chartPlotHeightClass}>
-          <Bar data={chartData} options={options} />
-        </div>
+        {privacyHidden ? (
+          <PrivacyChartPlaceholder />
+        ) : (
+          <div className={chartPlotHeightClass}>
+            <Bar data={chartData} options={options} />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -5,7 +5,9 @@ import { formatMoney } from '../utils/format';
 import { buildProjectInwardCostChartRows } from '../utils/projectInwardCostChart';
 import { shortenChartAxisLabel } from '../utils/chartLabels';
 import { useDateFilter } from '../hooks/useDateFilter';
+import { usePrivacyHidden } from '../contexts/PrivacyContext';
 import DateFilterControls from './DateFilterControls';
+import PrivacyChartPlaceholder from './PrivacyChartPlaceholder';
 import {
   chartCardClass,
   chartCardHeaderClass,
@@ -38,6 +40,7 @@ const ProjectInwardCostBar = ({
   className = ''
 }) => {
   const compact = useCompactChart();
+  const privacyHidden = usePrivacyHidden();
   const chartDateFilter = useDateFilter({ defaultMode: 'month' });
   const controlled = dateFromProp != null || dateToProp != null;
   const effectiveDateFrom = controlled ? dateFromProp || '' : chartDateFilter.effectiveDateFrom;
@@ -218,7 +221,9 @@ const ProjectInwardCostBar = ({
             Showing the {MAX_BARS} largest projects by combined total.
           </p>
         ) : null}
-        {hasData ? (
+        {privacyHidden ? (
+          <PrivacyChartPlaceholder />
+        ) : hasData ? (
           <div className={`${chartPlotHeightClass} flex-1`}>
             <Bar data={chartData} options={options} />
           </div>

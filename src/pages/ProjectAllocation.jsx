@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { FiDollarSign, FiTrendingUp, FiPieChart, FiMenu, FiArrowRight, FiArrowLeft } from 'react-icons/fi';
 import { fetchProjects, createProject } from '../store/projects/projectsSlice';
 import { formatMoney } from '../utils/format';
+import { usePrivacyHidden } from '../contexts/PrivacyContext';
 import { getProjectMonthlyAllocationAmount, prepareProjectForFirestore } from '../utils/project';
 import { EMPTY_PROJECT_FORM } from '../utils/formValues';
 import { addMonthsLocalYmd, getCurrentYearMonth } from '../utils/date';
@@ -19,7 +20,9 @@ import Button from '../components/Button';
 import ProjectFormModal from '../components/ProjectFormModal';
 import { projectIdentityKey } from '../utils/projectLookup';
 
-const ProjectCard = ({ project, isDragging, onDragStart, onDragEnd, moveButton }) => (
+const ProjectCard = ({ project, isDragging, onDragStart, onDragEnd, moveButton }) => {
+  usePrivacyHidden();
+  return (
   <div
     draggable
     onDragStart={onDragStart}
@@ -52,7 +55,8 @@ const ProjectCard = ({ project, isDragging, onDragStart, onDragEnd, moveButton }
       )}
     </div>
   </div>
-);
+  );
+};
 
 const DropZone = ({ children, onDragOver, onDrop, onDragLeave, isOver, label }) => (
   <div
@@ -69,6 +73,7 @@ const DropZone = ({ children, onDragOver, onDrop, onDragLeave, isOver, label }) 
 );
 
 const ProjectAllocation = () => {
+  usePrivacyHidden();
   const dispatch = useDispatch();
   const { user } = useAuth();
   const projects = useSelector((state) => state.projects.items);

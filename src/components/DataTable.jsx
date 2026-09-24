@@ -4,6 +4,7 @@ import { FiSearch, FiChevronDown, FiFileText, FiMoreVertical } from 'react-icons
 import SearchableDropdown from './SearchableDropdown';
 import Loader from './Loader';
 import DeleteConfirmModal from './DeleteConfirmModal';
+import { usePrivacyHidden } from '../contexts/PrivacyContext';
 import {
   tableElementClass,
   tableHeadCellClass,
@@ -41,6 +42,9 @@ const DataTable = ({
   headerSummary = null,
   sortCompare = null
 }) => {
+  // Re-render when privacy toggles so column formatters re-read the mask.
+  usePrivacyHidden();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterValues, setFilterValues] = useState({});
   const [openDropdownIndex, setOpenDropdownIndex] = useState(null);

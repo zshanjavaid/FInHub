@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import FormModal from './FormModal';
 import { FiUser, FiFileText, FiDollarSign, FiCalendar } from 'react-icons/fi';
 import { formatMoney, signedMoneyClass } from '../utils/format';
+import { usePrivacyHidden } from '../contexts/PrivacyContext';
 import { HiOutlineCurrencyDollar, HiOutlinePercentBadge } from 'react-icons/hi2';
 import { normalizeDateToYYYYMMDD, todayLocalYmd } from '../utils/date';
 import { isApproved } from '../constants/app';
@@ -33,6 +34,7 @@ const TransactionFormModal = ({
   editingTransactionId = null,
   editingTransaction = null
 }) => {
+  usePrivacyHidden();
   const today = todayLocalYmd();
   const [submitError, setSubmitError] = useState('');
   const normalizedInitialValues = {

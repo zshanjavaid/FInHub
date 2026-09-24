@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { FiInfo, FiTrendingUp } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
+import { usePrivacyHidden } from '../contexts/PrivacyContext';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
 import FilterBar from '../components/FilterBar';
@@ -74,6 +75,7 @@ const monthlyTrendInfo = (
 );
 
 const Transactions = () => {
+  usePrivacyHidden();
   const dispatch = useDispatch();
   const { user } = useAuth();
 

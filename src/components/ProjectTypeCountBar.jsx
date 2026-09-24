@@ -4,9 +4,14 @@ import {
   PROJECT_TYPE_COLORS,
   countProjectsByType
 } from '../constants/projectTypes';
+import { usePrivacyHidden } from '../contexts/PrivacyContext';
+import { PRIVACY_MASK } from '../privacy/privacyStore';
 
 const ProjectTypeCountBar = ({ projects = [] }) => {
+  const privacyHidden = usePrivacyHidden();
   const { counts, unset, total } = useMemo(() => countProjectsByType(projects), [projects]);
+
+  const display = (n) => (privacyHidden ? PRIVACY_MASK : n);
 
   return (
     <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end w-full sm:w-auto">
@@ -19,7 +24,7 @@ const ProjectTypeCountBar = ({ projects = [] }) => {
         >
           <span>{value}</span>
           <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-white/70 text-[11px] font-extrabold tabular-nums">
-            {counts[value] ?? 0}
+            {display(counts[value] ?? 0)}
           </span>
         </span>
       ))}
@@ -27,14 +32,14 @@ const ProjectTypeCountBar = ({ projects = [] }) => {
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
           <span>Unset</span>
           <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-white/70 text-[11px] font-extrabold tabular-nums">
-            {unset}
+            {display(unset)}
           </span>
         </span>
       ) : null}
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-white">
         <span>Total</span>
         <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-white/20 text-[11px] font-extrabold tabular-nums">
-          {total}
+          {display(total)}
         </span>
       </span>
     </div>

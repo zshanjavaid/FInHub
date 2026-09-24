@@ -10,6 +10,7 @@ import {
 import { fetchExpenses } from '../store/expenses/expensesSlice';
 import { syncMonthlyBrokerageExpense } from '../utils/ensureMonthlyBrokerageExpense';
 import { useAuth } from '../contexts/AuthContext';
+import { usePrivacyHidden } from '../contexts/PrivacyContext';
 import { getTargetAmount, setTargetAmount } from '../services/settingsService';
 import { formatMoney, signedMoneyClass } from '../utils/format';
 import { filterByDateRange, monthSlotsForRange, calendarYearMonthSlots, addIntoMonthSlots, MONTH_NAMES, normalizeDateToYYYYMMDD, expenseDateValue } from '../utils/date';
@@ -42,6 +43,7 @@ const BarChart = lazy(() => import('../components/BarChart'));
 const ActiveProjectsYearComparisonChart = lazy(() => import('../components/ActiveProjectsYearComparisonChart'));
 
 const Dashboard = () => {
+  usePrivacyHidden();
   const dispatch = useDispatch();
 
   const projects = useSelector((state) => state.projects.items);

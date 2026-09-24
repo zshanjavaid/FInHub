@@ -7,6 +7,7 @@ import SearchableDropdown from './SearchableDropdown';
 import ProjectFormModal from './ProjectFormModal';
 import { tableElementClass, tableHeadCellClass, tableBodyCellClass } from '../constants/tableStyles';
 import { formatMoney } from '../utils/format';
+import { usePrivacyHidden } from '../contexts/PrivacyContext';
 import { prepareProjectForFirestore } from '../utils/project';
 import { createProject } from '../store/projects/projectsSlice';
 import { createTransactionsBulk, editTransaction } from '../store/transactions/transactionsSlice';
@@ -63,6 +64,7 @@ const ImportTransactionsModal = ({
   clientOptions = [],
   user = null
 }) => {
+  usePrivacyHidden();
   const dispatch = useDispatch();
   const fileInputRef = useRef(null);
 

@@ -3,10 +3,43 @@ import { FiUser } from 'react-icons/fi';
 import { PROJECT_TYPE_COLORS } from '../constants/projectTypes';
 import { isProjectContractEndingAlert } from '../utils/date';
 import { formatMoney } from '../utils/format';
+import { getPrivacyHidden, PRIVACY_MASK } from '../privacy/privacyStore';
 import { PAYOUT_OCCURRENCE_LABEL_BY_VALUE } from '../constants/payoutOccurrences';
 import PersonBadge from './PersonBadge';
 import ProjectTypeCountBar from './ProjectTypeCountBar';
 import { getEffectiveProjectStatus } from '../utils/transactionsEligibility';
+
+const maskStat = (value) => {
+  if (getPrivacyHidden()) return PRIVACY_MASK;
+  if (value === '' || value == null) return '-';
+  return value;
+};
+
+const formatBrokerage = (project) => {
+  if (!project.brokerageValue && project.brokerageValue !== 0) return '-';
+  if (getPrivacyHidden()) return PRIVACY_MASK;
+  return project.brokerageType === 'percentage'
+    ? `${project.brokerageValue}%`
+    : formatMoney(project.brokerageValue);
+};
+
+const formatTax = (project) => {
+  if (getPrivacyHidden()) {
+    const hasTax =
+      (project.taxValue !== '' && project.taxValue != null) ||
+      (project.taxAmount !== '' && project.taxAmount != null && Number(project.taxAmount) !== 0);
+    return hasTax ? PRIVACY_MASK : '-';
+  }
+  if (project.taxType === 'percentage' && project.taxValue !== '' && project.taxValue != null) {
+    return `${project.taxValue}%`;
+  }
+  if (project.taxType === 'fixed' && project.taxValue !== '' && project.taxValue != null) {
+    return formatMoney(project.taxValue);
+  }
+  const n = Number(project.taxAmount);
+  if (project.taxAmount === '' || project.taxAmount == null || !Number.isFinite(n) || n === 0) return '-';
+  return formatMoney(n);
+};
 
 const ProjectTable = ({
   projects,
@@ -70,8 +103,19 @@ const ProjectTable = ({
         );
       }
     },
-    { key: 'totalMonthlyHours', label: 'Monthly Hours' },
-    { key: 'hourlyRate', label: 'Hourly Rate' },
+    {
+      key: 'totalMonthlyHours',
+      label: 'Monthly Hours',
+      render: (v) => maskStat(v)
+    },
+    {
+      key: 'hourlyRate',
+      label: 'Hourly Rate',
+      render: (v) => {
+        if (v === '' || v == null) return '-';
+        return formatMoney(v);
+      }
+    },
     {
       key: 'projectCost',
       label: 'Project Cost',
@@ -82,27 +126,12 @@ const ProjectTable = ({
     {
       key: 'brokerage',
       label: 'Brokerage',
-      render: (_, project) => {
-        if (!project.brokerageValue) return '-';
-        return project.brokerageType === 'percentage'
-          ? `${project.brokerageValue}%`
-          : `$${project.brokerageValue}`;
-      }
+      render: (_, project) => formatBrokerage(project)
     },
     {
       key: 'taxDisplay',
       label: 'Tax',
-      render: (_, project) => {
-        if (project.taxType === 'percentage' && project.taxValue !== '' && project.taxValue != null) {
-          return `${project.taxValue}%`;
-        }
-        if (project.taxType === 'fixed' && project.taxValue !== '' && project.taxValue != null) {
-          return formatMoney(project.taxValue);
-        }
-        const n = Number(project.taxAmount);
-        if (project.taxAmount === '' || project.taxAmount == null || !Number.isFinite(n) || n === 0) return '-';
-        return formatMoney(n);
-      }
+      render: (_, project) => formatTax(project)
     }
   ];
 
