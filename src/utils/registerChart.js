@@ -31,6 +31,14 @@ export function ensureChartJsRegistered() {
   ChartJS.defaults.font.family = chartFontFamily;
   ChartJS.defaults.animation = false;
   ChartJS.defaults.transitions.active.animation.duration = 0;
-  ChartJS.defaults.resizeDelay = 150;
+  ChartJS.defaults.transitions.resize.animation.duration = 0;
+  ChartJS.defaults.resizeDelay = 250;
+  // Cap DPR so retina canvases stay sharp enough without 3× paint cost while scrolling.
+  ChartJS.defaults.devicePixelRatio = Math.min(
+    typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
+    1.5
+  );
+  // Avoid clearing to transparent (white flash) when Chart.js redraws.
+  ChartJS.defaults.backgroundColor = '#ffffff';
   registered = true;
 }

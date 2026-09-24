@@ -87,11 +87,20 @@ const SearchableDropdown = ({
     };
 
     place();
-    window.addEventListener('resize', place);
-    window.addEventListener('scroll', place, true);
+    let raf = 0;
+    const onScrollOrResize = () => {
+      if (raf) return;
+      raf = window.requestAnimationFrame(() => {
+        raf = 0;
+        place();
+      });
+    };
+    window.addEventListener('resize', onScrollOrResize);
+    window.addEventListener('scroll', onScrollOrResize, { capture: true, passive: true });
     return () => {
-      window.removeEventListener('resize', place);
-      window.removeEventListener('scroll', place, true);
+      if (raf) window.cancelAnimationFrame(raf);
+      window.removeEventListener('resize', onScrollOrResize);
+      window.removeEventListener('scroll', onScrollOrResize, true);
     };
   }, [isOpen, filteredOptions.length]);
 

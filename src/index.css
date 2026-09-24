@@ -31,7 +31,7 @@
   body {
     @apply min-h-screen text-slate-800 antialiased;
     color: var(--fh-ink);
-    background-color: transparent;
+    background-color: var(--fh-surface);
   }
 
   body::before {
@@ -52,6 +52,21 @@
 
   #root {
     @apply min-h-screen relative z-[1];
+  }
+
+  /* Paint the surface on the scroller itself so content does not composite
+     through transparency onto the fixed body backdrop (that causes scroll flash). */
+  .fh-scroll-root {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    background-color: var(--fh-surface);
+    background-image:
+      linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15, 23, 42, 0.024) 1px, transparent 1px),
+      radial-gradient(ellipse 90% 60% at 100% -10%, rgba(13, 148, 136, 0.07), transparent 55%),
+      radial-gradient(ellipse 70% 50% at -5% 100%, rgba(15, 23, 42, 0.04), transparent 50%),
+      linear-gradient(165deg, var(--fh-surface-2) 0%, var(--fh-surface) 45%, var(--fh-surface-3) 100%);
+    background-size: 32px 32px, 32px 32px, auto, auto, auto;
   }
 
   ::selection {
@@ -174,7 +189,6 @@ svg.fh-icon-live {
   display: block;
   transform-origin: 50% 50%;
   transform-box: view-box;
-  will-change: transform;
 }
 
 svg.fh-icon-live--home {
@@ -305,11 +319,9 @@ svg.fh-icon-live--logout {
 @keyframes finhub-logo-peak {
   0%, 100% {
     transform: scale(1);
-    filter: drop-shadow(0 0 0 transparent);
   }
   50% {
     transform: scale(1.15);
-    filter: drop-shadow(0 0 5px rgb(94 234 212 / 0.7));
   }
 }
 
@@ -448,7 +460,6 @@ svg.fh-icon-live--logout {
     top 0.35s cubic-bezier(0.22, 1, 0.36, 1),
     height 0.35s cubic-bezier(0.22, 1, 0.36, 1),
     opacity 0.2s ease;
-  will-change: top, height;
 }
 
 /* ——— FinHub buttons — fill hover ——— */
