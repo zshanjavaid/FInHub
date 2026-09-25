@@ -22,6 +22,7 @@ import { matchesSelectedBroker } from '../utils/brokerFilter';
 import { EMPTY_TRANSACTION_FORM, transactionToFormValues } from '../utils/formValues';
 import { matchesClientProject } from '../utils/projectLookup';
 import { buildProjectFilterOptions } from '../utils/projectFilterOptions';
+import { projectInactiveEventYmd } from '../utils/transactionsEligibility';
 import { isApproved } from '../constants/app';
 import { isDashboardActiveProject, DASHBOARD_ACTIVE_PROJECT_TYPES, PROJECT_TYPE_COLORS } from '../constants/projectTypes';
 import { useClientOptions } from '../hooks/useClientOptions';
@@ -38,7 +39,7 @@ import InputField from '../components/InputField';
 import TransactionTable from '../components/TransactionTable';
 import PortfolioLinks from '../components/PortfolioLinks';
 import DeferredMount, { ChartSkeleton } from '../components/DeferredMount';
-import { FiDollarSign, FiTarget, FiEdit2, FiBriefcase, FiCreditCard } from 'react-icons/fi';
+import { FiDollarSign, FiTarget, FiEdit2, FiBriefcase, FiCreditCard, FiPercent, FiCheckCircle, FiPieChart } from 'react-icons/fi';
 
 const BarChart = lazy(() => import('../components/BarChart'));
 const ActiveProjectsYearComparisonChart = lazy(() => import('../components/ActiveProjectsYearComparisonChart'));
@@ -260,23 +261,53 @@ const Dashboard = () => {
     })).filter((chip) => chip.value > 0);
   }, [projects]);
 
-  const { inwardPct, expensePct, totalInward, totalExpense, availableAmount } = useMemo(() => {
-    const inward = sumTransactionNetAfterImpactFund(approvedTransactions);
-    const expense = sumExpenseAmounts(approvedExpenses);
-    const mix = inward + expense;
-    const pct = mix === 0
-      ? { inwardPct: 0, expensePct: 0 }
-      : {
-          inwardPct: Math.round((inward / mix) * 100),
-          expensePct: Math.round((expense / mix) * 100)
-        };
-    return {
-      ...pct,
-      totalInward: inward,
-      totalExpense: expense,
-      availableAmount: inward - expense
-    };
-  }, [approvedTransactions, approvedExpenses]);
+  const { inwardPct, expensePct, totalInward, totalExpense, availableAmount, grossRevenue, totalBrokerage, topClientConcentration } =
+    useMemo(() => {
+      const inward = sumTransactionNetAfterImpactFund(approvedTransactions);
+      const expense = sumExpenseAmounts(approvedExpenses);
+      const mix = inward + expense;
+      const pct =
+        mix === 0
+          ? { inwardPct: 0, expensePct: 0 }
+          : {
+              inwardPct: Math.round((inward / mix) * 100),
+              expensePct: Math.round((expense / mix) * 100)
+            };
+
+      let gross = 0;
+      let brokerage = 0;
+      const byClient = new Map();
+      for (const t of approvedTransactions || []) {
+        const amount = toNumber(t.amount);
+        const brokerageAmount = toNumber(t.brokerageAmount);
+        gross += amount;
+        brokerage += brokerageAmount;
+        if (amount > 0) {
+          const client = String(t.client || '').trim() || 'Unknown';
+          byClient.set(client, (byClient.get(client) || 0) + amount);
+        }
+      }
+
+      let topClient = null;
+      let topAmt = 0;
+      for (const [client, amt] of byClient) {
+        if (amt > topAmt) {
+          topAmt = amt;
+          topClient = client;
+        }
+      }
+      const concentrationPct = gross > 0 ? Math.round((topAmt / gross) * 100) : 0;
+
+      return {
+        ...pct,
+        totalInward: inward,
+        totalExpense: expense,
+        availableAmount: inward - expense,
+        grossRevenue: gross,
+        totalBrokerage: brokerage,
+        topClientConcentration: { pct: concentrationPct, client: topClient }
+      };
+    }, [approvedTransactions, approvedExpenses]);
 
   const chartSeries = useMemo(
     () => [
@@ -312,6 +343,18 @@ const Dashboard = () => {
     }
     return list;
   }, [projects, selectedBroker, selectedProject]);
+
+  /** End Date / inactive event falls inside the selected date filter (hidden when filter is All). */
+  const projectsCompletedInRange = useMemo(() => {
+    if (!dateFrom && !dateTo) return null;
+    return projectsForAnnualChart.filter((p) => {
+      const ended = projectInactiveEventYmd(p);
+      if (!ended) return false;
+      if (dateFrom && ended < dateFrom) return false;
+      if (dateTo && ended > dateTo) return false;
+      return true;
+    }).length;
+  }, [projectsForAnnualChart, dateFrom, dateTo]);
 
   return (
     <PageContainer>
@@ -352,12 +395,30 @@ const Dashboard = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
           <StatCard
+            label="Gross Revenue"
+            value={formatMoney(grossRevenue)}
+            icon={<FiDollarSign className="w-5 h-5" />}
+            valueClassName="text-emerald-700"
+            iconClassName="text-emerald-600"
+            iconWrapClassName="bg-emerald-50 ring-1 ring-emerald-100/80"
+            borderClassName="border-t-emerald-600"
+          />
+          <StatCard
             label="Total Inward"
             value={formatMoney(totalInward)}
             icon={<FiTarget className="w-5 h-5" />}
             valueClassName="text-primary-700"
             iconClassName="text-primary-600"
             borderClassName="border-t-primary-600"
+          />
+          <StatCard
+            label="Total Brokerage"
+            value={formatMoney(totalBrokerage)}
+            icon={<FiPercent className="w-5 h-5" />}
+            valueClassName="text-violet-700"
+            iconClassName="text-violet-600"
+            iconWrapClassName="bg-violet-50 ring-1 ring-violet-100/80"
+            borderClassName="border-t-violet-600"
           />
           <StatCard
             label="Total Expense"
@@ -389,6 +450,35 @@ const Dashboard = () => {
             iconClassName="text-primary-600"
             borderClassName="border-t-primary-600"
             chips={activeProjectCountByType}
+          />
+          {projectsCompletedInRange != null ? (
+            <StatCard
+              label="Projects Completed"
+              value={projectsCompletedInRange}
+              icon={<FiCheckCircle className="w-5 h-5" />}
+              valueClassName="text-slate-800"
+              iconClassName="text-slate-600"
+              iconWrapClassName="bg-slate-100 ring-1 ring-slate-200/80"
+              borderClassName="border-t-slate-500"
+            />
+          ) : null}
+          <StatCard
+            label="Top Client Concentration"
+            value={`${topClientConcentration.pct}%`}
+            icon={<FiPieChart className="w-5 h-5" />}
+            valueClassName="text-amber-800"
+            iconClassName="text-amber-600"
+            iconWrapClassName="bg-amber-50 ring-1 ring-amber-100/80"
+            borderClassName="border-t-amber-500"
+            hint={
+              topClientConcentration.client ? (
+                <p className="text-xs font-light text-slate-500 truncate">
+                  Client: {topClientConcentration.client}
+                </p>
+              ) : (
+                <p className="text-xs font-light text-slate-500">No inward in range</p>
+              )
+            }
           />
         </div>
 
