@@ -4,7 +4,7 @@ import { countExpectedPayoutsInRange } from './payoutSchedule';
 import { isProjectEligibleForAutoGenerateMonth } from './transactionsEligibility';
 import { transactionNetAfterImpactFund } from './transactionNet';
 import { latestProjectByIdentity, matchesClientProject, projectIdentityKey } from './projectLookup';
-import { normText } from './number';
+import { normText, roundMoney } from './number';
 
 const monthBounds = (year, monthIndex0) => {
   // Normalize so Jan (monthIndex0 - 1) → Dec prior year, Dec + 1 → Jan next year.
@@ -20,10 +20,22 @@ const monthBounds = (year, monthIndex0) => {
   };
 };
 
+/** Clip month end to contract end date when the project finishes mid-month. */
+const rangeToWithContractEnd = (monthTo, contractEndingYmd) => {
+  if (!contractEndingYmd) return monthTo;
+  return contractEndingYmd < monthTo ? contractEndingYmd : monthTo;
+};
+
 /**
- * Next-month estimate = previous calendar month total inward,
- * minus inward from projects that still have missing expected payouts
- * (weekly=4 / biweekly=2 / monthly=1 via countExpectedPayoutsInRange).
+ * Next-month estimate (forward-looking):
+ * For each project that had inward last month, take average $ per payout received,
+ * then multiply by how many payouts that project is expected to get next month
+ * (monthly / biweekly / weekly via countExpectedPayoutsInRange, same as auto-generate).
+ *
+ * End Date rules:
+ * - Ends before next month starts → $0 for that project
+ * - Ends mid-month → only payouts that fall on/before End Date
+ * - Ends on/after month end → full expected count for the month
  */
 export const computeNextMonthEstimatedAmount = ({
   projects = [],
@@ -49,7 +61,7 @@ export const computeNextMonthEstimatedAmount = ({
     return ymd && ymd >= prev.from && ymd <= prev.to;
   });
 
-  const prevMonthTotal = prevMonthTxs.reduce((s, t) => s + transactionNetAfterImpactFund(t), 0);
+  const previousMonthTotal = prevMonthTxs.reduce((s, t) => s + transactionNetAfterImpactFund(t), 0);
 
   const inwardByProject = new Map();
   const countByProject = new Map();
@@ -70,24 +82,48 @@ export const computeNextMonthEstimatedAmount = ({
   }
 
   const latestByKey = latestProjectByIdentity(projectsList);
-  let missingProjectsInward = 0;
+  let estimated = 0;
+  let excludedInward = 0;
 
   latestByKey.forEach((p, key) => {
-    if (!isProjectEligibleForAutoGenerateMonth(p, prev.from, prev.to)) return;
-    const expected = countExpectedPayoutsInRange(p, prev.from, prev.to);
-    if (expected <= 0) return;
-    const actual = countByProject.get(key) || 0;
-    const missing = Math.max(0, expected - actual);
-    if (missing <= 0) return;
-    missingProjectsInward += inwardByProject.get(key) || 0;
+    const prevInward = inwardByProject.get(key) || 0;
+    if (prevInward <= 0) return;
+
+    const actualPrev = countByProject.get(key) || 0;
+    if (actualPrev <= 0) return;
+
+    const contractEnd = normalizeDateToYYYYMMDD(p.contractEnding);
+
+    // Finished before next month starts → drop that project's last-month inward.
+    if (contractEnd && contractEnd < next.from) {
+      excludedInward += prevInward;
+      return;
+    }
+
+    if (!isProjectEligibleForAutoGenerateMonth(p, next.from, next.to)) {
+      excludedInward += prevInward;
+      return;
+    }
+
+    const nextTo = rangeToWithContractEnd(next.to, contractEnd);
+    const nextExpected = countExpectedPayoutsInRange(p, next.from, nextTo);
+    if (nextExpected <= 0) {
+      excludedInward += prevInward;
+      return;
+    }
+
+    const perPayout = prevInward / actualPrev;
+    estimated += perPayout * nextExpected;
   });
 
-  const estimated = Math.max(0, Number((prevMonthTotal - missingProjectsInward).toFixed(2)));
+  estimated = Math.max(0, roundMoney(estimated));
 
   return {
     estimated,
-    previousMonthTotal: Number(prevMonthTotal.toFixed(2)),
-    missingProjectsInward: Number(missingProjectsInward.toFixed(2)),
+    previousMonthTotal: roundMoney(previousMonthTotal),
+    excludedInward: roundMoney(excludedInward),
+    // Kept for any older callers that still read this field.
+    missingProjectsInward: roundMoney(excludedInward),
     previousMonthKey: prev.monthKey,
     nextMonthKey: next.monthKey
   };
