@@ -1,76 +1,49 @@
-import { button as MotionButton, div as MotionDiv } from 'motion/react-m';
-import { enterTransition, overlayTransition, tapTransition } from './tokens';
+/**
+ * CSS-backed motion primitives (same API as before, no Motion.js).
+ * Hover/tap/enter animations live in index.css (.fh-lift, .fh-press, …).
+ */
 
 export const Overlay = ({ className = '', children, onClick, style, ...rest }) => (
-  <MotionDiv
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    exit={{ opacity: 0, pointerEvents: 'none' }}
-    transition={overlayTransition}
-    className={className}
-    style={style}
-    onClick={onClick}
-    {...rest}
-  >
+  <div className={`fh-overlay ${className}`.trim()} style={style} onClick={onClick} {...rest}>
     {children}
-  </MotionDiv>
+  </div>
 );
 
 export const OverlayButton = ({ className = '', children, ...rest }) => (
-  <MotionButton
-    type="button"
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    exit={{ opacity: 0, pointerEvents: 'none' }}
-    transition={overlayTransition}
-    className={className}
-    {...rest}
-  >
+  <button type="button" className={`fh-overlay fh-overlay-btn ${className}`.trim()} {...rest}>
     {children}
-  </MotionButton>
+  </button>
 );
 
 export const PopIn = ({ className = '', children, onClick, ...rest }) => (
-  <MotionDiv
-    initial={{ opacity: 0, y: 18 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: 12 }}
-    transition={enterTransition}
-    className={className}
-    onClick={onClick}
-    {...rest}
-  >
+  <div className={`fh-pop-in ${className}`.trim()} onClick={onClick} {...rest}>
     {children}
-  </MotionDiv>
+  </div>
 );
 
-export const Rise = ({ className = '', children, delay = 0, ...rest }) => (
-  <MotionDiv
-    initial={{ opacity: 0, y: 8 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ ...enterTransition, delay }}
-    className={className}
+export const Rise = ({ className = '', children, delay = 0, style, ...rest }) => (
+  <div
+    className={`fh-rise ${className}`.trim()}
+    style={delay ? { ...style, animationDelay: `${delay}s` } : style}
     {...rest}
   >
     {children}
-  </MotionDiv>
+  </div>
 );
 
 export const Press = ({ className = '', children, disabled, hoverLift = false, ...rest }) => (
-  <MotionButton
-    whileTap={disabled ? undefined : { scale: 0.97 }}
-    whileHover={hoverLift && !disabled ? { y: -2 } : undefined}
-    transition={tapTransition}
+  <button
+    type="button"
     disabled={disabled}
-    className={className}
+    className={`fh-press ${hoverLift ? 'fh-press-lift' : ''} ${className}`.trim()}
     {...rest}
   >
     {children}
-  </MotionButton>
+  </button>
 );
 
 export const Lift = ({ className = '', children, ...rest }) => (
-  <MotionDiv whileHover={{ y: -2 }} transition={tapTransition} className={className} {...rest}>
+  <div className={`fh-lift ${className}`.trim()} {...rest}>
     {children}
-  </MotionDiv>
+  </div>
 );

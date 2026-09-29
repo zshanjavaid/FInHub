@@ -102,8 +102,13 @@ const ProjectAllocation = () => {
       .filter((p) => String(p.projectStatus || 'active').trim().toLowerCase() === 'active');
     const monthKey = getCurrentYearMonth();
     return list
-      .map((p) => {
-        const key = projectIdentityKey(p.client, p.project);
+      .map((p, index) => {
+        // Prefer Firestore id so duplicate client/project names move independently.
+        const identity = projectIdentityKey(p.client, p.project);
+        const key =
+          p.id != null && String(p.id).trim() !== ''
+            ? String(p.id)
+            : `${identity}#${index}`;
         const cost = getProjectMonthlyAllocationAmount(p, { monthKey });
         return { ...p, key, cost };
       })
@@ -257,7 +262,7 @@ const ProjectAllocation = () => {
           borderClassName="border-t-primary-600"
         />
         <StatCard
-          label="If Inactive (expense)"
+          label="If Inactive"
           value={formatMoney(allocatedSum)}
           icon={<FiPieChart className="w-5 h-5" />}
           valueClassName="text-amber-600"

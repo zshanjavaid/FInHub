@@ -26,8 +26,7 @@ export default defineConfig({
           'vendor-react': ['react', 'react-dom', 'react-router-dom', 'react-redux', '@reduxjs/toolkit'],
           'vendor-charts': ['chart.js', 'react-chartjs-2'],
           'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/app-check'],
-          'vendor-datepicker': ['react-datepicker', 'date-fns'],
-          'vendor-motion': ['motion', 'motion/react', 'motion/react-m']
+          'vendor-datepicker': ['react-datepicker', 'date-fns']
         }
       }
     }

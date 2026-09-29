@@ -510,6 +510,82 @@ svg.fh-icon-live--logout {
   opacity: 0.9;
 }
 
+/* CSS stand-ins for former Motion.js hover / tap / enter (same distances & easing). */
+@keyframes fh-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fh-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fh-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fh-overlay {
+  animation: fh-overlay-in 0.2s linear both;
+}
+
+.fh-overlay-btn {
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.fh-pop-in {
+  animation: fh-pop-in 0.26s var(--fh-ease) both;
+}
+
+.fh-rise {
+  animation: fh-rise-in 0.26s var(--fh-ease) both;
+}
+
+.fh-lift {
+  transition: transform 0.12s var(--fh-ease);
+  will-change: transform;
+}
+
+.fh-lift:hover {
+  transform: translateY(-2px);
+}
+
+.fh-press {
+  transition: transform 0.12s var(--fh-ease);
+  will-change: transform;
+}
+
+.fh-press:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.fh-press-lift:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.fh-press-lift:active:not(:disabled) {
+  transform: translateY(-2px) scale(0.97);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .finhub-btn-spinner {
     animation: none !important;
@@ -529,5 +605,23 @@ svg.fh-icon-live--logout {
 
   .fh-icon-live {
     animation: none !important;
+  }
+
+  .fh-overlay,
+  .fh-pop-in,
+  .fh-rise {
+    animation: none !important;
+  }
+
+  .fh-lift,
+  .fh-press {
+    transition: none !important;
+  }
+
+  .fh-lift:hover,
+  .fh-press:active:not(:disabled),
+  .fh-press-lift:hover:not(:disabled),
+  .fh-press-lift:active:not(:disabled) {
+    transform: none !important;
   }
 }

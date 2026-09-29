@@ -6,7 +6,7 @@ import Logo from '../components/Logo';
 import PrivacyToggleButton from '../components/PrivacyToggleButton';
 import { PrivacyProvider } from '../contexts/PrivacyContext';
 import { ScrollRootProvider } from '../contexts/ScrollRootContext';
-import { AnimatePresence, OverlayButton, Press } from '../motion';
+import { OverlayButton, Press } from '../motion';
 
 const DESKTOP_MEDIA = '(min-width: 1024px)';
 const SIDEBAR_MOTION = 'transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none';
@@ -51,16 +51,13 @@ const MainLayout = () => {
     <PrivacyProvider>
       <ScrollRootProvider value={scrollRoot}>
         <div className="relative flex h-screen overflow-hidden bg-transparent">
-          <AnimatePresence>
-            {!isDesktop && isSidebarOpen ? (
-              <OverlayButton
-                key="fh-sidebar-overlay"
-                className="fixed inset-0 z-40 bg-slate-900/55 backdrop-blur-[2px] lg:hidden"
-                aria-label="Close menu"
-                onClick={closeSidebar}
-              />
-            ) : null}
-          </AnimatePresence>
+          {!isDesktop && isSidebarOpen ? (
+            <OverlayButton
+              className="fixed inset-0 z-40 bg-slate-900/55 backdrop-blur-[2px] lg:hidden"
+              aria-label="Close menu"
+              onClick={closeSidebar}
+            />
+          ) : null}
           <Sidebar
             isOpen={isSidebarOpen}
             isDesktop={isDesktop}
