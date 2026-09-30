@@ -14,7 +14,7 @@ export const DASHBOARD_ACTIVE_PROJECT_TYPES = ['Full time', 'Part time', 'Contra
 export const isFreelanceProject = (project) =>
   String(project?.projectType || '').trim().toLowerCase() === 'freelance';
 
-/** Active on Dashboard: not inactive, End Date not passed, and non-freelance type. */
+/** Active staffed headcount: not inactive, End Date not passed, and non-freelance type. */
 export const isDashboardActiveProject = (project) => {
   const status = String(project?.projectStatus || 'active').trim().toLowerCase();
   if (status === 'inactive') return false;

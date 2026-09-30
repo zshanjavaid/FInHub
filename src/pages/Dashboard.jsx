@@ -22,9 +22,9 @@ import { matchesSelectedBroker } from '../utils/brokerFilter';
 import { EMPTY_TRANSACTION_FORM, transactionToFormValues } from '../utils/formValues';
 import { matchesClientProject } from '../utils/projectLookup';
 import { buildProjectFilterOptions } from '../utils/projectFilterOptions';
-import { projectInactiveEventYmd } from '../utils/transactionsEligibility';
+import { projectInactiveEventYmd, projectMatchesStatusInRange } from '../utils/transactionsEligibility';
 import { isApproved } from '../constants/app';
-import { isDashboardActiveProject, DASHBOARD_ACTIVE_PROJECT_TYPES, PROJECT_TYPE_COLORS } from '../constants/projectTypes';
+import { PROJECT_TYPE_LABELS, PROJECT_TYPE_COLORS } from '../constants/projectTypes';
 import { useClientOptions } from '../hooks/useClientOptions';
 import { useDateFilter } from '../hooks/useDateFilter';
 import PageHeader from '../components/PageHeader';
@@ -244,22 +244,34 @@ const Dashboard = () => {
     return { labels: span.labels, ...fillSeries(span.slots) };
   }, [approvedTransactions, approvedExpenses, dateFrom, dateTo]);
 
-  const activeProjectCount = useMemo(() => {
-    return (projects || []).filter((p) => isApproved(p) && isDashboardActiveProject(p)).length;
-  }, [projects]);
+  const activeProjectsForStats = useMemo(() => {
+    // Card shows all types (incl. Freelance); staffed-only logic stays in isDashboardActiveProject.
+    let list = (projects || []).filter(
+      (p) => isApproved(p) && projectMatchesStatusInRange(p, 'active', dateFrom, dateTo)
+    );
+    if (selectedProject) {
+      list = list.filter((p) =>
+        matchesClientProject(p, selectedProject.client, selectedProject.project)
+      );
+    } else if (selectedBroker) {
+      list = list.filter((p) => matchesSelectedBroker(p, selectedBroker));
+    }
+    return list;
+  }, [projects, selectedBroker, selectedProject, dateFrom, dateTo]);
+
+  const activeProjectCount = activeProjectsForStats.length;
 
   const activeProjectCountByType = useMemo(() => {
-    const active = (projects || []).filter((p) => isApproved(p) && isDashboardActiveProject(p));
     const byType = {};
-    DASHBOARD_ACTIVE_PROJECT_TYPES.forEach((type) => {
-      byType[type] = active.filter((p) => (p.projectType || '').trim() === type).length;
+    PROJECT_TYPE_LABELS.forEach((type) => {
+      byType[type] = activeProjectsForStats.filter((p) => (p.projectType || '').trim() === type).length;
     });
-    return DASHBOARD_ACTIVE_PROJECT_TYPES.map((type) => ({
+    return PROJECT_TYPE_LABELS.map((type) => ({
       label: type,
       value: byType[type] || 0,
       className: PROJECT_TYPE_COLORS[type] || 'bg-slate-100 text-slate-700'
     })).filter((chip) => chip.value > 0);
-  }, [projects]);
+  }, [activeProjectsForStats]);
 
   const { inwardPct, expensePct, totalInward, totalExpense, availableAmount, grossRevenue, totalBrokerage, topClientConcentration } =
     useMemo(() => {

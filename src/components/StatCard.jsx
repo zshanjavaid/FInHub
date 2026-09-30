@@ -1,6 +1,6 @@
 import { Lift } from '../motion';
 import { usePrivacyHidden } from '../contexts/PrivacyContext';
-import { PRIVACY_MASK } from '../privacy/privacyStore';
+import { maskSensitiveText } from '../privacy/privacyStore';
 
 const StatCard = ({
   label,
@@ -15,10 +15,25 @@ const StatCard = ({
   actions = null
 }) => {
   const hidden = usePrivacyHidden();
-  const displayValue = hidden ? PRIVACY_MASK : value;
+  // Counts: fixed mask so digit length can’t leak (e.g. 8 → not a single "•").
+  // Money strings from formatMoney already keep length via digit→•.
+  const isPlainCount =
+    typeof value === 'number' || (typeof value === 'string' && /^\d+$/.test(value.trim()));
+  const displayValue = hidden
+    ? isPlainCount
+      ? '••'
+      : maskSensitiveText(value)
+    : value;
   const displayValueClass = hidden ? 'text-slate-400' : valueClassName;
   const displayChips = hidden
-    ? chips.map((chip) => ({ ...chip, value: PRIVACY_MASK, className: 'bg-slate-100 text-slate-500' }))
+    ? chips.map((chip) => ({
+        ...chip,
+        value:
+          typeof chip.value === 'number' || (typeof chip.value === 'string' && /^\d+$/.test(String(chip.value).trim()))
+            ? '••'
+            : maskSensitiveText(chip.value),
+        className: 'bg-slate-100 text-slate-500'
+      }))
     : chips;
 
   return (
@@ -41,12 +56,14 @@ const StatCard = ({
             {actions ? <div className="ml-auto shrink-0">{actions}</div> : null}
           </div>
           <p
-            className={`mt-3 sm:mt-4 text-3xl sm:text-4xl font-bold tracking-tight leading-none tabular-nums font-mono ${displayValueClass}`}
+            className={`fh-money mt-3 sm:mt-4 text-3xl sm:text-4xl font-bold tracking-tight leading-none tabular-nums font-mono ${displayValueClass}`}
             aria-label={hidden ? 'Hidden' : undefined}
           >
             {displayValue}
           </p>
-          {hint && !hidden ? <div className="mt-2 min-w-0">{hint}</div> : null}
+          {hint ? (
+            <div className={`mt-2 min-w-0 ${hidden ? 'fh-privacy-blur' : ''}`}>{hint}</div>
+          ) : null}
         </div>
         {displayChips.length > 0 && (
           <div className="flex flex-row flex-wrap gap-1.5 relative min-[1250px]:flex-col min-[1250px]:flex-nowrap min-[1250px]:flex-shrink-0 min-[1250px]:gap-2.5">

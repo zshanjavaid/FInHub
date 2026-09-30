@@ -5,13 +5,13 @@ import {
   countProjectsByType
 } from '../constants/projectTypes';
 import { usePrivacyHidden } from '../contexts/PrivacyContext';
-import { PRIVACY_MASK } from '../privacy/privacyStore';
+import { maskSensitiveText } from '../privacy/privacyStore';
 
 const ProjectTypeCountBar = ({ projects = [] }) => {
   const privacyHidden = usePrivacyHidden();
   const { counts, unset, total } = useMemo(() => countProjectsByType(projects), [projects]);
 
-  const display = (n) => (privacyHidden ? PRIVACY_MASK : n);
+  const display = (n) => (privacyHidden ? maskSensitiveText(n) : n);
 
   return (
     <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end w-full sm:w-auto">

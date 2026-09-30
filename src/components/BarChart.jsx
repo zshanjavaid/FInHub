@@ -35,7 +35,7 @@ const BarChart = ({ data, labels, title = 'Bar Chart', fullLabels = null, header
       labels,
       datasets: (data || []).map((dataset) => ({
         label: dataset.label,
-        data: privacyHidden ? (dataset.values || []).map(() => 0) : dataset.values,
+        data: dataset.values,
         backgroundColor: dataset.color || themePrimary,
         borderColor: dataset.color || themePrimary,
         borderWidth: 0,
@@ -43,7 +43,7 @@ const BarChart = ({ data, labels, title = 'Bar Chart', fullLabels = null, header
         borderSkipped: false
       }))
     }),
-    [data, labels, privacyHidden]
+    [data, labels]
   );
 
   const options = useMemo(

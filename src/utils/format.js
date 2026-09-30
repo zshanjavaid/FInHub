@@ -1,15 +1,18 @@
-import { getPrivacyHidden, PRIVACY_MASK } from '../privacy/privacyStore';
+import { getPrivacyHidden, maskSensitiveText } from '../privacy/privacyStore';
 
 /**
  * Format amount for display: no decimals when whole number, otherwise 2 decimals.
- * When privacy mode is on, returns a mask so callers cannot leak balances.
+ * When privacy mode is on, digits become • but length/punctuation stay so spacing
+ * does not jump (works with tabular-nums / mono).
  */
 export const formatMoney = (v) => {
-  if (getPrivacyHidden()) return PRIVACY_MASK;
   const n = Number(v);
-  if (!Number.isFinite(n)) return '-';
-  if (Number.isInteger(n) || Math.abs(n % 1) < 1e-9) return `$${Math.round(n)}`;
-  return `$${n.toFixed(2)}`;
+  let formatted;
+  if (!Number.isFinite(n)) formatted = '-';
+  else if (Number.isInteger(n) || Math.abs(n % 1) < 1e-9) formatted = `$${Math.round(n)}`;
+  else formatted = `$${n.toFixed(2)}`;
+
+  return getPrivacyHidden() ? maskSensitiveText(formatted) : formatted;
 };
 
 export const signedMoneyClass = (v, positiveClass = 'text-primary-600') => {

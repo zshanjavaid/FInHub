@@ -23,7 +23,7 @@ import {
 import { buildActiveProjectsYearComparison } from '../utils/projectYearComparison';
 import { ensureChartJsRegistered } from '../utils/registerChart';
 import { usePrivacyHidden } from '../contexts/PrivacyContext';
-import { PRIVACY_MASK } from '../privacy/privacyStore';
+import { maskSensitiveText } from '../privacy/privacyStore';
 import PrivacyChartPlaceholder from './PrivacyChartPlaceholder';
 
 ensureChartJsRegistered();
@@ -285,9 +285,13 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
                     {year}
                   </span>
                   <span className="mt-0.5 block text-[10px] font-semibold tabular-nums text-slate-500 leading-tight">
-                    <span className="text-slate-800">{privacyHidden ? PRIVACY_MASK : (s?.latestActive ?? 0)}</span>
+                    <span className="text-slate-800 tabular-nums">
+                      {privacyHidden ? maskSensitiveText(s?.latestActive ?? 0) : (s?.latestActive ?? 0)}
+                    </span>
                     {' active · '}
-                    <span className="text-amber-700">{privacyHidden ? PRIVACY_MASK : (s?.completedProjects ?? 0)}</span>
+                    <span className="text-amber-700 tabular-nums">
+                      {privacyHidden ? maskSensitiveText(s?.completedProjects ?? 0) : (s?.completedProjects ?? 0)}
+                    </span>
                     {' completed'}
                   </span>
                 </button>
@@ -299,7 +303,7 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
 
       <div className={`${chartPlotWrapClass} flex-1 flex flex-col min-h-0`}>
         {privacyHidden ? (
-          <PrivacyChartPlaceholder />
+          <PrivacyChartPlaceholder className={`${chartPlotHeightClass} flex-1`} />
         ) : hasData ? (
           <div className={`${chartPlotHeightClass} flex-1`}>
             <Line data={chartData} options={options} />

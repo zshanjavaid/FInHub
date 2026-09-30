@@ -586,6 +586,13 @@ svg.fh-icon-live--logout {
   transform: translateY(-2px) scale(0.97);
 }
 
+/* Privacy: soft blur for non-chart blocks (hints, name lists) — not for charts */
+.fh-privacy-blur {
+  filter: blur(7px);
+  user-select: none;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .finhub-btn-spinner {
     animation: none !important;

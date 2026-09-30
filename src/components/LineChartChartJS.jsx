@@ -35,7 +35,7 @@ const LineChartChartJS = ({ data, labels, title = 'Line Chart', headerRight = nu
       labels,
       datasets: (data || []).map((dataset, index) => {
         const color = dataset.color || '#0d9488';
-        const values = privacyHidden ? (dataset.values || []).map(() => 0) : dataset.values;
+        const values = dataset.values;
         return {
           label: dataset.label,
           data: values,
@@ -63,7 +63,7 @@ const LineChartChartJS = ({ data, labels, title = 'Line Chart', headerRight = nu
         };
       })
     };
-  }, [data, labels, compact, stacked, privacyHidden]);
+  }, [data, labels, compact, stacked]);
 
   const options = useMemo(
     () => ({
@@ -174,7 +174,7 @@ const LineChartChartJS = ({ data, labels, title = 'Line Chart', headerRight = nu
       </div>
       <div className={`${chartPlotWrapClass} flex-1 flex flex-col min-h-0`}>
         {privacyHidden ? (
-          <PrivacyChartPlaceholder />
+          <PrivacyChartPlaceholder className={`${chartPlotHeightClass} flex-1`} />
         ) : (
           <div className={`${chartPlotHeightClass} flex-1`}>
             <Line data={chartData} options={options} />

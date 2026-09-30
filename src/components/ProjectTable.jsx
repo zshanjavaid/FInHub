@@ -3,42 +3,37 @@ import { FiUser } from 'react-icons/fi';
 import { PROJECT_TYPE_COLORS } from '../constants/projectTypes';
 import { isProjectContractEndingAlert } from '../utils/date';
 import { formatMoney } from '../utils/format';
-import { getPrivacyHidden, PRIVACY_MASK } from '../privacy/privacyStore';
+import { getPrivacyHidden, maskSensitiveText } from '../privacy/privacyStore';
 import { PAYOUT_OCCURRENCE_LABEL_BY_VALUE } from '../constants/payoutOccurrences';
 import PersonBadge from './PersonBadge';
 import ProjectTypeCountBar from './ProjectTypeCountBar';
 import { getEffectiveProjectStatus } from '../utils/transactionsEligibility';
 
 const maskStat = (value) => {
-  if (getPrivacyHidden()) return PRIVACY_MASK;
   if (value === '' || value == null) return '-';
-  return value;
+  return getPrivacyHidden() ? maskSensitiveText(value) : value;
 };
 
 const formatBrokerage = (project) => {
   if (!project.brokerageValue && project.brokerageValue !== 0) return '-';
-  if (getPrivacyHidden()) return PRIVACY_MASK;
-  return project.brokerageType === 'percentage'
-    ? `${project.brokerageValue}%`
-    : formatMoney(project.brokerageValue);
+  if (project.brokerageType === 'percentage') {
+    const text = `${project.brokerageValue}%`;
+    return getPrivacyHidden() ? maskSensitiveText(text) : text;
+  }
+  return formatMoney(project.brokerageValue);
 };
 
 const formatTax = (project) => {
-  if (getPrivacyHidden()) {
-    const hasTax =
-      (project.taxValue !== '' && project.taxValue != null) ||
-      (project.taxAmount !== '' && project.taxAmount != null && Number(project.taxAmount) !== 0);
-    return hasTax ? PRIVACY_MASK : '-';
-  }
   if (project.taxType === 'percentage' && project.taxValue !== '' && project.taxValue != null) {
-    return `${project.taxValue}%`;
+    const text = `${project.taxValue}%`;
+    return getPrivacyHidden() ? maskSensitiveText(text) : text;
   }
   if (project.taxType === 'fixed' && project.taxValue !== '' && project.taxValue != null) {
     return formatMoney(project.taxValue);
   }
   const n = Number(project.taxAmount);
   if (project.taxAmount === '' || project.taxAmount == null || !Number.isFinite(n) || n === 0) return '-';
-  return formatMoney(n);
+  return formatMoney(project.taxAmount);
 };
 
 const ProjectTable = ({

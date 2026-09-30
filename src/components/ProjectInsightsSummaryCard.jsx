@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { FiBarChart2, FiBriefcase, FiCheckCircle } from 'react-icons/fi';
 import { computeRollingWindowStats } from '../utils/projectRollingStats';
 import { usePrivacyHidden } from '../contexts/PrivacyContext';
-import { PRIVACY_MASK } from '../privacy/privacyStore';
+import { maskSensitiveText } from '../privacy/privacyStore';
 import {
   chartCardClass,
   chartCardHeaderClass,
@@ -12,24 +12,23 @@ import {
 } from '../constants/chartCardStyles';
 
 const ProjectNamePills = ({ items, tone = 'primary', emptyLabel = 'None in this window', privacyHidden }) => {
-  if (privacyHidden) {
-    return (
-      <div className="mt-2.5 space-y-1.5">
-        {[0, 1].map((i) => (
-          <div
-            key={i}
-            className="flex items-center gap-2 rounded-full bg-slate-100/90 px-2 py-1.5 border border-slate-100"
-          >
-            <span className="h-6 w-6 rounded-full bg-slate-200 shrink-0" aria-hidden />
-            <span className="text-sm text-slate-400 font-medium truncate">{PRIVACY_MASK}</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
   if (!items.length) {
     return <p className="mt-2.5 text-xs text-slate-500">{emptyLabel}</p>;
+  }
+
+  if (privacyHidden) {
+    return (
+      <ul className="mt-2.5 space-y-1.5 max-h-40 overflow-y-auto pr-0.5" aria-hidden>
+        {items.map((item) => (
+          <li key={item.id}>
+            <div className="flex items-center gap-2 rounded-full border border-slate-100 bg-slate-100/90 px-2 py-1.5 min-w-0">
+              <span className="h-6 w-6 rounded-full bg-slate-200 shrink-0" />
+              <span className="h-3.5 flex-1 max-w-[9rem] rounded bg-slate-200/90" />
+            </div>
+          </li>
+        ))}
+      </ul>
+    );
   }
 
   const iconWrap =
@@ -113,7 +112,7 @@ const ProjectInsightsSummaryCard = ({ projects = [], activityProjects = null }) 
                 }`}
                 title="Projects whose start date falls in this window."
               >
-                {privacyHidden ? PRIVACY_MASK : onboardCurr}
+                {privacyHidden ? maskSensitiveText(onboardCurr) : onboardCurr}
               </span>
             </div>
             <ProjectNamePills
@@ -138,7 +137,7 @@ const ProjectInsightsSummaryCard = ({ projects = [], activityProjects = null }) 
                 }`}
                 title="Projects whose End Date falls in this window (inactive / completed)."
               >
-                {privacyHidden ? PRIVACY_MASK : endedCurr}
+                {privacyHidden ? maskSensitiveText(endedCurr) : endedCurr}
               </span>
             </div>
             <ProjectNamePills
