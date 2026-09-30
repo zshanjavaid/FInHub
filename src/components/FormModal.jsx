@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import Modal from './Modal';
+import { useState, useEffect, useId } from 'react';
+import Modal, { modalActionsClass } from './Modal';
 import SearchableDropdown from './SearchableDropdown';
 import InputField from './InputField';
 import TextareaField from './TextareaField';
@@ -38,6 +38,7 @@ const FormModal = ({
   columnsPerRow = 2,
   panelClassName: panelClassNameOverride = null
 }) => {
+  const formId = useId();
   const defaultForm = fields.reduce((acc, field) => {
     acc[field.name] = field.defaultValue || '';
     return acc;
@@ -326,8 +327,26 @@ const FormModal = ({
       panelClassName={
         panelClassNameOverride || (columnsPerRow >= 3 ? 'max-w-4xl' : 'max-w-2xl')
       }
+      footer={
+        <div className={modalActionsClass}>
+          <Button
+            variant="secondary"
+            type="button"
+            onClick={() => {
+              setForm(normalizedInitialValues);
+              onClose();
+            }}
+            className="w-full sm:flex-1"
+          >
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} className="w-full sm:flex-1" disabled={isSaving} loading={isSaving}>
+            {isSaving ? 'Saving…' : 'Save'}
+          </Button>
+        </div>
+      }
     >
-      <form className="space-y-4 sm:space-y-6 min-w-0" onSubmit={handleSave} noValidate>
+      <form id={formId} className="space-y-4 sm:space-y-6 min-w-0" onSubmit={handleSave} noValidate>
         {rows.map((row, rowIndex) => {
           if (row.type === 'section') {
             return (
@@ -403,22 +422,6 @@ const FormModal = ({
           );
         })}
 
-        <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4 border-t border-slate-200">
-          <Button
-            variant="secondary"
-            type="button"
-            onClick={() => {
-              setForm(normalizedInitialValues);
-              onClose();
-            }}
-            className="w-full sm:flex-1"
-          >
-            Cancel
-          </Button>
-          <Button type="submit" className="w-full sm:flex-1" disabled={isSaving} loading={isSaving}>
-            {isSaving ? 'Saving…' : 'Save'}
-          </Button>
-        </div>
       </form>
     </Modal>
   );

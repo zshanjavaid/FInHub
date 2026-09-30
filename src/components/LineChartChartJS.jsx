@@ -174,9 +174,9 @@ const LineChartChartJS = ({ data, labels, title = 'Line Chart', headerRight = nu
       </div>
       <div className={`${chartPlotWrapClass} flex-1 flex flex-col min-h-0`}>
         {privacyHidden ? (
-          <PrivacyChartPlaceholder className={`${chartPlotHeightClass} flex-1`} />
+          <PrivacyChartPlaceholder className={chartPlotHeightClass} />
         ) : (
-          <div className={`${chartPlotHeightClass} flex-1`}>
+          <div className={chartPlotHeightClass}>
             <Line data={chartData} options={options} />
           </div>
         )}

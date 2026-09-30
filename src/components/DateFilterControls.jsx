@@ -1,8 +1,11 @@
-import { FiChevronDown } from 'react-icons/fi';
+import { FiChevronDown, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import ModernDatePicker from './ModernDatePicker';
+import { getCurrentYearMonth, parseYearMonth } from '../utils/date';
 
 const currentYear = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 12 }, (_, i) => currentYear - 5 + i);
+const YEAR_MIN = YEAR_OPTIONS[0];
+const YEAR_MAX = YEAR_OPTIONS[YEAR_OPTIONS.length - 1];
 
 const filterLabelClass =
   'text-[11px] font-light mb-1.5 text-slate-500 uppercase tracking-[0.16em] block';
@@ -11,6 +14,9 @@ const filterSelectClass =
   'w-full h-10 min-w-0 px-3 py-2 pr-10 text-sm text-slate-800 border border-slate-200/90 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-0 focus-visible:ring-0 bg-white appearance-none cursor-pointer';
 
 const datePickerClass = 'filter-date-field w-full min-w-0';
+
+const navBtnClass =
+  'inline-flex items-center justify-center w-10 h-10 shrink-0 rounded-xl border border-slate-200/90 bg-white text-slate-600 hover:border-primary-300 hover:text-primary-700 hover:bg-primary-50/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 disabled:opacity-40 disabled:pointer-events-none';
 
 const DateFilterControls = ({
   dateMode,
@@ -27,10 +33,23 @@ const DateFilterControls = ({
 }) => {
   const pill = (isActive) =>
     `w-full h-9 px-2 sm:px-3 rounded-lg text-sm font-semibold transition-colors duration-150 border outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 ring-0 xl:w-auto xl:whitespace-nowrap ${
-      isActive
+    30|      isActive
         ? 'bg-white text-primary-700 shadow-sm border-slate-200/80'
         : 'text-slate-600 border-transparent hover:text-slate-800 hover:bg-white/70'
     }`;
+
+  const shiftMonth = (delta) => {
+    const parsed = parseYearMonth(selectedMonth) || parseYearMonth(getCurrentYearMonth());
+    if (!parsed) return;
+    const d = new Date(parsed.year, parsed.month - 1 + delta, 1);
+    setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  };
+
+  const shiftYear = (delta) => {
+    const next = Number(selectedYear) + delta;
+    if (!Number.isFinite(next) || next < YEAR_MIN || next > YEAR_MAX) return;
+    setSelectedYear(next);
+  };
 
   return (
     <div className={`flex flex-col min-w-0 w-full overflow-visible ${className}`}>
@@ -52,34 +71,72 @@ const DateFilterControls = ({
         {/* Reserved slot: same footprint for month / yearly / range (avoids layout jump) */}
         <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 xl:min-w-0 xl:flex-1">
           {dateMode === 'month' && (
-            <div className="col-span-3 min-w-0">
-              <ModernDatePicker
-                label=""
-                value={selectedMonth}
-                onChange={setMonth}
-                granularity="month"
-                placeholder="Select month"
-                className={datePickerClass}
-              />
+            <div className="col-span-3 flex items-center gap-2 min-w-0">
+              <button
+                type="button"
+                className={navBtnClass}
+                aria-label="Previous month"
+                onClick={() => shiftMonth(-1)}
+              >
+                <FiChevronLeft className="w-5 h-5" aria-hidden />
+              </button>
+              <div className="min-w-0 flex-1">
+                <ModernDatePicker
+                  label=""
+                  value={selectedMonth}
+                  onChange={setMonth}
+                  granularity="month"
+                  placeholder="Select month"
+                  className={datePickerClass}
+                />
+              </div>
+              <button
+                type="button"
+                className={navBtnClass}
+                aria-label="Next month"
+                onClick={() => shiftMonth(1)}
+              >
+                <FiChevronRight className="w-5 h-5" aria-hidden />
+              </button>
             </div>
           )}
           {dateMode === 'yearly' && (
-            <div className="relative col-span-3 min-w-0">
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className={filterSelectClass}
-                aria-label="Year"
+            <div className="col-span-3 flex items-center gap-2 min-w-0">
+              <button
+                type="button"
+                className={navBtnClass}
+                aria-label="Previous year"
+                disabled={Number(selectedYear) <= YEAR_MIN}
+                onClick={() => shiftYear(-1)}
               >
-                {YEAR_OPTIONS.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <FiChevronDown className="w-5 h-5 text-slate-400" />
+                <FiChevronLeft className="w-5 h-5" aria-hidden />
+              </button>
+              <div className="relative min-w-0 flex-1">
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className={filterSelectClass}
+                  aria-label="Year"
+                >
+                  {YEAR_OPTIONS.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <FiChevronDown className="w-5 h-5 text-slate-400" />
+                </div>
               </div>
+              <button
+                type="button"
+                className={navBtnClass}
+                aria-label="Next year"
+                disabled={Number(selectedYear) >= YEAR_MAX}
+                onClick={() => shiftYear(1)}
+              >
+                <FiChevronRight className="w-5 h-5" aria-hidden />
+              </button>
             </div>
           )}
           {dateMode === 'range' && (

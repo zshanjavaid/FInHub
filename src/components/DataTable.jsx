@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FiSearch, FiChevronDown, FiFileText, FiMoreVertical } from 'react-icons/fi';
 import SearchableDropdown from './SearchableDropdown';
@@ -19,21 +19,24 @@ import {
   chartCardSubtitleClass
 } from '../constants/chartCardStyles';
 
+const EMPTY_ITEMS = [];
+const DEFAULT_SEARCH_CONFIG = {
+  enabled: true,
+  placeholder: 'Search...',
+  searchFields: EMPTY_ITEMS
+};
+
 const DataTable = ({
-  data = [],
-  columns = [],
+  data = EMPTY_ITEMS,
+  columns = EMPTY_ITEMS,
   title = 'Table',
   isLoading = false,
   onEdit,
   onDelete,
   onApprove,
   getCanApprove,
-  searchConfig = {
-    enabled: true,
-    placeholder: 'Search...',
-    searchFields: []
-  },
-  filters = [],
+  searchConfig = DEFAULT_SEARCH_CONFIG,
+  filters = EMPTY_ITEMS,
   additionalFilters = null,
   emptyTitle = 'No Data Yet',
   emptyDescription = 'Get started by adding your first entry',
@@ -57,42 +60,52 @@ const DataTable = ({
     return Math.max(44, itemsCount * 40 + 12);
   };
 
-  const filteredData = data.filter((item) => {
-    if (searchConfig.enabled && searchTerm) {
-      const matchesSearch = searchConfig.searchFields.some(field => {
-        const value = item[field];
-        return value?.toString().toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredData = useMemo(() => {
+    const normalizedSearch = searchTerm.toLowerCase();
+    return data.filter((item) => {
+      if (searchConfig.enabled && normalizedSearch) {
+        const matchesSearch = searchConfig.searchFields.some(field => {
+          const value = item[field];
+          return value?.toString().toLowerCase().includes(normalizedSearch);
+        });
+        if (!matchesSearch) return false;
+      }
+
+      return filters.every(filter => {
+        const filterValue = filterValues[filter.key] || 'All';
+        if (filterValue === 'All' || filterValue === '') return true;
+        return item[filter.key] === filterValue;
       });
-      if (!matchesSearch) return false;
-    }
-
-    return filters.every(filter => {
-      const filterValue = filterValues[filter.key] || 'All';
-      if (filterValue === 'All' || filterValue === '') return true;
-      return item[filter.key] === filterValue;
     });
-  });
+  }, [data, searchConfig, searchTerm, filters, filterValues]);
 
-  const currentData = sortCompare ? [...filteredData].sort(sortCompare) : filteredData;
+  const currentData = useMemo(
+    () => sortCompare ? [...filteredData].sort(sortCompare) : filteredData,
+    [filteredData, sortCompare]
+  );
 
   const headerSummaryColIndex =
     headerSummary && columns.length > 0
       ? columns.findIndex((c) => c.key === headerSummary.columnKey)
       : -1;
-  const headerSummaryNumeric =
-    headerSummary && headerSummaryColIndex >= 0 && typeof headerSummary.aggregate === 'function'
+  const headerSummaryNumeric = useMemo(
+    () => headerSummary && headerSummaryColIndex >= 0 && typeof headerSummary.aggregate === 'function'
       ? headerSummary.aggregate(currentData)
-      : null;
+      : null,
+    [headerSummary, headerSummaryColIndex, currentData]
+  );
   const headerSummaryDisplay =
     headerSummaryNumeric != null && Number.isFinite(headerSummaryNumeric)
       ? (headerSummary.format ? headerSummary.format(headerSummaryNumeric) : String(headerSummaryNumeric))
       : null;
 
-  const getFilterOptions = (filter) => {
-    if (filter.options) return filter.options;
-    const uniqueValues = ['All', ...new Set(data.map(item => item[filter.key]).filter(Boolean))].sort();
-    return uniqueValues;
-  };
+  const filterOptions = useMemo(
+    () => new Map(filters.map(filter => [
+      filter,
+      filter.options || ['All', ...new Set(data.map(item => item[filter.key]).filter(Boolean))].sort()
+    ])),
+    [data, filters]
+  );
 
   const tableHeader = (
     <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
@@ -189,7 +202,7 @@ const DataTable = ({
                 label={filter.label}
                 value={filterValues[filter.key] === 'All' ? '' : filterValues[filter.key] || ''}
                 onChange={(value) => setFilterValues(prev => ({ ...prev, [filter.key]: value || 'All' }))}
-                options={getFilterOptions(filter).filter(opt => opt !== 'All')}
+                options={filterOptions.get(filter).filter(opt => opt !== 'All')}
                 placeholder={filter.placeholder || `All ${filter.label}s`}
                 leftIcon={filter.icon}
                 layout="md"
@@ -205,7 +218,7 @@ const DataTable = ({
                     onChange={(e) => setFilterValues(prev => ({ ...prev, [filter.key]: e.target.value }))}
                     className="w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus-visible:ring-2 focus-visible:ring-primary-500/30 appearance-none bg-white pr-10 cursor-pointer text-slate-700"
                   >
-                    {getFilterOptions(filter).map(option => (
+                    {filterOptions.get(filter).map(option => (
                       <option key={option} value={option}>{option}</option>
                     ))}
                   </select>

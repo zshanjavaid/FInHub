@@ -5,6 +5,7 @@ const Button = ({
   onClick,
   size = 'md',
   type = 'button',
+  form,
   disabled = false,
   className = '',
   fullWidth = false,
@@ -33,6 +34,7 @@ const Button = ({
   return (
     <Press
       type={type}
+      form={form}
       onClick={onClick}
       disabled={busy}
       aria-busy={loading || undefined}

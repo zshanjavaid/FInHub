@@ -303,9 +303,9 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
 
       <div className={`${chartPlotWrapClass} flex-1 flex flex-col min-h-0`}>
         {privacyHidden ? (
-          <PrivacyChartPlaceholder className={`${chartPlotHeightClass} flex-1`} />
+          <PrivacyChartPlaceholder className={chartPlotHeightClass} />
         ) : hasData ? (
-          <div className={`${chartPlotHeightClass} flex-1`}>
+          <div className={chartPlotHeightClass}>
             <Line data={chartData} options={options} />
           </div>
         ) : (

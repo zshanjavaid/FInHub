@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { formatMoney, signedMoneyClass } from '../utils/format';
 import { usePrivacyHidden } from '../contexts/PrivacyContext';
@@ -29,6 +29,7 @@ import {
 } from '../utils/transactionNet';
 
 const ImpactFund = () => {
+  const withdrawFormId = useId();
   const hidden = usePrivacyHidden();
   const dispatch = useDispatch();
   const transactions = useSelector((state) => state.transactions.items);
@@ -318,8 +319,27 @@ const ImpactFund = () => {
         isOpen={isWithdrawModalOpen}
         onClose={() => { setIsWithdrawModalOpen(false); setEditingWithdrawalId(null); setWithdrawError(''); }}
         title={editingWithdrawalId ? 'Edit Withdrawal' : 'Withdraw from Impact Fund'}
+        footer={
+          <div className={modalActionsClass}>
+            <button
+              type="button"
+              onClick={() => { setIsWithdrawModalOpen(false); setEditingWithdrawalId(null); setWithdrawError(''); }}
+              className="w-full sm:flex-1 px-4 py-2.5 rounded-xl border-2 border-slate-300 text-slate-700 font-semibold hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <Button
+              type="submit"
+              form={withdrawFormId}
+              className="w-full sm:flex-1"
+              disabled={isLoading || toNumber(withdrawAmount) <= 0 || toNumber(withdrawAmount) > maxWithdrawable}
+            >
+              {isLoading ? 'Saving...' : editingWithdrawalId ? 'Update' : 'Withdraw'}
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleWithdrawSubmit} className="space-y-4 min-w-0">
+        <form id={withdrawFormId} onSubmit={handleWithdrawSubmit} className="space-y-4 min-w-0">
           <div>
             <InputField
               label="Amount"
@@ -350,22 +370,6 @@ const ImpactFund = () => {
             placeholder="Optional note for this withdrawal..."
             rows={4}
           />
-          <div className={modalActionsClass}>
-            <button
-              type="button"
-              onClick={() => { setIsWithdrawModalOpen(false); setEditingWithdrawalId(null); setWithdrawError(''); }}
-              className="w-full sm:flex-1 px-4 py-2.5 rounded-xl border-2 border-slate-300 text-slate-700 font-semibold hover:bg-slate-50"
-            >
-              Cancel
-            </button>
-            <Button
-              type="submit"
-              className="w-full sm:flex-1"
-              disabled={isLoading || toNumber(withdrawAmount) <= 0 || toNumber(withdrawAmount) > maxWithdrawable}
-            >
-              {isLoading ? 'Saving...' : editingWithdrawalId ? 'Update' : 'Withdraw'}
-            </Button>
-          </div>
         </form>
       </Modal>
     </PageContainer>

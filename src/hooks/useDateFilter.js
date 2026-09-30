@@ -36,9 +36,20 @@ export const useDateFilter = (options = {}) => {
   const setDateMode = useCallback((mode) => {
     setDateModeState(mode);
     if (mode === 'month') {
-      setSelectedMonth((prev) => (parseYearMonth(prev) ? prev : getCurrentYearMonth()));
+      setSelectedMonth((prev) => {
+        const parsed = parseYearMonth(prev);
+        if (parsed && parsed.year === selectedYear) return prev;
+        const now = getCurrentYearMonth();
+        const nowParsed = parseYearMonth(now);
+        if (nowParsed && nowParsed.year === selectedYear) return now;
+        return `${selectedYear}-01`;
+      });
     }
-  }, []);
+    if (mode === 'yearly') {
+      const parsed = parseYearMonth(selectedMonth);
+      if (parsed) setSelectedYear(parsed.year);
+    }
+  }, [selectedMonth, selectedYear]);
 
   const clearAll = useCallback(() => {
     setDateModeState('all');

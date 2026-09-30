@@ -1,6 +1,6 @@
-import { Lift } from '../motion';
 import { usePrivacyHidden } from '../contexts/PrivacyContext';
 import { maskSensitiveText } from '../privacy/privacyStore';
+import CalculationInfo from './CalculationInfo';
 
 const StatCard = ({
   label,
@@ -12,7 +12,8 @@ const StatCard = ({
   borderClassName = 'border-t-primary-600',
   chips = [],
   hint = null,
-  actions = null
+  actions = null,
+  calculation = null
 }) => {
   const hidden = usePrivacyHidden();
   // Counts: fixed mask so digit length can’t leak (e.g. 8 → not a single "•").
@@ -37,11 +38,17 @@ const StatCard = ({
     : chips;
 
   return (
-    <Lift
-      className={`bg-white rounded-2xl shadow-card overflow-hidden border border-slate-200/80 border-t-[3px] min-w-0 isolate ${borderClassName} transition-shadow duration-300 hover:shadow-card-hover`}
+    <div
+      className={`relative bg-white rounded-2xl shadow-card overflow-hidden border border-slate-200/80 border-t-[3px] min-w-0 isolate ${borderClassName}`}
     >
+      {(actions || calculation) ? (
+        <div className="absolute top-3 right-3 z-10 flex shrink-0 items-center gap-1">
+          {actions}
+          {calculation ? <CalculationInfo label={label}>{calculation}</CalculationInfo> : null}
+        </div>
+      ) : null}
       <div className="p-4 sm:p-5 md:p-6 flex flex-col gap-3 min-[1250px]:flex-row min-[1250px]:justify-between min-[1250px]:items-start min-[1250px]:gap-4">
-        <div className="min-w-0">
+        <div className={`min-w-0 ${(actions || calculation) ? 'pr-8' : ''}`}>
           <div className="flex items-center gap-3">
             {icon && (
               <span
@@ -53,7 +60,6 @@ const StatCard = ({
             <p className="text-[10px] sm:text-[11px] font-light text-slate-500 uppercase tracking-[0.18em] leading-snug">
               {label}
             </p>
-            {actions ? <div className="ml-auto shrink-0">{actions}</div> : null}
           </div>
           <p
             className={`fh-money mt-3 sm:mt-4 text-3xl sm:text-4xl font-bold tracking-tight leading-none tabular-nums font-mono ${displayValueClass}`}
@@ -78,7 +84,7 @@ const StatCard = ({
           </div>
         )}
       </div>
-    </Lift>
+    </div>
   );
 };
 

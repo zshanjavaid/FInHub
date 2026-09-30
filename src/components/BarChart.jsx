@@ -122,12 +122,12 @@ const BarChart = ({ data, labels, title = 'Bar Chart', fullLabels = null, header
 
   return (
     <div className={chartCardClass}>
-      <div className={`${chartCardHeaderClass} flex items-center gap-2.5 sm:gap-3 min-w-0`}>
+      <div className={`${chartCardHeaderClass} flex flex-wrap sm:flex-nowrap items-center gap-2.5 sm:gap-3 min-w-0`}>
         <div className={`${chartCardIconWrapClass} bg-primary-100 text-primary-600`}>
           <FiBarChart2 className="w-4 h-4 sm:w-5 sm:h-5" />
         </div>
         <h3 className={`${chartCardTitleClass} min-w-0 flex-1 truncate sm:whitespace-normal`}>{title}</h3>
-        {headerRight ? <div className="shrink-0 text-right ml-auto">{headerRight}</div> : null}
+        {headerRight ? <div className="w-full sm:w-auto shrink-0 text-right ml-auto">{headerRight}</div> : null}
       </div>
       <div className={chartPlotWrapClass}>
         {privacyHidden ? (

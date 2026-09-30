@@ -34,7 +34,7 @@ import { EMPTY_TRANSACTION_FORM, transactionToFormValues } from '../utils/formVa
 import { toNumber, roundMoney } from '../utils/number';
 import { matchesSelectedBroker } from '../utils/brokerFilter';
 import { transactionNetAfterImpactFund, netFromGrossParts } from '../utils/transactionNet';
-import { transactionHasBrokerageDeduction } from '../utils/availableBalance';
+import { transactionHasBrokerageDeduction, isMirroredTransactionBrokerageExpense } from '../utils/availableBalance';
 import { isApproved } from '../constants/app';
 import { useDateFilter } from '../hooks/useDateFilter';
 import { useClientOptions } from '../hooks/useClientOptions';
@@ -46,7 +46,7 @@ import {
   isProjectEligibleForAutoGenerateMonth,
   isProjectEligibleForTransactions
 } from '../utils/transactionsEligibility';
-import { buildExpectedTransactionDatesForMonth, countExpectedPayoutsInRange, getPayoutOccurrenceLabel } from '../utils/payoutSchedule';
+import { buildExpectedTransactionDatesForMonth, countExpectedPayoutsInRange, getPayoutOccurrenceLabel, payoutShareCount } from '../utils/payoutSchedule';
 import { computeProjectTaxDollars, computeProjectBrokerageDollars } from '../utils/project';
 import { buildProjectFilterOptions } from '../utils/projectFilterOptions';
 import {
@@ -231,6 +231,7 @@ const Transactions = () => {
       addIntoMonthSlots(monthlyTotals, t.date, transactionNetAfterImpactFund(t), range.slots);
     });
     approvedExpensesForTrend.forEach((row) => {
+      if (isMirroredTransactionBrokerageExpense(row, approvedForCharts)) return;
       addIntoMonthSlots(monthlyExpense, expenseDateValue(row), toNumber(row.amount), range.slots);
     });
     const inward = monthlyTotals.map((n) => roundMoney(n));
@@ -349,13 +350,6 @@ const Transactions = () => {
 
   const onDelete = async (transactionId) => {
     await dispatch(removeTransaction(transactionId)).unwrap();
-  };
-
-  const payoutShareCount = (project) => {
-    const key = String(project?.payoutOccurrence || 'biweekly').trim().toLowerCase();
-    if (key === 'weekly') return 4;
-    if (key === 'monthly') return 1;
-    return 2;
   };
 
   const splitCurrency = (total, parts) => {
@@ -700,7 +694,22 @@ const Transactions = () => {
         </Suspense>
       ) : null}
 
-      <Modal isOpen={isGenerateOpen} onClose={closeGenerateModal} title="Generate transactions" panelClassName="max-w-3xl">
+      <Modal isOpen={isGenerateOpen} onClose={closeGenerateModal} title="Generate transactions" panelClassName="max-w-3xl"
+        footer={
+          <div className={modalActionsClass}>
+            <Button variant="secondary" onClick={closeGenerateModal} className="w-full sm:flex-1">
+              Cancel
+            </Button>
+            <Button
+              onClick={onGenerateTransactions}
+              className="w-full sm:flex-1"
+              disabled={isGenerating || generationPlan.totalToCreate <= 0}
+            >
+              {isGenerating ? 'Generating…' : `Generate (${generationPlan.totalToCreate})`}
+            </Button>
+          </div>
+        }
+      >
         <div className="space-y-4 min-w-0">
           <div className="rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 sm:px-4 sm:py-3 text-sm text-slate-800 shadow-card">
             <p className="font-semibold">Period</p>
@@ -750,18 +759,6 @@ const Transactions = () => {
             </div>
           )}
 
-          <div className={modalActionsClass}>
-            <Button variant="secondary" onClick={closeGenerateModal} className="w-full sm:flex-1">
-              Cancel
-            </Button>
-            <Button
-              onClick={onGenerateTransactions}
-              className="w-full sm:flex-1"
-              disabled={isGenerating || generationPlan.totalToCreate <= 0}
-            >
-              {isGenerating ? 'Generating…' : `Generate (${generationPlan.totalToCreate})`}
-            </Button>
-          </div>
         </div>
       </Modal>
     </PageContainer>
@@ -769,4 +766,3 @@ const Transactions = () => {
 };
 
 export default Transactions;
-

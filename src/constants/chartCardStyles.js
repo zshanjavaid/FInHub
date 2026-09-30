@@ -20,4 +20,4 @@ export const chartPlotWrapClass =
   'px-3 pt-2 pb-3 sm:px-4 sm:pt-2.5 sm:pb-4 md:px-5 md:pt-3 md:pb-5 min-w-0 bg-white';
 
 export const chartPlotHeightClass =
-  'w-full h-full min-h-[220px] sm:min-h-[280px] md:min-h-[360px]';
+  'relative w-full h-[220px] sm:h-[280px] md:h-[360px] min-h-[220px] sm:min-h-[280px] md:min-h-[360px]';

@@ -15,8 +15,8 @@ import { getTargetAmount, setTargetAmount } from '../services/settingsService';
 import { formatMoney, signedMoneyClass } from '../utils/format';
 import { filterByDateRange, monthSlotsForRange, calendarYearMonthSlots, addIntoMonthSlots, MONTH_NAMES, normalizeDateToYYYYMMDD, expenseDateValue } from '../utils/date';
 import { computeNextMonthEstimatedAmount } from '../utils/nextMonthEstimate';
-import { transactionNetAfterImpactFund, sumTransactionNetAfterImpactFund } from '../utils/transactionNet';
-import { sumExpenseAmounts } from '../utils/availableBalance';
+import { transactionNetAfterImpactFund, sumTransactionNetAfterImpactFund, transactionImpactFundAmount, IMPACT_FUND_PERCENT_LABEL } from '../utils/transactionNet';
+import { sumExpenseAmountsForAvailable, isMirroredTransactionBrokerageExpense } from '../utils/availableBalance';
 import { toNumber } from '../utils/number';
 import { matchesSelectedBroker } from '../utils/brokerFilter';
 import { EMPTY_TRANSACTION_FORM, transactionToFormValues } from '../utils/formValues';
@@ -33,13 +33,14 @@ import Button from '../components/Button';
 import FilterBar from '../components/FilterBar';
 import BrokerProjectFilters from '../components/BrokerProjectFilters';
 import StatCard from '../components/StatCard';
+import CalculationInfo from '../components/CalculationInfo';
 import ErrorAlert from '../components/ErrorAlert';
 import Modal, { modalActionsClass } from '../components/Modal';
 import InputField from '../components/InputField';
 import TransactionTable from '../components/TransactionTable';
 import PortfolioLinks from '../components/PortfolioLinks';
 import DeferredMount, { ChartSkeleton } from '../components/DeferredMount';
-import { FiDollarSign, FiTarget, FiEdit2, FiBriefcase, FiCreditCard, FiPercent, FiCheckCircle, FiPieChart } from 'react-icons/fi';
+import { FiDollarSign, FiTarget, FiEdit2, FiBriefcase, FiCreditCard, FiCheckCircle, FiPieChart, FiMinusCircle } from 'react-icons/fi';
 
 const BarChart = lazy(() => import('../components/BarChart'));
 const ActiveProjectsYearComparisonChart = lazy(() => import('../components/ActiveProjectsYearComparisonChart'));
@@ -205,6 +206,7 @@ const Dashboard = () => {
         addIntoMonthSlots(inward, transaction.date, transactionNetAfterImpactFund(transaction), slots);
       });
       approvedExpenses.forEach((row) => {
+        if (isMirroredTransactionBrokerageExpense(row, approvedTransactions)) return;
         addIntoMonthSlots(expense, expenseDateValue(row), toNumber(row.amount), slots);
       });
       return { inward, expense };
@@ -273,10 +275,19 @@ const Dashboard = () => {
     })).filter((chip) => chip.value > 0);
   }, [activeProjectsForStats]);
 
-  const { inwardPct, expensePct, totalInward, totalExpense, availableAmount, grossRevenue, totalBrokerage, topClientConcentration } =
-    useMemo(() => {
+  const {
+    inwardPct,
+    expensePct,
+    totalInward,
+    totalExpense,
+    availableAmount,
+    grossRevenue,
+    totalDeductions,
+    deductionBreakdown,
+    topClientConcentration
+  } = useMemo(() => {
       const inward = sumTransactionNetAfterImpactFund(approvedTransactions);
-      const expense = sumExpenseAmounts(approvedExpenses);
+      const expense = sumExpenseAmountsForAvailable(approvedExpenses, approvedTransactions);
       const mix = inward + expense;
       const pct =
         mix === 0
@@ -288,12 +299,15 @@ const Dashboard = () => {
 
       let gross = 0;
       let brokerage = 0;
+      let additionalCharges = 0;
+      let impactFund = 0;
       const byClient = new Map();
       for (const t of approvedTransactions || []) {
         const amount = toNumber(t.amount);
-        const brokerageAmount = toNumber(t.brokerageAmount);
         gross += amount;
-        brokerage += brokerageAmount;
+        brokerage += toNumber(t.brokerageAmount);
+        additionalCharges += toNumber(t.additionalCharges);
+        impactFund += transactionImpactFundAmount(t);
         if (amount > 0) {
           const client = String(t.client || '').trim() || 'Unknown';
           byClient.set(client, (byClient.get(client) || 0) + amount);
@@ -309,6 +323,7 @@ const Dashboard = () => {
         }
       }
       const concentrationPct = gross > 0 ? Math.round((topAmt / gross) * 100) : 0;
+      const deductions = Math.max(0, gross - inward);
 
       return {
         ...pct,
@@ -316,8 +331,13 @@ const Dashboard = () => {
         totalExpense: expense,
         availableAmount: inward - expense,
         grossRevenue: gross,
-        totalBrokerage: brokerage,
-        topClientConcentration: { pct: concentrationPct, client: topClient }
+        totalDeductions: deductions,
+        deductionBreakdown: {
+          brokerage,
+          additionalCharges,
+          impactFund
+        },
+        topClientConcentration: { pct: concentrationPct, client: topClient, amount: topAmt }
       };
     }, [approvedTransactions, approvedExpenses]);
 
@@ -334,10 +354,11 @@ const Dashboard = () => {
       computeNextMonthEstimatedAmount({
         projects,
         transactions,
+        expenses,
         selectedBroker,
         selectedProject
       }),
-    [projects, transactions, selectedBroker, selectedProject]
+    [projects, transactions, expenses, selectedBroker, selectedProject]
   );
 
   const projectsForAnnualChart = useMemo(() => {
@@ -356,14 +377,13 @@ const Dashboard = () => {
     return list;
   }, [projects, selectedBroker, selectedProject]);
 
-  /** End Date / inactive event falls inside the selected date filter (hidden when filter is All). */
   const projectsCompletedInRange = useMemo(() => {
-    if (!dateFrom && !dateTo) return null;
+    const endLimit = dateTo || (!dateFrom ? normalizeDateToYYYYMMDD(new Date()) : '');
     return projectsForAnnualChart.filter((p) => {
       const ended = projectInactiveEventYmd(p);
       if (!ended) return false;
       if (dateFrom && ended < dateFrom) return false;
-      if (dateTo && ended > dateTo) return false;
+      if (endLimit && ended > endLimit) return false;
       return true;
     }).length;
   }, [projectsForAnnualChart, dateFrom, dateTo]);
@@ -408,6 +428,17 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
           <StatCard
             label="Gross Revenue"
+            calculation={
+              <div className="space-y-2">
+                <p>Sum of transaction amounts before deductions.</p>
+                <ul className="space-y-1 tabular-nums font-mono">
+                  <li className="flex items-center justify-between gap-4">
+                    <span>Gross Revenue</span>
+                    <span className="font-semibold text-slate-800">{formatMoney(grossRevenue)}</span>
+                  </li>
+                </ul>
+              </div>
+            }
             value={formatMoney(grossRevenue)}
             icon={<FiDollarSign className="w-5 h-5" />}
             valueClassName="text-emerald-700"
@@ -416,7 +447,58 @@ const Dashboard = () => {
             borderClassName="border-t-emerald-600"
           />
           <StatCard
+            label="Total Deductions"
+            calculation={
+              <div className="space-y-2">
+                <p>Taken off Gross Revenue to get Total Inward.</p>
+                <ul className="space-y-1 tabular-nums font-mono">
+                  <li className="flex items-center justify-between gap-4">
+                    <span>Brokerage fee</span>
+                    <span className="font-semibold text-slate-800">{formatMoney(deductionBreakdown.brokerage)}</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-4">
+                    <span>Additional charges</span>
+                    <span className="font-semibold text-slate-800">{formatMoney(deductionBreakdown.additionalCharges)}</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-4">
+                    <span>Impact Fund ({IMPACT_FUND_PERCENT_LABEL})</span>
+                    <span className="font-semibold text-slate-800">{formatMoney(deductionBreakdown.impactFund)}</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-4 border-t border-slate-100 pt-1">
+                    <span>Total Deductions</span>
+                    <span className="font-semibold text-slate-800">{formatMoney(totalDeductions)}</span>
+                  </li>
+                </ul>
+              </div>
+            }
+            value={formatMoney(totalDeductions)}
+            icon={<FiMinusCircle className="w-5 h-5" />}
+            valueClassName="text-violet-700"
+            iconClassName="text-violet-600"
+            iconWrapClassName="bg-violet-50 ring-1 ring-violet-100/80"
+            borderClassName="border-t-violet-600"
+          />
+          <StatCard
             label="Total Inward"
+            calculation={
+              <div className="space-y-2">
+                <p>Gross Revenue − Total Deductions.</p>
+                <ul className="space-y-1 tabular-nums font-mono">
+                  <li className="flex items-center justify-between gap-4">
+                    <span>Gross Revenue</span>
+                    <span className="font-semibold text-slate-800">{formatMoney(grossRevenue)}</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-4">
+                    <span>Total Deductions</span>
+                    <span className="font-semibold text-slate-800">−{formatMoney(totalDeductions)}</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-4 border-t border-slate-100 pt-1">
+                    <span>Total Inward</span>
+                    <span className="font-semibold text-slate-800">{formatMoney(totalInward)}</span>
+                  </li>
+                </ul>
+              </div>
+            }
             value={formatMoney(totalInward)}
             icon={<FiTarget className="w-5 h-5" />}
             valueClassName="text-primary-700"
@@ -424,16 +506,18 @@ const Dashboard = () => {
             borderClassName="border-t-primary-600"
           />
           <StatCard
-            label="Total Brokerage"
-            value={formatMoney(totalBrokerage)}
-            icon={<FiPercent className="w-5 h-5" />}
-            valueClassName="text-violet-700"
-            iconClassName="text-violet-600"
-            iconWrapClassName="bg-violet-50 ring-1 ring-violet-100/80"
-            borderClassName="border-t-violet-600"
-          />
-          <StatCard
             label="Total Expense"
+            calculation={
+              <div className="space-y-2">
+                <p>Sum of expense records, excluding brokerage already taken off transactions (that part is in Total Deductions).</p>
+                <ul className="space-y-1 tabular-nums font-mono">
+                  <li className="flex items-center justify-between gap-4">
+                    <span>Total Expense</span>
+                    <span className="font-semibold text-slate-800">{formatMoney(totalExpense)}</span>
+                  </li>
+                </ul>
+              </div>
+            }
             value={formatMoney(totalExpense)}
             icon={<FiCreditCard className="w-5 h-5" />}
             valueClassName="text-red-600"
@@ -443,6 +527,25 @@ const Dashboard = () => {
           />
           <StatCard
             label="Available Amount"
+            calculation={
+              <div className="space-y-2">
+                <p>Total Inward − Total Expense.</p>
+                <ul className="space-y-1 tabular-nums font-mono">
+                  <li className="flex items-center justify-between gap-4">
+                    <span>Total Inward</span>
+                    <span className="font-semibold text-slate-800">{formatMoney(totalInward)}</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-4">
+                    <span>Total Expense</span>
+                    <span className="font-semibold text-slate-800">−{formatMoney(totalExpense)}</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-4 border-t border-slate-100 pt-1">
+                    <span>Available Amount</span>
+                    <span className="font-semibold text-slate-800">{formatMoney(availableAmount)}</span>
+                  </li>
+                </ul>
+              </div>
+            }
             value={formatMoney(availableAmount)}
             icon={<FiDollarSign className="w-5 h-5" />}
             valueClassName={signedMoneyClass(availableAmount)}
@@ -463,19 +566,36 @@ const Dashboard = () => {
             borderClassName="border-t-primary-600"
             chips={activeProjectCountByType}
           />
-          {projectsCompletedInRange != null ? (
-            <StatCard
-              label="Projects Completed"
-              value={projectsCompletedInRange}
-              icon={<FiCheckCircle className="w-5 h-5" />}
-              valueClassName="text-slate-800"
-              iconClassName="text-slate-600"
-              iconWrapClassName="bg-slate-100 ring-1 ring-slate-200/80"
-              borderClassName="border-t-slate-500"
-            />
-          ) : null}
+          <StatCard
+            label="Projects Completed"
+            value={projectsCompletedInRange}
+            icon={<FiCheckCircle className="w-5 h-5" />}
+            valueClassName="text-slate-800"
+            iconClassName="text-slate-600"
+            iconWrapClassName="bg-slate-100 ring-1 ring-slate-200/80"
+            borderClassName="border-t-slate-500"
+          />
           <StatCard
             label="Top Client Concentration"
+            calculation={
+              <div className="space-y-2">
+                <p>Largest client’s revenue ÷ Gross Revenue × 100.</p>
+                <ul className="space-y-1 tabular-nums font-mono">
+                  <li className="flex items-center justify-between gap-4">
+                    <span>{topClientConcentration.client || 'Top client'}</span>
+                    <span className="font-semibold text-slate-800">{formatMoney(topClientConcentration.amount || 0)}</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-4">
+                    <span>Gross Revenue</span>
+                    <span className="font-semibold text-slate-800">{formatMoney(grossRevenue)}</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-4 border-t border-slate-100 pt-1">
+                    <span>Concentration</span>
+                    <span className="font-semibold text-slate-800">{topClientConcentration.pct}%</span>
+                  </li>
+                </ul>
+              </div>
+            }
             value={`${topClientConcentration.pct}%`}
             icon={<FiPieChart className="w-5 h-5" />}
             valueClassName="text-amber-800"
@@ -511,9 +631,52 @@ const Dashboard = () => {
                 title="Monthly Comparison"
                 headerRight={
                   <div className="min-w-0">
-                    <p className="text-[10px] sm:text-xs font-light uppercase tracking-[0.16em] text-slate-500 leading-tight">
-                      Next Month Estimated Amount
-                    </p>
+                    <div className="flex items-center justify-end gap-1">
+                      <p className="text-[10px] sm:text-xs font-light uppercase tracking-[0.16em] text-slate-500 leading-tight">
+                        Next Month Estimated Amount
+                      </p>
+                      <CalculationInfo label="Next Month Estimated Amount">
+                        <div className="space-y-2">
+                          <p>
+                            Previous month’s Available Amount + new-project income (after brokerage and additional charges), then minus 30% tax.
+                          </p>
+                          <ul className="space-y-1 tabular-nums font-mono">
+                            <li className="flex items-center justify-between gap-4">
+                              <span>Prev. available ({nextMonthEstimate.previousMonthKey})</span>
+                              <span className="font-semibold text-slate-800">{formatMoney(nextMonthEstimate.previousMonthAvailable)}</span>
+                            </li>
+                            <li className="flex items-center justify-between gap-4">
+                              <span>New-project income</span>
+                              <span className="font-semibold text-slate-800">{formatMoney(nextMonthEstimate.newProjectsBeforeTax)}</span>
+                            </li>
+                            <li className="flex items-center justify-between gap-4 pl-2 text-slate-500">
+                              <span>Gross</span>
+                              <span>{formatMoney(nextMonthEstimate.newProjectsGross)}</span>
+                            </li>
+                            <li className="flex items-center justify-between gap-4 pl-2 text-slate-500">
+                              <span>Brokerage fee</span>
+                              <span>−{formatMoney(nextMonthEstimate.newProjectsBrokerage)}</span>
+                            </li>
+                            <li className="flex items-center justify-between gap-4 pl-2 text-slate-500">
+                              <span>Additional charges</span>
+                              <span>−{formatMoney(nextMonthEstimate.newProjectsAdditionalCharges)}</span>
+                            </li>
+                            <li className="flex items-center justify-between gap-4">
+                              <span>Before tax</span>
+                              <span className="font-semibold text-slate-800">{formatMoney(nextMonthEstimate.beforeTax)}</span>
+                            </li>
+                            <li className="flex items-center justify-between gap-4">
+                              <span>Tax (30%)</span>
+                              <span className="font-semibold text-slate-800">−{formatMoney(nextMonthEstimate.taxAmount)}</span>
+                            </li>
+                            <li className="flex items-center justify-between gap-4 border-t border-slate-100 pt-1">
+                              <span>Estimated ({nextMonthEstimate.nextMonthKey})</span>
+                              <span className="font-semibold text-slate-800">{formatMoney(nextMonthEstimate.estimated)}</span>
+                            </li>
+                          </ul>
+                        </div>
+                      </CalculationInfo>
+                    </div>
                     <p className={`mt-0.5 text-sm sm:text-base font-bold tabular-nums font-mono ${signedMoneyClass(nextMonthEstimate.estimated, 'text-emerald-600')}`}>
                       {formatMoney(nextMonthEstimate.estimated)}
                     </p>
@@ -558,7 +721,18 @@ const Dashboard = () => {
         </Suspense>
       ) : null}
 
-      <Modal isOpen={isTargetModalOpen} onClose={closeTargetModal} title="Set Target Amount">
+      <Modal isOpen={isTargetModalOpen} onClose={closeTargetModal} title="Set Target Amount"
+        footer={
+          <div className={modalActionsClass}>
+            <Button variant="secondary" onClick={closeTargetModal} className="w-full sm:flex-1">
+              Cancel
+            </Button>
+            <Button onClick={onSaveTarget} disabled={isSavingTarget} loading={isSavingTarget} className="w-full sm:flex-1">
+              {isSavingTarget ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        }
+      >
         <div className="space-y-4 min-w-0">
           <InputField
             label="Target Amount"
@@ -569,14 +743,6 @@ const Dashboard = () => {
             onChange={(e) => setTargetInputValue(e.target.value)}
             placeholder="Enter target amount"
           />
-          <div className={modalActionsClass}>
-            <Button variant="secondary" onClick={closeTargetModal} className="w-full sm:flex-1">
-              Cancel
-            </Button>
-            <Button onClick={onSaveTarget} disabled={isSavingTarget} loading={isSavingTarget} className="w-full sm:flex-1">
-              {isSavingTarget ? 'Saving…' : 'Save'}
-            </Button>
-          </div>
         </div>
       </Modal>
     </PageContainer>

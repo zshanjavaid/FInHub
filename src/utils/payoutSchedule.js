@@ -1,6 +1,13 @@
 import { addMonths } from 'date-fns';
 import { normalizeDateToYYYYMMDD } from './date';
 
+export const payoutShareCount = (project) => {
+  const key = String(project?.payoutOccurrence || 'biweekly').trim().toLowerCase();
+  if (key === 'weekly') return 4;
+  if (key === 'monthly') return 1;
+  return 2;
+};
+
 const toDateFromYmd = (ymd) => {
   if (!ymd) return null;
   const [y, m, d] = String(ymd).slice(0, 10).split('-').map(Number);
@@ -254,4 +261,3 @@ export const countExpectedWithCarryover = (project, transactionsForProject = [],
 
   return { expected: expectedThisRange + carryIn, carryIn, expectedThisRange };
 };
-

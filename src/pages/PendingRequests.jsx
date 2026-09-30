@@ -19,7 +19,7 @@ import { fetchProjects, approveProject, editProject, removeProject } from '../st
 import { useClientOptions } from '../hooks/useClientOptions';
 import { PROJECT_TYPE_OPTIONS } from '../constants/projectTypes';
 import { prepareProjectForFirestore } from '../utils/project';
-import { syncMonthlyBrokerageExpense } from '../utils/ensureMonthlyBrokerageExpense';
+import { syncMonthlyBrokerageExpense, cleanupDuplicateMonthlyBrokerageExpenses } from '../utils/ensureMonthlyBrokerageExpense';
 import {
   EMPTY_TRANSACTION_FORM,
   EMPTY_EXPENSE_FORM,
@@ -103,6 +103,25 @@ const PendingRequests = () => {
     dispatch(fetchExpenses());
     dispatch(fetchProjects());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (!Array.isArray(expenses) || expenses.length === 0) return undefined;
+    let cancelled = false;
+    cleanupDuplicateMonthlyBrokerageExpenses(dispatch, expenses)
+      .then((result) => {
+        if (!cancelled && (result.deleted || result.approved)) {
+          console.info(
+            `[FinHub] Cleaned duplicate brokerage expenses: deleted ${result.deleted}, approved ${result.approved}`
+          );
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) console.error(err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, expenses]);
 
   const canApprovePending = () => !!currentUserId;
 

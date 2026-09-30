@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,6 +14,7 @@ import {
   removeExpense
 } from '../store/expenses/expensesSlice';
 import { fetchProjects } from '../store/projects/projectsSlice';
+import { fetchTransactions } from '../store/transactions/transactionsSlice';
 import { filterByDateRange, expenseDateValue } from '../utils/date';
 import { useDateFilter } from '../hooks/useDateFilter';
 import { isApproved } from '../constants/app';
@@ -21,6 +22,9 @@ import { EXPENSE_TYPE_LABELS, EXPENSE_TYPE_LABEL_TO_VALUE, EXPENSE_TYPE_OPTIONS 
 import ErrorAlert from '../components/ErrorAlert';
 import PageContainer from '../components/PageContainer';
 import { EMPTY_EXPENSE_FORM, expenseToFormValues } from '../utils/formValues';
+import {
+  cleanupDuplicateMonthlyBrokerageExpenses
+} from '../utils/ensureMonthlyBrokerageExpense';
 
 const ExpenseFormModal = lazy(() => import('../components/ExpenseFormModal'));
 const typeParamToLabel = (param) => {
@@ -38,6 +42,7 @@ const Expenses = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const expenses = useSelector((state) => state.expenses.items);
+  const transactions = useSelector((state) => state.transactions.items);
   const isLoading = useSelector((state) => state.expenses.isLoading);
   const error = useSelector((state) => state.expenses.error);
   const projects = useSelector((state) => state.projects.items);
@@ -48,6 +53,7 @@ const Expenses = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState(null);
   const [initialValues, setInitialValues] = useState(EMPTY_EXPENSE_FORM);
+  const repairDoneRef = useRef(false);
 
   useEffect(() => {
     const fromUrl = typeParamToLabel(searchParams.get('type'));
@@ -88,7 +94,34 @@ const Expenses = () => {
   useEffect(() => {
     dispatch(fetchExpenses());
     dispatch(fetchProjects());
+    dispatch(fetchTransactions());
   }, [dispatch]);
+
+  // One-shot cleanup of duplicate monthly brokerage rows from a raced backfill.
+  useEffect(() => {
+    if (repairDoneRef.current) return undefined;
+    if (!Array.isArray(expenses) || expenses.length === 0) return undefined;
+    repairDoneRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await cleanupDuplicateMonthlyBrokerageExpenses(dispatch, expenses);
+        if (!cancelled && (result.deleted || result.approved)) {
+          console.info(
+            `[FinHub] Cleaned duplicate brokerage expenses: deleted ${result.deleted}, approved ${result.approved}`
+          );
+        }
+      } catch (err) {
+        if (!cancelled) {
+          repairDoneRef.current = false;
+          console.error(err);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, expenses]);
 
   const openAddModal = () => {
     setEditingExpenseId(null);

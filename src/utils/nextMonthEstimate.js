@@ -1,13 +1,17 @@
 import { isApproved } from '../constants/app';
-import { normalizeDateToYYYYMMDD } from './date';
-import { countExpectedPayoutsInRange } from './payoutSchedule';
-import { isProjectEligibleForAutoGenerateMonth } from './transactionsEligibility';
-import { transactionNetAfterImpactFund } from './transactionNet';
-import { latestProjectByIdentity, matchesClientProject, projectIdentityKey } from './projectLookup';
-import { normText, roundMoney } from './number';
+import { expenseDateValue, normalizeDateToYYYYMMDD } from './date';
+import { countExpectedPayoutsInRange, payoutShareCount } from './payoutSchedule';
+import { isProjectEligibleForAutoGenerateMonth, projectLifecycleEndYmd } from './transactionsEligibility';
+import { sumTransactionNetAfterImpactFund } from './transactionNet';
+import { sumExpenseAmountsForAvailable } from './availableBalance';
+import { latestProjectByIdentity, matchesClientProject } from './projectLookup';
+import { matchesSelectedBroker } from './brokerFilter';
+import { computeImportMonthlyBrokerageAmount } from './csvTransactionImport';
+import { roundMoney, toNumber } from './number';
+
+const ESTIMATE_TAX_RATE = 0.3;
 
 const monthBounds = (year, monthIndex0) => {
-  // Normalize so Jan (monthIndex0 - 1) → Dec prior year, Dec + 1 → Jan next year.
   const d = new Date(year, monthIndex0, 1);
   const y = d.getFullYear();
   const m0 = d.getMonth();
@@ -20,26 +24,10 @@ const monthBounds = (year, monthIndex0) => {
   };
 };
 
-/** Clip month end to contract end date when the project finishes mid-month. */
-const rangeToWithContractEnd = (monthTo, contractEndingYmd) => {
-  if (!contractEndingYmd) return monthTo;
-  return contractEndingYmd < monthTo ? contractEndingYmd : monthTo;
-};
-
-/**
- * Next-month estimate (forward-looking):
- * For each project that had inward last month, take average $ per payout received,
- * then multiply by how many payouts that project is expected to get next month
- * (monthly / biweekly / weekly via countExpectedPayoutsInRange, same as auto-generate).
- *
- * End Date rules:
- * - Ends before next month starts → $0 for that project
- * - Ends mid-month → only payouts that fall on/before End Date
- * - Ends on/after month end → full expected count for the month
- */
 export const computeNextMonthEstimatedAmount = ({
   projects = [],
   transactions = [],
+  expenses = [],
   selectedBroker = '',
   selectedProject = null,
   now = new Date()
@@ -48,82 +36,62 @@ export const computeNextMonthEstimatedAmount = ({
   const prev = monthBounds(ref.getFullYear(), ref.getMonth() - 1);
   const next = monthBounds(ref.getFullYear(), ref.getMonth() + 1);
 
-  let txs = (transactions || []).filter(isApproved);
-  if (selectedProject) {
-    txs = txs.filter((t) => matchesClientProject(t, selectedProject.client, selectedProject.project));
-  } else if (selectedBroker) {
-    const b = normText(selectedBroker);
-    txs = txs.filter((t) => normText(t.client) === b);
-  }
-
-  const prevMonthTxs = txs.filter((t) => {
-    const ymd = normalizeDateToYYYYMMDD(t.date);
+  const matchesFilters = (row) => {
+    if (!isApproved(row)) return false;
+    if (selectedProject) return matchesClientProject(row, selectedProject.client, selectedProject.project);
+    return !selectedBroker || matchesSelectedBroker(row, selectedBroker);
+  };
+  const isPreviousMonth = (date) => {
+    const ymd = normalizeDateToYYYYMMDD(date);
     return ymd && ymd >= prev.from && ymd <= prev.to;
+  };
+
+  const previousMonthTx = (transactions || []).filter((row) => matchesFilters(row) && isPreviousMonth(row.date));
+  const previousMonthInward = sumTransactionNetAfterImpactFund(previousMonthTx);
+  const previousMonthExpenses = sumExpenseAmountsForAvailable(
+    (expenses || []).filter((row) => matchesFilters(row) && isPreviousMonth(expenseDateValue(row))),
+    previousMonthTx
+  );
+  const previousMonthAvailable = roundMoney(previousMonthInward - previousMonthExpenses);
+
+  const latestProjects = latestProjectByIdentity((projects || []).filter(matchesFilters));
+  let newProjectsGross = 0;
+  let newProjectsBrokerage = 0;
+  let newProjectsAdditionalCharges = 0;
+  latestProjects.forEach((project) => {
+    const start = normalizeDateToYYYYMMDD(project.date);
+    if (!start || start <= prev.to) return;
+    if (!isProjectEligibleForAutoGenerateMonth(project, next.from, next.to)) return;
+
+    const end = projectLifecycleEndYmd(project);
+    const rangeTo = end && end < next.to ? end : next.to;
+    const expectedPayouts = countExpectedPayoutsInRange(project, next.from, rangeTo);
+    if (expectedPayouts <= 0) return;
+    const monthlyGross = Math.max(0, toNumber(project.totalMonthlyHours)) * Math.max(0, toNumber(project.hourlyRate));
+    const gross = monthlyGross * expectedPayouts / payoutShareCount(project);
+    newProjectsGross += gross;
+    newProjectsBrokerage += computeImportMonthlyBrokerageAmount(project, gross, next.monthKey);
+    newProjectsAdditionalCharges += Math.max(0, toNumber(project.projectCost));
   });
 
-  const previousMonthTotal = prevMonthTxs.reduce((s, t) => s + transactionNetAfterImpactFund(t), 0);
-
-  const inwardByProject = new Map();
-  const countByProject = new Map();
-  prevMonthTxs.forEach((t) => {
-    const key = projectIdentityKey(t.client, t.project);
-    inwardByProject.set(key, (inwardByProject.get(key) || 0) + transactionNetAfterImpactFund(t));
-    countByProject.set(key, (countByProject.get(key) || 0) + 1);
-  });
-
-  let projectsList = projects || [];
-  if (selectedProject) {
-    projectsList = projectsList.filter((p) =>
-      matchesClientProject(p, selectedProject.client, selectedProject.project)
-    );
-  } else if (selectedBroker) {
-    const b = normText(selectedBroker);
-    projectsList = projectsList.filter((p) => normText(p.client) === b);
-  }
-
-  const latestByKey = latestProjectByIdentity(projectsList);
-  let estimated = 0;
-  let excludedInward = 0;
-
-  latestByKey.forEach((p, key) => {
-    const prevInward = inwardByProject.get(key) || 0;
-    if (prevInward <= 0) return;
-
-    const actualPrev = countByProject.get(key) || 0;
-    if (actualPrev <= 0) return;
-
-    const contractEnd = normalizeDateToYYYYMMDD(p.contractEnding);
-
-    // Finished before next month starts → drop that project's last-month inward.
-    if (contractEnd && contractEnd < next.from) {
-      excludedInward += prevInward;
-      return;
-    }
-
-    if (!isProjectEligibleForAutoGenerateMonth(p, next.from, next.to)) {
-      excludedInward += prevInward;
-      return;
-    }
-
-    const nextTo = rangeToWithContractEnd(next.to, contractEnd);
-    const nextExpected = countExpectedPayoutsInRange(p, next.from, nextTo);
-    if (nextExpected <= 0) {
-      excludedInward += prevInward;
-      return;
-    }
-
-    const perPayout = prevInward / actualPrev;
-    estimated += perPayout * nextExpected;
-  });
-
-  estimated = Math.max(0, roundMoney(estimated));
+  newProjectsGross = roundMoney(newProjectsGross);
+  newProjectsBrokerage = roundMoney(newProjectsBrokerage);
+  newProjectsAdditionalCharges = roundMoney(newProjectsAdditionalCharges);
+  const newProjectsBeforeTax = roundMoney(newProjectsGross - newProjectsBrokerage - newProjectsAdditionalCharges);
+  const beforeTax = roundMoney(previousMonthAvailable + newProjectsBeforeTax);
+  const taxAmount = roundMoney(Math.max(0, beforeTax) * ESTIMATE_TAX_RATE);
 
   return {
-    estimated,
-    previousMonthTotal: roundMoney(previousMonthTotal),
-    excludedInward: roundMoney(excludedInward),
-    // Kept for any older callers that still read this field.
-    missingProjectsInward: roundMoney(excludedInward),
+    estimated: roundMoney(beforeTax - taxAmount),
+    previousMonthInward: roundMoney(previousMonthInward),
+    previousMonthExpenses: roundMoney(previousMonthExpenses),
+    previousMonthAvailable,
+    newProjectsGross,
+    newProjectsBrokerage,
+    newProjectsAdditionalCharges,
+    newProjectsBeforeTax,
+    beforeTax,
+    taxAmount,
     previousMonthKey: prev.monthKey,
     nextMonthKey: next.monthKey
   };

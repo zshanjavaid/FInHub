@@ -35,7 +35,12 @@ export const saveExpense = async (expenseData) => {
     const shouldCreateRecurring = recurring && recurringMonths > 0;
 
     const createdBy = expenseData.createdBy ?? null;
-    const status = createdBy ? ENTRY_STATUS.PENDING : ENTRY_STATUS.APPROVED;
+    // Monthly brokerage is synced from approved transactions — not a separate approval request.
+    const status = expenseData.isMonthlyBrokerage
+      ? ENTRY_STATUS.APPROVED
+      : createdBy
+        ? ENTRY_STATUS.PENDING
+        : ENTRY_STATUS.APPROVED;
     const baseData = {
       expenseName: expenseData.expenseName ?? '',
       date: expenseData.date ?? '',

@@ -556,13 +556,31 @@ svg.fh-icon-live--logout {
   animation: fh-pop-in 0.26s var(--fh-ease) both;
 }
 
+@keyframes fh-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fh-modal-overlay {
+  animation-duration: 120ms;
+}
+
+.fh-modal-panel {
+  animation: fh-modal-in 140ms var(--fh-ease) both;
+}
+
 .fh-rise {
   animation: fh-rise-in 0.26s var(--fh-ease) both;
 }
 
 .fh-lift {
   transition: transform 0.12s var(--fh-ease);
-  will-change: transform;
 }
 
 .fh-lift:hover {
@@ -571,7 +589,6 @@ svg.fh-icon-live--logout {
 
 .fh-press {
   transition: transform 0.12s var(--fh-ease);
-  will-change: transform;
 }
 
 .fh-press:active:not(:disabled) {

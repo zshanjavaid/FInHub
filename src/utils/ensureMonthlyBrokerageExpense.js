@@ -1,14 +1,22 @@
-import { isApproved } from '../constants/app';
-import { createExpense, editExpense } from '../store/expenses/expensesSlice';
+import { isApproved, ENTRY_STATUS } from '../constants/app';
+import { fetchExpenses } from '../store/expenses/expensesSlice';
 import { transactionHasBrokerageDeduction } from './availableBalance';
 import {
   buildMonthlyBrokerageExpenseData,
   findExistingMonthlyBrokerage,
+  isBrokerageExpenseRow,
+  brokerageExpenseMonthKey,
   monthKeyFromYmd,
   planNewMonthlyBrokerageExpense
 } from './csvTransactionImport';
 import { roundMoney, toNumber } from './number';
 import { findLatestProjectByBrokerAndProject, matchesClientProject } from './projectLookup';
+import { normalizeDateToYYYYMMDD } from './date';
+import {
+  deleteExpense as deleteExpenseService,
+  updateExpense as updateExpenseService,
+  saveExpense as saveExpenseService
+} from '../services/expenseService';
 
 const monthGrossForProject = (
   transactions = [],
@@ -63,12 +71,18 @@ const expenseUpdateFields = (data) => ({
   monthKey: data.monthKey,
   isMonthlyBrokerage: true,
   brokerageType: data.brokerageType,
-  brokerageValue: data.brokerageValue
+  brokerageValue: data.brokerageValue,
+  status: ENTRY_STATUS.APPROVED
 });
 
 const expenseAlreadyMatches = (existing, data) => {
   if (!existing || !data) return false;
+  const statusOk =
+    existing.status === ENTRY_STATUS.APPROVED ||
+    existing.status === undefined ||
+    existing.status === null;
   return (
+    statusOk &&
     roundMoney(existing.amount) === roundMoney(data.amount) &&
     String(existing.brokerageType || '') === String(data.brokerageType || '') &&
     toNumber(existing.brokerageValue) === toNumber(data.brokerageValue)
@@ -231,17 +245,164 @@ export const planMonthlyBrokerageExpenseSync = ({
 };
 
 export const persistMonthlyBrokerageExpensePlans = async (dispatch, plans = []) => {
+  if (!plans.length) return;
+  // Write directly (no per-row refetch) so callers can't race on expenses.length mid-loop.
   for (const plan of plans) {
     if (plan.type === 'create' && plan.data) {
-      await dispatch(createExpense(plan.data)).unwrap();
+      await saveExpenseService(plan.data);
     } else if (plan.type === 'update' && plan.expenseId && plan.data) {
-      await dispatch(editExpense({ expenseId: plan.expenseId, expenseData: plan.data })).unwrap();
+      await updateExpenseService(plan.expenseId, plan.data);
     }
   }
+  await dispatch(fetchExpenses({ force: true }));
 };
 
 export const syncMonthlyBrokerageExpense = async (dispatch, args) => {
   await persistMonthlyBrokerageExpensePlans(dispatch, planMonthlyBrokerageExpenseSync(args));
+};
+
+/**
+ * Ensure every client/project/month with transaction brokerage has a matching
+ * Brokerage expense row (so the Brokerage page matches transaction totals).
+ */
+export const planReconcileMonthlyBrokerageFromTransactions = ({
+  transactions = [],
+  expenses = [],
+  createdBy = null
+} = {}) => {
+  const buckets = new Map();
+
+  (transactions || []).forEach((t) => {
+    if (!isApproved(t)) return;
+    const amount = toNumber(t.brokerageAmount);
+    if (amount <= 0) return;
+    const client = t.client;
+    const project = t.project;
+    const monthKey = monthKeyFromYmd(t.date);
+    if (!client || !project || !monthKey) return;
+    const key = bucketKey(client, project, monthKey);
+    const prev = buckets.get(key) || {
+      client,
+      project,
+      monthKey,
+      date: t.date,
+      sum: 0,
+      brokerageType: t.brokerageType || 'percentage',
+      brokerageValue: t.brokerageValue ?? ''
+    };
+    prev.sum = roundMoney(prev.sum + amount);
+    const prevDate = normalizeDateToYYYYMMDD(prev.date) || '';
+    const nextDate = normalizeDateToYYYYMMDD(t.date) || '';
+    if (nextDate && nextDate >= prevDate) {
+      prev.date = t.date;
+      prev.brokerageType = t.brokerageType || prev.brokerageType;
+      prev.brokerageValue = t.brokerageValue ?? prev.brokerageValue;
+    }
+    buckets.set(key, prev);
+  });
+
+  const plans = [];
+  for (const b of buckets.values()) {
+    const existing = findExistingMonthlyBrokerage(expenses, {
+      client: b.client,
+      project: b.project,
+      monthKey: b.monthKey
+    });
+    const data = buildMonthlyBrokerageExpenseData({
+      client: b.client,
+      project: b.project,
+      monthKey: b.monthKey,
+      amount: b.sum,
+      brokerageType: b.brokerageType,
+      brokerageValue: b.brokerageValue,
+      createdBy,
+      date: b.date
+    });
+    if (existing) {
+      if (expenseAlreadyMatches(existing, data)) continue;
+      plans.push({ type: 'update', expenseId: existing.id, data: expenseUpdateFields(data) });
+    } else if (b.sum > 0) {
+      plans.push({ type: 'create', data });
+    }
+  }
+  return plans;
+};
+
+export const reconcileMonthlyBrokerageFromTransactions = async (dispatch, args) => {
+  await persistMonthlyBrokerageExpensePlans(
+    dispatch,
+    planReconcileMonthlyBrokerageFromTransactions(args)
+  );
+};
+
+/**
+ * Remove duplicate monthly brokerage rows created by a raced backfill.
+ * Keeps one row per client/project/month (prefer approved), deletes the rest.
+ * Approves every kept monthly brokerage row that is still pending.
+ */
+export const planCleanupDuplicateMonthlyBrokerageExpenses = (expenses = []) => {
+  const byBucket = new Map();
+  (expenses || []).forEach((e) => {
+    if (!isBrokerageExpenseRow(e)) return;
+    const monthKey = brokerageExpenseMonthKey(e);
+    if (!monthKey || !e.client || !e.project || !e.id) return;
+    const key = bucketKey(e.client, e.project, monthKey);
+    if (!byBucket.has(key)) byBucket.set(key, []);
+    byBucket.get(key).push(e);
+  });
+
+  const deleteIds = [];
+  const approveIds = [];
+  const keptIds = new Set();
+
+  for (const list of byBucket.values()) {
+    if (list.length === 0) continue;
+    const sorted = [...list].sort((a, b) => {
+      const aOk = isApproved(a) ? 1 : 0;
+      const bOk = isApproved(b) ? 1 : 0;
+      if (bOk !== aOk) return bOk - aOk;
+      const amountDiff = toNumber(b.amount) - toNumber(a.amount);
+      if (amountDiff !== 0) return amountDiff;
+      return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
+    });
+    const keep = sorted[0];
+    keptIds.add(keep.id);
+    if (!isApproved(keep)) approveIds.push(keep.id);
+    for (const row of sorted.slice(1)) {
+      deleteIds.push(row.id);
+    }
+  }
+
+  // Also approve any other pending monthly brokerage rows (no client/project key).
+  (expenses || []).forEach((e) => {
+    if (!e?.id || keptIds.has(e.id) || deleteIds.includes(e.id)) return;
+    if (!isBrokerageExpenseRow(e) || isApproved(e)) return;
+    approveIds.push(e.id);
+  });
+
+  return { deleteIds, approveIds };
+};
+
+let cleanupInFlight = null;
+
+export const cleanupDuplicateMonthlyBrokerageExpenses = async (dispatch, expenses = []) => {
+  if (cleanupInFlight) return cleanupInFlight;
+  cleanupInFlight = (async () => {
+    const { deleteIds, approveIds } = planCleanupDuplicateMonthlyBrokerageExpenses(expenses);
+    for (const id of approveIds) {
+      await updateExpenseService(id, { status: ENTRY_STATUS.APPROVED });
+    }
+    for (const id of deleteIds) {
+      await deleteExpenseService(id);
+    }
+    if (deleteIds.length || approveIds.length) {
+      await dispatch(fetchExpenses({ force: true }));
+    }
+    return { deleted: deleteIds.length, approved: approveIds.length };
+  })().finally(() => {
+    cleanupInFlight = null;
+  });
+  return cleanupInFlight;
 };
 
 export { findLatestProjectByBrokerAndProject, monthGrossForProject, monthKeyFromYmd };
