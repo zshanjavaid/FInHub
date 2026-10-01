@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FiSearch, FiChevronDown, FiFileText, FiMoreVertical } from 'react-icons/fi';
+import { FiSearch, FiChevronDown, FiChevronLeft, FiChevronRight, FiFileText, FiMoreVertical } from 'react-icons/fi';
 import SearchableDropdown from './SearchableDropdown';
 import Loader from './Loader';
 import DeleteConfirmModal from './DeleteConfirmModal';
@@ -25,6 +25,7 @@ const DEFAULT_SEARCH_CONFIG = {
   placeholder: 'Search...',
   searchFields: EMPTY_ITEMS
 };
+const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50];
 
 const DataTable = ({
   data = EMPTY_ITEMS,
@@ -43,7 +44,10 @@ const DataTable = ({
   titleActions = null,
   getRowClassName = null,
   headerSummary = null,
-  sortCompare = null
+  sortCompare = null,
+  pagination = true,
+  defaultPageSize = 10,
+  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS
 }) => {
   // Re-render when privacy toggles so column formatters re-read the mask.
   usePrivacyHidden();
@@ -54,6 +58,8 @@ const DataTable = ({
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(defaultPageSize);
 
   const getMenuHeightEstimate = ({ canApprove }) => {
     const itemsCount = (onEdit ? 1 : 0) + (canApprove ? 1 : 0) + (onDelete ? 1 : 0);
@@ -64,14 +70,14 @@ const DataTable = ({
     const normalizedSearch = searchTerm.toLowerCase();
     return data.filter((item) => {
       if (searchConfig.enabled && normalizedSearch) {
-        const matchesSearch = searchConfig.searchFields.some(field => {
+        const matchesSearch = searchConfig.searchFields.some((field) => {
           const value = item[field];
           return value?.toString().toLowerCase().includes(normalizedSearch);
         });
         if (!matchesSearch) return false;
       }
 
-      return filters.every(filter => {
+      return filters.every((filter) => {
         const filterValue = filterValues[filter.key] || 'All';
         if (filterValue === 'All' || filterValue === '') return true;
         return item[filter.key] === filterValue;
@@ -80,30 +86,55 @@ const DataTable = ({
   }, [data, searchConfig, searchTerm, filters, filterValues]);
 
   const currentData = useMemo(
-    () => sortCompare ? [...filteredData].sort(sortCompare) : filteredData,
+    () => (sortCompare ? [...filteredData].sort(sortCompare) : filteredData),
     [filteredData, sortCompare]
   );
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, filterValues, pageSize, data.length]);
+
+  const totalRows = currentData.length;
+  const totalPages = pagination ? Math.max(1, Math.ceil(totalRows / pageSize)) : 1;
+  const safePage = Math.min(page, totalPages);
+
+  const pageData = useMemo(() => {
+    if (!pagination) return currentData;
+    const start = (safePage - 1) * pageSize;
+    return currentData.slice(start, start + pageSize);
+  }, [currentData, pagination, safePage, pageSize]);
+
+  const pageStartIndex = pagination ? (safePage - 1) * pageSize : 0;
+  const rangeFrom = totalRows === 0 ? 0 : pageStartIndex + 1;
+  const rangeTo = Math.min(pageStartIndex + pageData.length, totalRows);
 
   const headerSummaryColIndex =
     headerSummary && columns.length > 0
       ? columns.findIndex((c) => c.key === headerSummary.columnKey)
       : -1;
   const headerSummaryNumeric = useMemo(
-    () => headerSummary && headerSummaryColIndex >= 0 && typeof headerSummary.aggregate === 'function'
-      ? headerSummary.aggregate(currentData)
-      : null,
+    () =>
+      headerSummary && headerSummaryColIndex >= 0 && typeof headerSummary.aggregate === 'function'
+        ? headerSummary.aggregate(currentData)
+        : null,
     [headerSummary, headerSummaryColIndex, currentData]
   );
   const headerSummaryDisplay =
     headerSummaryNumeric != null && Number.isFinite(headerSummaryNumeric)
-      ? (headerSummary.format ? headerSummary.format(headerSummaryNumeric) : String(headerSummaryNumeric))
+      ? headerSummary.format
+        ? headerSummary.format(headerSummaryNumeric)
+        : String(headerSummaryNumeric)
       : null;
 
   const filterOptions = useMemo(
-    () => new Map(filters.map(filter => [
-      filter,
-      filter.options || ['All', ...new Set(data.map(item => item[filter.key]).filter(Boolean))].sort()
-    ])),
+    () =>
+      new Map(
+        filters.map((filter) => [
+          filter,
+          filter.options ||
+            ['All', ...new Set(data.map((item) => item[filter.key]).filter(Boolean))].sort()
+        ])
+      ),
     [data, filters]
   );
 
@@ -137,12 +168,17 @@ const DataTable = ({
       >
         <Icon className={iconClass} />
       </div>
-      <h4 className="text-lg sm:text-xl font-extrabold text-slate-800 mb-1 sm:mb-1.5 px-2 tracking-tight">{heading}</h4>
+      <h4 className="text-lg sm:text-xl font-extrabold text-slate-800 mb-1 sm:mb-1.5 px-2 tracking-tight">
+        {heading}
+      </h4>
       <p className="text-slate-500 text-xs sm:text-sm max-w-[16rem] sm:max-w-sm mx-auto leading-relaxed px-2">
         {description}
       </p>
     </div>
   );
+
+  const navBtnClass =
+    'inline-flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200/90 bg-white text-slate-600 hover:border-primary-300 hover:text-primary-700 hover:bg-primary-50/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 disabled:opacity-40 disabled:pointer-events-none';
 
   if (isLoading) {
     return (
@@ -201,8 +237,10 @@ const DataTable = ({
               <SearchableDropdown
                 label={filter.label}
                 value={filterValues[filter.key] === 'All' ? '' : filterValues[filter.key] || ''}
-                onChange={(value) => setFilterValues(prev => ({ ...prev, [filter.key]: value || 'All' }))}
-                options={filterOptions.get(filter).filter(opt => opt !== 'All')}
+                onChange={(value) =>
+                  setFilterValues((prev) => ({ ...prev, [filter.key]: value || 'All' }))
+                }
+                options={filterOptions.get(filter).filter((opt) => opt !== 'All')}
                 placeholder={filter.placeholder || `All ${filter.label}s`}
                 leftIcon={filter.icon}
                 layout="md"
@@ -215,11 +253,15 @@ const DataTable = ({
                 <div className="relative">
                   <select
                     value={filterValues[filter.key] || 'All'}
-                    onChange={(e) => setFilterValues(prev => ({ ...prev, [filter.key]: e.target.value }))}
+                    onChange={(e) =>
+                      setFilterValues((prev) => ({ ...prev, [filter.key]: e.target.value }))
+                    }
                     className="w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus-visible:ring-2 focus-visible:ring-primary-500/30 appearance-none bg-white pr-10 cursor-pointer text-slate-700"
                   >
-                    {filterOptions.get(filter).map(option => (
-                      <option key={option} value={option}>{option}</option>
+                    {filterOptions.get(filter).map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
                     ))}
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -232,9 +274,7 @@ const DataTable = ({
         ))}
 
         {additionalFilters && (
-          <div className="flex items-end gap-2 flex-shrink-0">
-            {additionalFilters}
-          </div>
+          <div className="flex items-end gap-2 flex-shrink-0">{additionalFilters}</div>
         )}
       </div>
 
@@ -243,31 +283,30 @@ const DataTable = ({
           <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-xl sm:rounded-2xl bg-slate-100 flex items-center justify-center">
             <FiSearch className="w-8 h-8 text-slate-400" />
           </div>
-          <p className="text-slate-800 font-extrabold text-base sm:text-lg tracking-tight">No results found</p>
-          <p className="text-slate-500 text-sm font-light mt-1">Try adjusting your search or filter</p>
+          <p className="text-slate-800 font-extrabold text-base sm:text-lg tracking-tight">
+            No results found
+          </p>
+          <p className="text-slate-500 text-sm font-light mt-1">
+            Try adjusting your search or filter
+          </p>
         </div>
       ) : (
         <>
-          <div
-            className={tableScrollWrapClass}
-            style={{ WebkitOverflowScrolling: 'touch' }}
-          >
+          <div className={tableScrollWrapClass} style={{ WebkitOverflowScrolling: 'touch' }}>
             <table className={tableElementClass}>
               <thead>
                 {headerSummaryDisplay != null && headerSummaryColIndex >= 0 ? (
                   <tr className="bg-slate-50 border-b border-slate-200/80">
                     {headerSummaryColIndex > 0 ? (
-                      <th
-                        colSpan={headerSummaryColIndex}
-                        className={tableHeadCellClass('text-right')}
-                      >
+                      <th colSpan={headerSummaryColIndex} className={tableHeadCellClass('text-right')}>
                         {headerSummary.label ?? 'Total'}
                       </th>
                     ) : null}
                     <th
-                      className={`${tableBodyCellClass('text-center', `font-bold tabular-nums ${headerSummaryNumeric < 0 ? 'text-red-600' : 'text-primary-800'}`)} ${
-                        headerSummaryColIndex > 0 ? 'border-l border-primary-200/50' : ''
-                      }`}
+                      className={`${tableBodyCellClass(
+                        'text-center',
+                        `font-bold tabular-nums ${headerSummaryNumeric < 0 ? 'text-red-600' : 'text-primary-800'}`
+                      )} ${headerSummaryColIndex > 0 ? 'border-l border-primary-200/50' : ''}`}
                       colSpan={1}
                     >
                       {headerSummaryDisplay}
@@ -299,33 +338,41 @@ const DataTable = ({
                 </tr>
               </thead>
               <tbody>
-                {currentData.map((item, localIndex) => {
-                    const uniqueId = item.id ?? `row-${localIndex}`;
-                    const hasRowAction = onEdit || onDelete || (onApprove && getCanApprove && getCanApprove(item));
-                    const isEven = localIndex % 2 === 0;
-                    const rowAccent = getRowClassName?.(item, localIndex);
-                    const trClass = rowAccent
-                      ? `border-b border-slate-100 ${rowAccent} transition-colors`
-                      : `border-b border-slate-100 ${isEven ? 'bg-white' : 'bg-slate-50/60'} hover:bg-primary-50/50 transition-colors`;
-                    return (
-                      <tr key={uniqueId} className={trClass}>
-                        {columns.map((column) => (
-                          <td
-                            key={column.key}
-                            className={`${tableBodyCellClass(column.align || 'text-center')} ${column.className || ''}`}
-                          >
-                            {column.render ? column.render(item[column.key], item) : (item[column.key] || '-')}
-                          </td>
-                        ))}
-                        {(onEdit || onDelete || onApprove) && (
-                          <td className={tableBodyCellClass('text-center')}>
-                            {hasRowAction ? (
+                {pageData.map((item, localIndex) => {
+                  const globalIndex = pageStartIndex + localIndex;
+                  const uniqueId = item.id != null ? String(item.id) : `row-${globalIndex}`;
+                  const hasRowAction =
+                    onEdit || onDelete || (onApprove && getCanApprove && getCanApprove(item));
+                  const isEven = localIndex % 2 === 0;
+                  const rowAccent = getRowClassName?.(item, localIndex);
+                  const trClass = rowAccent
+                    ? `border-b border-slate-100 ${rowAccent} transition-colors`
+                    : `border-b border-slate-100 ${isEven ? 'bg-white' : 'bg-slate-50/60'} hover:bg-primary-50/50 transition-colors`;
+                  return (
+                    <tr key={uniqueId} className={trClass}>
+                      {columns.map((column) => (
+                        <td
+                          key={column.key}
+                          className={`${tableBodyCellClass(column.align || 'text-center')} ${column.className || ''}`}
+                        >
+                          {column.render
+                            ? column.render(item[column.key], item)
+                            : item[column.key] || '-'}
+                        </td>
+                      ))}
+                      {(onEdit || onDelete || onApprove) && (
+                        <td className={tableBodyCellClass('text-center')}>
+                          {hasRowAction ? (
                             <div className="relative inline-block">
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   const rect = e.currentTarget.getBoundingClientRect();
-                                  const canApprove = !!(onApprove && getCanApprove && getCanApprove(item));
+                                  const canApprove = !!(
+                                    onApprove &&
+                                    getCanApprove &&
+                                    getCanApprove(item)
+                                  );
                                   const menuHeight = getMenuHeightEstimate({ canApprove });
                                   const preferredTop = rect.bottom + 4;
                                   const maxTop = window.innerHeight - menuHeight - 8;
@@ -338,22 +385,75 @@ const DataTable = ({
                                     top,
                                     right: window.innerWidth - rect.right
                                   });
-                                  setOpenDropdownIndex(openDropdownIndex === uniqueId ? null : uniqueId);
+                                  setOpenDropdownIndex(
+                                    openDropdownIndex === uniqueId ? null : uniqueId
+                                  );
                                 }}
                                 className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl hover:bg-primary-100 text-slate-600 hover:text-primary-700 transition-colors"
                               >
                                 <FiMoreVertical className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600" />
                               </button>
                             </div>
-                            ) : null}
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
+                          ) : null}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
+
+          {pagination && totalRows > 0 ? (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3 sm:px-5 py-3 border-t border-slate-200/80 bg-slate-50/80">
+              <p className="text-xs sm:text-sm text-slate-500 tabular-nums">
+                Showing{' '}
+                <span className="font-semibold text-slate-700">{rangeFrom}</span>–
+                <span className="font-semibold text-slate-700">{rangeTo}</span> of{' '}
+                <span className="font-semibold text-slate-700">{totalRows}</span>
+              </p>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <label className="inline-flex items-center gap-2 text-xs sm:text-sm text-slate-500">
+                  <span className="whitespace-nowrap">Rows</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="h-9 px-2.5 pr-8 text-sm border border-slate-200/90 rounded-xl bg-white text-slate-700 appearance-none focus:outline-none focus:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-500/30"
+                    aria-label="Rows per page"
+                  >
+                    {pageSizeOptions.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="inline-flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    className={navBtnClass}
+                    aria-label="Previous page"
+                    disabled={safePage <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    <FiChevronLeft className="w-4 h-4" aria-hidden />
+                  </button>
+                  <span className="min-w-[5.5rem] text-center text-xs sm:text-sm font-semibold tabular-nums text-slate-700">
+                    {safePage} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    className={navBtnClass}
+                    aria-label="Next page"
+                    disabled={safePage >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    <FiChevronRight className="w-4 h-4" aria-hidden />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {openDropdownIndex &&
             createPortal(
@@ -370,8 +470,8 @@ const DataTable = ({
                   }}
                 >
                   {(() => {
-                    const item = currentData.find((_, idx) => {
-                      const id = currentData[idx].id ?? `row-${idx}`;
+                    const item = currentData.find((row, idx) => {
+                      const id = row.id != null ? String(row.id) : `row-${idx}`;
                       return id === openDropdownIndex;
                     });
                     const canApprove = item && onApprove && getCanApprove && getCanApprove(item);
@@ -424,7 +524,6 @@ const DataTable = ({
               </>,
               document.body
             )}
-
         </>
       )}
 

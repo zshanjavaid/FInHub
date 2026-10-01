@@ -33,16 +33,22 @@ const DateFilterControls = ({
 }) => {
   const pill = (isActive) =>
     `w-full h-9 px-2 sm:px-3 rounded-lg text-sm font-semibold transition-colors duration-150 border outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 ring-0 xl:w-auto xl:whitespace-nowrap ${
-    30|      isActive
-        ? 'bg-white text-primary-700 shadow-sm border-slate-200/80'
+      isActive
+        ? 'bg-primary-600 text-white shadow-sm border-primary-600'
         : 'text-slate-600 border-transparent hover:text-slate-800 hover:bg-white/70'
     }`;
 
+  const currentYearMonth = getCurrentYearMonth();
+  const canGoNextMonth = (selectedMonth || currentYearMonth) < currentYearMonth;
+
   const shiftMonth = (delta) => {
-    const parsed = parseYearMonth(selectedMonth) || parseYearMonth(getCurrentYearMonth());
+    const parsed = parseYearMonth(selectedMonth) || parseYearMonth(currentYearMonth);
     if (!parsed) return;
     const d = new Date(parsed.year, parsed.month - 1 + delta, 1);
-    setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    const next = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    // Do not allow navigating past the current calendar month.
+    if (next > currentYearMonth) return;
+    setMonth(next);
   };
 
   const shiftYear = (delta) => {
@@ -86,6 +92,7 @@ const DateFilterControls = ({
                   value={selectedMonth}
                   onChange={setMonth}
                   granularity="month"
+                  maxDate={currentYearMonth}
                   placeholder="Select month"
                   className={datePickerClass}
                 />
@@ -94,6 +101,7 @@ const DateFilterControls = ({
                 type="button"
                 className={navBtnClass}
                 aria-label="Next month"
+                disabled={!canGoNextMonth}
                 onClick={() => shiftMonth(1)}
               >
                 <FiChevronRight className="w-5 h-5" aria-hidden />

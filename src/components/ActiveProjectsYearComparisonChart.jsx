@@ -29,6 +29,7 @@ import PrivacyChartPlaceholder from './PrivacyChartPlaceholder';
 ensureChartJsRegistered();
 
 const COMPLETED_COLOR = '#d97706';
+const ADDED_COLOR = '#7c3aed';
 const ALL_TAB = 'all';
 const YEAR_LINE_COLORS = ['#0d9488', '#0284c7', '#d97706', '#7c3aed', '#e11d48', '#65a30d'];
 
@@ -93,12 +94,14 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
     ? seriesChrono.some(
         (s) =>
           (s.active || []).some((n) => n != null && n > 0) ||
-          (s.completed || []).some((n) => n != null && n > 0)
+          (s.completed || []).some((n) => n != null && n > 0) ||
+          (s.added || []).some((n) => n != null && n > 0)
       )
     : Boolean(
         selected &&
           ((selected.active || []).some((n) => n != null && n > 0) ||
-            (selected.completed || []).some((n) => n != null && n > 0))
+            (selected.completed || []).some((n) => n != null && n > 0) ||
+            (selected.added || []).some((n) => n != null && n > 0))
       );
 
   const chartData = useMemo(() => {
@@ -122,6 +125,7 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
     const endIdx = selected.isCurrent ? comparison.currentMonth : 11;
     const labels = comparison.labels.slice(0, endIdx + 1);
     const yearColor = yearColorMap[selected.year] || themePrimary;
+    const tipIdx = selected.isCurrent ? pointIndex : endIdx;
 
     return {
       labels,
@@ -129,12 +133,17 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
         lineDataset('Active projects', (selected.active || []).slice(0, endIdx + 1), yearColor, {
           fill: true,
           compact,
-          pointIndex: selected.isCurrent ? pointIndex : endIdx
+          pointIndex: tipIdx
         }),
         lineDataset('Completed projects', (selected.completed || []).slice(0, endIdx + 1), COMPLETED_COLOR, {
           fill: false,
           compact,
-          pointIndex: selected.isCurrent ? pointIndex : endIdx
+          pointIndex: tipIdx
+        }),
+        lineDataset('New projects', (selected.added || []).slice(0, endIdx + 1), ADDED_COLOR, {
+          fill: false,
+          compact,
+          pointIndex: tipIdx
         })
       ]
     };
@@ -183,7 +192,8 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
                 const s = comparison.byYear[year];
                 const active = ctx.parsed?.y;
                 const completed = s?.completed?.[ctx.dataIndex];
-                return `${year}: ${active == null ? '—' : active} active · ${completed == null ? '—' : completed} completed`;
+                const added = s?.added?.[ctx.dataIndex];
+                return `${year}: ${active == null ? '—' : active} active · ${completed == null ? '—' : completed} completed · ${added == null ? '—' : added} new`;
               }
               const v = ctx.parsed?.y;
               return `${ctx.dataset.label}: ${v == null ? '—' : v}`;
@@ -242,7 +252,7 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
               {comparison.years.length
                 ? isAll
                   ? 'Compare active headcount by month across years.'
-                  : `Monthly active vs completed for ${selectedYear}.`
+                  : `Monthly active, completed, and new for ${selectedYear}.`
                 : 'No yearly project history yet.'}
             </p>
           </div>
@@ -292,7 +302,11 @@ const ActiveProjectsYearComparisonChart = ({ projects = [], className = '' }) =>
                     <span className="text-amber-700 tabular-nums">
                       {privacyHidden ? maskSensitiveText(s?.completedProjects ?? 0) : (s?.completedProjects ?? 0)}
                     </span>
-                    {' completed'}
+                    {' completed · '}
+                    <span className="text-violet-700 tabular-nums">
+                      {privacyHidden ? maskSensitiveText(s?.addedProjects ?? 0) : (s?.addedProjects ?? 0)}
+                    </span>
+                    {' new'}
                   </span>
                 </button>
               );

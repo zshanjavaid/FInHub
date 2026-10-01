@@ -55,16 +55,31 @@ export const countCompletedProjectsInMonth = (projects, year, monthIndex0) => {
   return completed;
 };
 
+/** Projects whose Start Date falls in a calendar month (newly added). */
+export const countAddedProjectsInMonth = (projects, year, monthIndex0) => {
+  const uniqueProjects = uniqueProjectsForTrend(projects);
+  const { from: ms, to: me } = monthBounds(year, monthIndex0);
+  let added = 0;
+  uniqueProjects.forEach((p) => {
+    const startYmd = normalizeDateToYYYYMMDD(p?.date);
+    if (!startYmd) return;
+    if (startYmd >= ms && startYmd <= me) added += 1;
+  });
+  return added;
+};
+
 /**
  * Year totals:
  * - totalProjects: unique projects that existed during the year
  * - completedProjects: unique projects whose End Date falls in that year
+ * - addedProjects: unique projects whose Start Date falls in that year
  */
 export const countYearProjectTotals = (projects, year, currentYear, currentMonth) => {
   const uniqueProjects = uniqueProjectsForTrend(projects);
   const { from, to } = yearBounds(year, currentYear, currentMonth);
   let totalProjects = 0;
   let completedProjects = 0;
+  let addedProjects = 0;
 
   uniqueProjects.forEach((p) => {
     const startYmd = normalizeDateToYYYYMMDD(p?.date);
@@ -80,9 +95,12 @@ export const countYearProjectTotals = (projects, year, currentYear, currentMonth
     if (endedYmd && endedYmd >= from && endedYmd <= to) {
       completedProjects += 1;
     }
+    if (startYmd >= from && startYmd <= to) {
+      addedProjects += 1;
+    }
   });
 
-  return { totalProjects, completedProjects };
+  return { totalProjects, completedProjects, addedProjects };
 };
 
 const yearFromYmd = (ymd) => {
@@ -103,7 +121,7 @@ const earliestProjectYear = (projects = [], currentYear) => {
 };
 
 /**
- * Per-year monthly Active + Completed series for every year that has data.
+ * Per-year monthly Active + Completed + Added series for every year that has data.
  * Current year stops at the current month.
  */
 export const buildActiveProjectsYearComparison = (projects = [], now = new Date()) => {
@@ -116,21 +134,26 @@ export const buildActiveProjectsYearComparison = (projects = [], now = new Date(
   for (let year = startYear; year <= currentYear; year += 1) {
     const active = [];
     const completed = [];
+    const added = [];
     for (let m = 0; m < 12; m += 1) {
       if (year === currentYear && m > currentMonth) {
         active.push(null);
         completed.push(null);
+        added.push(null);
         continue;
       }
       active.push(countActiveProjectsInMonth(projects, year, m));
       completed.push(countCompletedProjectsInMonth(projects, year, m));
+      added.push(countAddedProjectsInMonth(projects, year, m));
     }
 
     const hasData =
-      active.some((n) => n != null && n > 0) || completed.some((n) => n != null && n > 0);
+      active.some((n) => n != null && n > 0) ||
+      completed.some((n) => n != null && n > 0) ||
+      added.some((n) => n != null && n > 0);
     if (!hasData) continue;
 
-    const { totalProjects, completedProjects } = countYearProjectTotals(
+    const { totalProjects, completedProjects, addedProjects } = countYearProjectTotals(
       projects,
       year,
       currentYear,
@@ -152,8 +175,10 @@ export const buildActiveProjectsYearComparison = (projects = [], now = new Date(
       label: String(year),
       active,
       completed,
+      added,
       totalProjects,
       completedProjects,
+      addedProjects,
       latestActive: latestActive == null ? 0 : latestActive,
       isCurrent: year === currentYear
     });

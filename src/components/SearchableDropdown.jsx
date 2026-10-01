@@ -160,16 +160,18 @@ const SearchableDropdown = ({
 
   return (
     <div className={`flex flex-col relative ${layoutClass} ${className}`} ref={rootRef}>
-      <label
-        className={
-          isFilter
-            ? 'text-[11px] font-light mb-1.5 text-slate-500 uppercase tracking-[0.16em]'
-            : 'text-sm font-light mb-2.5 text-slate-700 capitalize tracking-[0.12em]'
-        }
-      >
-        {label}
-        {required ? <span className="text-red-500 font-bold ml-0.5">*</span> : null}
-      </label>
+      {label ? (
+        <label
+          className={
+            isFilter
+              ? 'text-[11px] font-light mb-1.5 text-slate-500 uppercase tracking-[0.16em]'
+              : 'text-sm font-light mb-2.5 text-slate-700 capitalize tracking-[0.12em]'
+          }
+        >
+          {label}
+          {required ? <span className="text-red-500 font-bold ml-0.5">*</span> : null}
+        </label>
+      ) : null}
       <div className="relative" ref={triggerRef}>
         {leftIcon && (
           <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">{leftIcon}</div>

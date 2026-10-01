@@ -1,7 +1,11 @@
 import { useMemo } from 'react';
 import FormModal from './FormModal';
 import { FiFileText, FiDollarSign, FiMessageSquare, FiCalendar } from 'react-icons/fi';
-import { EXPENSE_TYPE_FORM_OPTIONS, RECURRING_PERIOD_FORM_OPTIONS } from '../constants/expenseTypes';
+import {
+  RECURRING_PERIOD_FORM_OPTIONS,
+  collectExpenseTypeLabels,
+  resolveExpenseTypeInput
+} from '../constants/expenseTypes';
 import { EMPTY_EXPENSE_FORM } from '../utils/formValues';
 import { todayLocalYmd } from '../utils/date';
 
@@ -11,7 +15,8 @@ const ExpenseFormModal = ({
   title,
   initialValues = EMPTY_EXPENSE_FORM,
   onSubmit,
-  isSaving = false
+  isSaving = false,
+  expenses = []
 }) => {
   const today = todayLocalYmd();
   const normalizedInitialValues = {
@@ -20,25 +25,35 @@ const ExpenseFormModal = ({
     date: (initialValues && initialValues.date) ? initialValues.date : today
   };
 
+  const typeOptions = useMemo(() => {
+    const labels = collectExpenseTypeLabels(expenses, { includeBuiltins: true }).map((t) => t.label);
+    const initial = String(normalizedInitialValues.expenseType || '').trim();
+    if (initial && !labels.includes(initial)) labels.push(initial);
+    return labels;
+  }, [expenses, normalizedInitialValues.expenseType]);
+
   const fields = useMemo(() => [
     {
       type: 'text',
       name: 'expenseName',
       label: 'Expense Name',
+      required: true,
       icon: <FiFileText className="w-5 h-5 text-gray-400" />
     },
     {
       type: 'date',
       name: 'date',
       label: 'Date',
+      required: true,
       defaultValue: today
     },
     {
       type: 'searchable-dropdown',
       name: 'expenseType',
       label: 'Type of Expense',
-      options: EXPENSE_TYPE_FORM_OPTIONS.map(opt => opt.label),
-      placeholder: 'Type or select expense type...',
+      required: true,
+      options: typeOptions,
+      placeholder: 'Select or type a new type…',
       icon: <FiFileText className="w-5 h-5 text-gray-400" />,
       colSpan: (form) => form.expenseType === 'Software Tool' ? 4 : 1
     },
@@ -52,6 +67,7 @@ const ExpenseFormModal = ({
       type: 'searchable-dropdown',
       name: 'recurringMonths',
       label: 'Recurring period',
+      required: true,
       options: RECURRING_PERIOD_FORM_OPTIONS.map(opt => opt.label),
       placeholder: 'Type or select period...',
       icon: <FiCalendar className="w-5 h-5 text-gray-400" />,
@@ -61,6 +77,8 @@ const ExpenseFormModal = ({
       type: 'number',
       name: 'amount',
       label: 'Expense Amount',
+      required: true,
+      min: 0.01,
       icon: <FiDollarSign className="w-5 h-5 text-gray-400" />,
       fullWidth: (form) => form.expenseType === 'Software Tool' && !form.recurring
     },
@@ -72,14 +90,14 @@ const ExpenseFormModal = ({
       rows: 4,
       icon: <FiMessageSquare className="w-5 h-5 text-gray-400" />
     }
-  ], [today]);
+  ], [today, typeOptions]);
 
   const handleSubmit = async (values) => {
-    const selectedOption = EXPENSE_TYPE_FORM_OPTIONS.find(opt => opt.label === values.expenseType);
-    const isRecurring = values.expenseType === 'Software Tool' && !!values.recurring && !!values.recurringMonths;
+    const resolved = resolveExpenseTypeInput(values.expenseType);
+    const isRecurring = resolved.label === 'Software Tool' && !!values.recurring && !!values.recurringMonths;
     const expenseData = {
       ...values,
-      expenseType: selectedOption ? selectedOption.value : values.expenseType || '',
+      expenseType: resolved.value || values.expenseType || '',
       amount: Number(values.amount) || 0,
       ...(isRecurring && {
         recurring: true,

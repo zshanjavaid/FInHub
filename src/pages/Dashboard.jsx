@@ -263,18 +263,6 @@ const Dashboard = () => {
 
   const activeProjectCount = activeProjectsForStats.length;
 
-  const activeProjectCountByType = useMemo(() => {
-    const byType = {};
-    PROJECT_TYPE_LABELS.forEach((type) => {
-      byType[type] = activeProjectsForStats.filter((p) => (p.projectType || '').trim() === type).length;
-    });
-    return PROJECT_TYPE_LABELS.map((type) => ({
-      label: type,
-      value: byType[type] || 0,
-      className: PROJECT_TYPE_COLORS[type] || 'bg-slate-100 text-slate-700'
-    })).filter((chip) => chip.value > 0);
-  }, [activeProjectsForStats]);
-
   const {
     inwardPct,
     expensePct,
@@ -387,6 +375,49 @@ const Dashboard = () => {
       return true;
     }).length;
   }, [projectsForAnnualChart, dateFrom, dateTo]);
+
+  /** Projects whose Start Date falls in the selected date range (newly added). */
+  const newProjectsInRange = useMemo(() => {
+    const endLimit = dateTo || (!dateFrom ? normalizeDateToYYYYMMDD(new Date()) : '');
+    return projectsForAnnualChart.filter((p) => {
+      const start = normalizeDateToYYYYMMDD(p?.date);
+      if (!start) return false;
+      if (dateFrom && start < dateFrom) return false;
+      if (endLimit && start > endLimit) return false;
+      return true;
+    });
+  }, [projectsForAnnualChart, dateFrom, dateTo]);
+
+  const newProjectCount = newProjectsInRange.length;
+
+  const activeProjectChips = useMemo(() => {
+    const typeChips = PROJECT_TYPE_LABELS.map((type) => ({
+      label: type,
+      value: activeProjectsForStats.filter((p) => (p.projectType || '').trim() === type).length,
+      className: PROJECT_TYPE_COLORS[type] || 'bg-slate-100 text-slate-700'
+    })).filter((chip) => chip.value > 0);
+
+    const chips = [...typeChips];
+    if (newProjectCount > 0) {
+      chips.push({
+        label: 'New',
+        value: newProjectCount,
+        className: 'bg-violet-100 text-violet-800'
+      });
+    }
+    return chips;
+  }, [activeProjectsForStats, newProjectCount]);
+
+  const newProjectNameList = useMemo(() => {
+    const names = newProjectsInRange.map((p) => {
+      const client = String(p.client || '').trim() || 'Unknown';
+      const project = String(p.project || '').trim() || 'Untitled';
+      return `${client} · ${project}`;
+    });
+    const max = 12;
+    if (names.length <= max) return names;
+    return [...names.slice(0, max), `+${names.length - max} more`];
+  }, [newProjectsInRange]);
 
   return (
     <PageContainer>
@@ -559,12 +590,44 @@ const Dashboard = () => {
           />
           <StatCard
             label="Active Projects"
+            calculation={
+              <div className="space-y-2">
+                <p>Active during the selected range. New = Start Date in this range.</p>
+                {activeProjectChips.length > 0 ? (
+                  <ul className="space-y-1 tabular-nums font-mono">
+                    {activeProjectChips.map((chip) => (
+                      <li key={chip.label} className="flex items-center justify-between gap-4">
+                        <span>{chip.label}</span>
+                        <span className="font-semibold text-slate-800">{chip.value}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {newProjectNameList.length > 0 ? (
+                  <div className="border-t border-slate-100 pt-2 space-y-1">
+                    <p className="text-[11px] font-light uppercase tracking-[0.14em] text-slate-500">
+                      New this period
+                    </p>
+                    <ul className="space-y-1 max-h-40 overflow-y-auto">
+                      {newProjectNameList.map((name, i) => (
+                        <li key={`${name}-${i}`} className="text-slate-700 truncate">
+                          {name}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-slate-500 border-t border-slate-100 pt-2">
+                    No projects started in this range.
+                  </p>
+                )}
+              </div>
+            }
             value={activeProjectCount}
             icon={<FiBriefcase className="w-5 h-5" />}
             valueClassName="text-primary-600"
             iconClassName="text-primary-600"
             borderClassName="border-t-primary-600"
-            chips={activeProjectCountByType}
           />
           <StatCard
             label="Projects Completed"

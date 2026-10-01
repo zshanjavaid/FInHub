@@ -1,7 +1,7 @@
 import { FiFileText } from 'react-icons/fi';
 import DataTable from './DataTable';
 import { formatMoney } from '../utils/format';
-import { EXPENSE_TYPE_LABELS, EXPENSE_TYPE_COLORS, RECURRING_MONTHS_LABELS } from '../constants/expenseTypes';
+import { EXPENSE_TYPE_LABELS, EXPENSE_TYPE_COLORS, RECURRING_MONTHS_LABELS, formatExpenseTypeLabel } from '../constants/expenseTypes';
 import { compareExpenses } from '../utils/tableSort';
 import { latestProjectByIdentity, projectIdentityKey } from '../utils/projectLookup';
 
@@ -65,7 +65,7 @@ const ExpenseTable = ({
       render: (value, row) => {
         if (!value) return '-';
         const key = value?.toLowerCase();
-        let label = EXPENSE_TYPE_LABELS[key] || value;
+        let label = EXPENSE_TYPE_LABELS[key] || formatExpenseTypeLabel(value) || value;
         if (key === 'software_tool' && row.recurring && row.recurringMonths) {
           const period = RECURRING_MONTHS_LABELS[row.recurringMonths] ?? `${row.recurringMonths} months`;
           label = `Software Tool (${period})`;

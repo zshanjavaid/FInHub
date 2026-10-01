@@ -18,7 +18,7 @@ import { fetchTransactions } from '../store/transactions/transactionsSlice';
 import { filterByDateRange, expenseDateValue } from '../utils/date';
 import { useDateFilter } from '../hooks/useDateFilter';
 import { isApproved } from '../constants/app';
-import { EXPENSE_TYPE_LABELS, EXPENSE_TYPE_LABEL_TO_VALUE, EXPENSE_TYPE_OPTIONS } from '../constants/expenseTypes';
+import { EXPENSE_TYPE_LABELS, EXPENSE_TYPE_OPTIONS, collectExpenseTypeLabels, formatExpenseTypeLabel, resolveExpenseTypeInput, slugifyExpenseType } from '../constants/expenseTypes';
 import ErrorAlert from '../components/ErrorAlert';
 import PageContainer from '../components/PageContainer';
 import { EMPTY_EXPENSE_FORM, expenseToFormValues } from '../utils/formValues';
@@ -27,13 +27,16 @@ import {
 } from '../utils/ensureMonthlyBrokerageExpense';
 
 const ExpenseFormModal = lazy(() => import('../components/ExpenseFormModal'));
+const ImportExpensesModal = lazy(() => import('../components/ImportExpensesModal'));
 const typeParamToLabel = (param) => {
-  const raw = String(param || '').trim().toLowerCase();
+  const raw = String(param || '').trim();
   if (!raw) return '';
-  const fromValue = EXPENSE_TYPE_LABELS[raw];
+  const lower = raw.toLowerCase();
+  const fromValue = EXPENSE_TYPE_LABELS[lower];
   if (fromValue) return fromValue;
-  const fromLabel = EXPENSE_TYPE_OPTIONS.find((l) => l.toLowerCase() === raw);
-  return fromLabel || '';
+  const fromLabel = EXPENSE_TYPE_OPTIONS.find((l) => l.toLowerCase() === lower);
+  if (fromLabel) return fromLabel;
+  return formatExpenseTypeLabel(raw);
 };
 
 const Expenses = () => {
@@ -42,7 +45,6 @@ const Expenses = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const expenses = useSelector((state) => state.expenses.items);
-  const transactions = useSelector((state) => state.transactions.items);
   const isLoading = useSelector((state) => state.expenses.isLoading);
   const error = useSelector((state) => state.expenses.error);
   const projects = useSelector((state) => state.projects.items);
@@ -51,6 +53,7 @@ const Expenses = () => {
   const { effectiveDateFrom: dateFrom, effectiveDateTo: dateTo } = dateFilter;
   const [selectedType, setSelectedType] = useState(() => typeParamToLabel(searchParams.get('type')));
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState(null);
   const [initialValues, setInitialValues] = useState(EMPTY_EXPENSE_FORM);
   const repairDoneRef = useRef(false);
@@ -64,7 +67,7 @@ const Expenses = () => {
     setSelectedType(label || '');
     const next = new URLSearchParams(searchParams);
     if (label) {
-      const value = EXPENSE_TYPE_LABEL_TO_VALUE[label];
+      const { value } = resolveExpenseTypeInput(label);
       if (value) next.set('type', value);
       else next.delete('type');
     } else {
@@ -73,11 +76,20 @@ const Expenses = () => {
     setSearchParams(next, { replace: true });
   };
 
+  /** Type filter: only categories that exist on created expenses (+ current selection). */
+  const typeFilterOptions = useMemo(() => {
+    const fromExpenses = collectExpenseTypeLabels(expenses, { includeBuiltins: false }).map((t) => t.label);
+    if (selectedType && !fromExpenses.includes(selectedType)) {
+      return [...fromExpenses, selectedType].sort((a, b) => a.localeCompare(b));
+    }
+    return fromExpenses;
+  }, [expenses, selectedType]);
+
   const filteredExpenses = useMemo(() => {
     let list = filterByDateRange(expenses || [], dateFrom, dateTo, expenseDateValue);
     if (selectedType) {
-      const typeValue = EXPENSE_TYPE_LABEL_TO_VALUE[selectedType];
-      list = list.filter((e) => (e.expenseType || '').toLowerCase() === typeValue);
+      const typeValue = resolveExpenseTypeInput(selectedType).value;
+      list = list.filter((e) => slugifyExpenseType(e.expenseType) === typeValue);
     }
     return list;
   }, [expenses, dateFrom, dateTo, selectedType]);
@@ -87,9 +99,11 @@ const Expenses = () => {
     [filteredExpenses]
   );
 
+  const isBrokerageView = selectedType === 'Brokerage';
+
   useEffect(() => {
-    document.title = selectedType === 'Brokerage' ? 'Brokerage | FinHub' : 'Expenses | FinHub';
-  }, [selectedType]);
+    document.title = isBrokerageView ? 'Brokerage | FinHub' : 'Expenses | FinHub';
+  }, [isBrokerageView]);
 
   useEffect(() => {
     dispatch(fetchExpenses());
@@ -157,14 +171,26 @@ const Expenses = () => {
 
   return (
     <PageContainer>
-      <PageHeader title="Expenses" actions={<Button onClick={openAddModal}>Add Expense</Button>} />
+      <PageHeader
+        title={isBrokerageView ? 'Brokerage' : 'Expenses'}
+        actions={
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            {!isBrokerageView ? (
+              <Button variant="secondary" onClick={() => setIsImportOpen(true)}>
+                Import CSV
+              </Button>
+            ) : null}
+            <Button onClick={openAddModal}>Add Expense</Button>
+          </div>
+        }
+      />
 
         <FilterBar dateFilter={dateFilter}>
           <SearchableDropdown
             label="Type"
             value={selectedType}
             onChange={onTypeChange}
-            options={EXPENSE_TYPE_OPTIONS}
+            options={typeFilterOptions}
             placeholder="All Types"
             layout="filter"
           />
@@ -192,6 +218,18 @@ const Expenses = () => {
               initialValues={initialValues}
               onSubmit={onSubmit}
               isSaving={isLoading}
+              expenses={expenses}
+            />
+          </Suspense>
+        ) : null}
+
+        {isImportOpen ? (
+          <Suspense fallback={null}>
+            <ImportExpensesModal
+              isOpen={isImportOpen}
+              onClose={() => setIsImportOpen(false)}
+              user={user}
+              expenses={expenses}
             />
           </Suspense>
         ) : null}

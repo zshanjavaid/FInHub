@@ -1,4 +1,4 @@
-import { EXPENSE_TYPE_LABELS, RECURRING_MONTHS_LABELS } from '../constants/expenseTypes';
+import { EXPENSE_TYPE_LABELS, RECURRING_MONTHS_LABELS, formatExpenseTypeLabel } from '../constants/expenseTypes';
 import { getTaxFormDefaultsFromProject } from './project';
 
 export const EMPTY_TRANSACTION_FORM = {
@@ -35,7 +35,11 @@ export const EMPTY_EXPENSE_FORM = {
 };
 
 export const expenseToFormValues = (expense = {}) => {
-  const expenseTypeLabel = EXPENSE_TYPE_LABELS[expense.expenseType?.toLowerCase()] || expense.expenseType || '';
+  const expenseTypeLabel =
+    EXPENSE_TYPE_LABELS[expense.expenseType?.toLowerCase()] ||
+    formatExpenseTypeLabel(expense.expenseType) ||
+    expense.expenseType ||
+    '';
   return {
     ...EMPTY_EXPENSE_FORM,
     expenseName: expense.expenseName || '',
