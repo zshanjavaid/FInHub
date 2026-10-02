@@ -45,25 +45,25 @@ const expense = (overrides = {}) => ({
   ...overrides
 });
 
-test('deducts 30% from previous month available even without new projects', () => {
+test('does not tax previous month available when there are no new projects', () => {
   const result = estimate({ now, transactions: [transaction()], expenses: [expense()] });
   assert.equal(result.previousMonthInward, 784);
   assert.equal(result.previousMonthExpenses, 200);
   assert.equal(result.previousMonthAvailable, 584);
-  assert.equal(result.estimated, 408.8);
-  assert.equal(result.taxAmount, 175.2);
+  assert.equal(result.taxAmount, 0);
+  assert.equal(result.estimated, 584);
 });
 
 for (const payoutOccurrence of ['weekly', 'biweekly', 'monthly']) {
-  test(`${payoutOccurrence}: adds monthly hours × hourly rate minus 30%, not a multiple of monthly income`, () => {
+  test(`${payoutOccurrence}: adds monthly hours × hourly rate minus 30% on new income only`, () => {
     const result = estimate({
       now, transactions: [transaction()], expenses: [expense()],
       projects: [project({ payoutOccurrence, taxType: 'percentage', taxValue: 30 })]
     });
     assert.equal(result.newProjectsGross, 1600);
     assert.equal(result.beforeTax, 2184);
-    assert.equal(result.taxAmount, 655.2);
-    assert.equal(result.estimated, 1528.8);
+    assert.equal(result.taxAmount, 480);
+    assert.equal(result.estimated, 1704);
   });
 }
 
@@ -110,7 +110,8 @@ test('approval, calendar boundaries, and monthKey expense fallback match the bas
     transactions:[transaction(), transaction({date:'2026-07-31'}), transaction({date:'2026-09-01'}), transaction({status:'pending'})],
     expenses:[expense({date:'',monthKey:'2026-08'}), expense({status:'pending'}), expense({date:'2026-09-01'})]
   });
-  assert.equal(result.estimated, 408.8);
+  assert.equal(result.estimated, 584);
+  assert.equal(result.taxAmount, 0);
 });
 
 test('broker filters apply to baseline transactions, expenses, and new projects', () => {
@@ -119,7 +120,7 @@ test('broker filters apply to baseline transactions, expenses, and new projects'
     expenses:[expense(),expense({client:'Broker B'})],
     projects:[project(),project({client:'Broker B'})]
   });
-  assert.equal(result.estimated, 1528.8);
+  assert.equal(result.estimated, 1704);
 });
 
 test('project selection takes precedence and prevents old projects being added again', () => {
@@ -128,7 +129,8 @@ test('project selection takes precedence and prevents old projects being added a
     expenses:[expense(),expense({project:'Other'})],
     projects:[project(),project({project:'Existing project', date:'2026-08-01'})]
   });
-  assert.equal(result.estimated, 408.8);
+  assert.equal(result.estimated, 584);
+  assert.equal(result.taxAmount, 0);
 });
 
 test('negative previous available balances remain negative', () => {
@@ -139,7 +141,8 @@ test('handles the year boundary and empty data', () => {
   const result=estimate({now:new Date(2026,0,15),transactions:[transaction({date:'2025-12-31'})]});
   assert.equal(result.previousMonthKey,'2025-12');
   assert.equal(result.nextMonthKey,'2026-02');
-  assert.equal(result.estimated,548.8);
+  assert.equal(result.taxAmount,0);
+  assert.equal(result.estimated,784);
   assert.equal(estimate({now}).estimated,0);
 });
 
@@ -159,8 +162,8 @@ for (const payoutOccurrence of ['monthly', 'biweekly', 'weekly']) {
     assert.equal(result.newProjectsAdditionalCharges, 100);
     assert.equal(result.newProjectsBeforeTax, result.newProjectsGross - 300);
     assert.equal(result.beforeTax, 1884);
-    assert.equal(result.taxAmount, 565.2);
-    assert.equal(result.estimated, 1318.8);
+    assert.equal(result.taxAmount, 390);
+    assert.equal(result.estimated, 1494);
   });
 }
 
@@ -189,16 +192,18 @@ test('negative new-project income does not create a tax credit', () => {
 });
 
 
-test('subtracts $300 tax from $1,000 available with no new projects', () => {
+test('keeps full previous available with no new projects (no 30% on baseline)', () => {
   const result = estimate({now, transactions: [transaction({totalAmount: 1100})], expenses: [expense({amount:78})]});
   assert.equal(result.previousMonthAvailable,1000);
-  assert.equal(result.taxAmount,300);
-  assert.equal(result.estimated,700);
+  assert.equal(result.taxAmount,0);
+  assert.equal(result.estimated,1000);
 });
 
-test('offsets a previous loss against new-project income before tax', () => {
+test('taxes only new-project income when previous available is a loss', () => {
   const result = estimate({now, expenses:[expense()], projects:[project({payoutOccurrence:'monthly',totalMonthlyHours:100,hourlyRate:10})]});
+  assert.equal(result.previousMonthAvailable, -200);
+  assert.equal(result.newProjectsBeforeTax, 1000);
   assert.equal(result.beforeTax,800);
-  assert.equal(result.taxAmount,240);
-  assert.equal(result.estimated,560);
+  assert.equal(result.taxAmount,300);
+  assert.equal(result.estimated,500);
 });

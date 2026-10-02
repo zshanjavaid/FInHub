@@ -40,7 +40,7 @@ import InputField from '../components/InputField';
 import TransactionTable from '../components/TransactionTable';
 import PortfolioLinks from '../components/PortfolioLinks';
 import DeferredMount, { ChartSkeleton } from '../components/DeferredMount';
-import { FiDollarSign, FiTarget, FiEdit2, FiBriefcase, FiCreditCard, FiCheckCircle, FiPieChart, FiMinusCircle } from 'react-icons/fi';
+import { FiDollarSign, FiEdit2, FiBriefcase, FiCreditCard, FiCheckCircle, FiPieChart, FiMinusCircle } from 'react-icons/fi';
 
 const BarChart = lazy(() => import('../components/BarChart'));
 const ActiveProjectsYearComparisonChart = lazy(() => import('../components/ActiveProjectsYearComparisonChart'));
@@ -266,7 +266,6 @@ const Dashboard = () => {
   const {
     inwardPct,
     expensePct,
-    totalInward,
     totalExpense,
     availableAmount,
     grossRevenue,
@@ -315,7 +314,6 @@ const Dashboard = () => {
 
       return {
         ...pct,
-        totalInward: inward,
         totalExpense: expense,
         availableAmount: inward - expense,
         grossRevenue: gross,
@@ -481,7 +479,7 @@ const Dashboard = () => {
             label="Total Deductions"
             calculation={
               <div className="space-y-2">
-                <p>Taken off Gross Revenue to get Total Inward.</p>
+                <p>Taken off Gross Revenue (brokerage, additional charges, impact fund).</p>
                 <ul className="space-y-1 tabular-nums font-mono">
                   <li className="flex items-center justify-between gap-4">
                     <span>Brokerage fee</span>
@@ -510,33 +508,6 @@ const Dashboard = () => {
             borderClassName="border-t-violet-600"
           />
           <StatCard
-            label="Total Inward"
-            calculation={
-              <div className="space-y-2">
-                <p>Gross Revenue − Total Deductions.</p>
-                <ul className="space-y-1 tabular-nums font-mono">
-                  <li className="flex items-center justify-between gap-4">
-                    <span>Gross Revenue</span>
-                    <span className="font-semibold text-slate-800">{formatMoney(grossRevenue)}</span>
-                  </li>
-                  <li className="flex items-center justify-between gap-4">
-                    <span>Total Deductions</span>
-                    <span className="font-semibold text-slate-800">−{formatMoney(totalDeductions)}</span>
-                  </li>
-                  <li className="flex items-center justify-between gap-4 border-t border-slate-100 pt-1">
-                    <span>Total Inward</span>
-                    <span className="font-semibold text-slate-800">{formatMoney(totalInward)}</span>
-                  </li>
-                </ul>
-              </div>
-            }
-            value={formatMoney(totalInward)}
-            icon={<FiTarget className="w-5 h-5" />}
-            valueClassName="text-primary-700"
-            iconClassName="text-primary-600"
-            borderClassName="border-t-primary-600"
-          />
-          <StatCard
             label="Total Expense"
             calculation={
               <div className="space-y-2">
@@ -560,11 +531,15 @@ const Dashboard = () => {
             label="Available Amount"
             calculation={
               <div className="space-y-2">
-                <p>Total Inward − Total Expense.</p>
+                <p>Gross Revenue − Total Deductions − Total Expense.</p>
                 <ul className="space-y-1 tabular-nums font-mono">
                   <li className="flex items-center justify-between gap-4">
-                    <span>Total Inward</span>
-                    <span className="font-semibold text-slate-800">{formatMoney(totalInward)}</span>
+                    <span>Gross Revenue</span>
+                    <span className="font-semibold text-slate-800">{formatMoney(grossRevenue)}</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-4">
+                    <span>Total Deductions</span>
+                    <span className="font-semibold text-slate-800">−{formatMoney(totalDeductions)}</span>
                   </li>
                   <li className="flex items-center justify-between gap-4">
                     <span>Total Expense</span>
@@ -588,6 +563,9 @@ const Dashboard = () => {
             }
             borderClassName={availableAmount < 0 ? 'border-t-red-500' : 'border-t-primary-600'}
           />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
           <StatCard
             label="Active Projects"
             calculation={
@@ -701,7 +679,8 @@ const Dashboard = () => {
                       <CalculationInfo label="Next Month Estimated Amount">
                         <div className="space-y-2">
                           <p>
-                            Previous month’s Available Amount + new-project income (after brokerage and additional charges), then minus 30% tax.
+                            Previous month’s Available Amount + new-project income (after brokerage and
+                            additional charges). 30% tax is taken only from new-project income.
                           </p>
                           <ul className="space-y-1 tabular-nums font-mono">
                             <li className="flex items-center justify-between gap-4">
@@ -725,11 +704,7 @@ const Dashboard = () => {
                               <span>−{formatMoney(nextMonthEstimate.newProjectsAdditionalCharges)}</span>
                             </li>
                             <li className="flex items-center justify-between gap-4">
-                              <span>Before tax</span>
-                              <span className="font-semibold text-slate-800">{formatMoney(nextMonthEstimate.beforeTax)}</span>
-                            </li>
-                            <li className="flex items-center justify-between gap-4">
-                              <span>Tax (30%)</span>
+                              <span>Tax on new projects (30%)</span>
                               <span className="font-semibold text-slate-800">−{formatMoney(nextMonthEstimate.taxAmount)}</span>
                             </li>
                             <li className="flex items-center justify-between gap-4 border-t border-slate-100 pt-1">

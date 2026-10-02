@@ -79,7 +79,8 @@ export const computeNextMonthEstimatedAmount = ({
   newProjectsAdditionalCharges = roundMoney(newProjectsAdditionalCharges);
   const newProjectsBeforeTax = roundMoney(newProjectsGross - newProjectsBrokerage - newProjectsAdditionalCharges);
   const beforeTax = roundMoney(previousMonthAvailable + newProjectsBeforeTax);
-  const taxAmount = roundMoney(Math.max(0, beforeTax) * ESTIMATE_TAX_RATE);
+  // Estimate-only 30% tax applies to new-project income only (not previous Available).
+  const taxAmount = roundMoney(Math.max(0, newProjectsBeforeTax) * ESTIMATE_TAX_RATE);
 
   return {
     estimated: roundMoney(beforeTax - taxAmount),

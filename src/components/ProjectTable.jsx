@@ -36,6 +36,14 @@ const formatTax = (project) => {
   return formatMoney(project.taxAmount);
 };
 
+const progressTone = (progress) => {
+  const received = Number(progress?.received) || 0;
+  const expected = Number(progress?.expected) || 0;
+  if (expected > 0 && received >= expected) return 'text-emerald-700';
+  if (expected > 0 && received > 0 && received < expected) return 'text-amber-700';
+  return 'text-slate-500';
+};
+
 const ProjectTable = ({
   projects,
   onDelete,
@@ -45,9 +53,41 @@ const ProjectTable = ({
   additionalFilters = null,
   hideFilters = [],
   titleActions = null,
+  payoutProgressById = null,
   ...rest
 }) => {
+  const makeProgressColumn = (key, label, pick) => ({
+    key,
+    label,
+    className: 'w-[3.75rem]',
+    render: (_, project) => {
+      const id = project?.id;
+      const entry =
+        payoutProgressById && id != null
+          ? payoutProgressById[id]
+          : project?.payoutProgress;
+      const progress = pick(entry);
+      const text = progress?.label || '—';
+      return (
+        <span
+          className={`tabular-nums text-xs font-semibold ${progressTone(progress)}`}
+          title={`${label}: ${text}`}
+        >
+          {text}
+        </span>
+      );
+    }
+  });
+
+  const progressColumns = payoutProgressById
+    ? [
+        makeProgressColumn('payoutProgressMonth', 'Month', (e) => e?.month),
+        makeProgressColumn('payoutProgressAll', 'All', (e) => e?.all)
+      ]
+    : [];
+
   const columns = [
+    ...progressColumns,
     { key: 'client', label: 'Broker' },
     { key: 'project', label: 'Project Name' },
     { key: 'lead', label: 'Lead', render: (value) => <PersonBadge name={value} /> },

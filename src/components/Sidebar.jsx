@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FiHome, FiFileText, FiRepeat, FiTrendingDown, FiDollarSign, FiInbox, FiLayout, FiLogOut, FiPercent } from 'react-icons/fi';
+import { FiHome, FiFileText, FiRepeat, FiTrendingDown, FiDollarSign, FiInbox, FiLayout, FiLogOut, FiPercent, FiActivity } from 'react-icons/fi';
 import { useSelector } from 'react-redux';
 import { useAuth } from '../contexts/AuthContext';
 import Logo from './Logo';
@@ -34,6 +34,7 @@ const Sidebar = ({ isOpen = true, isDesktop = true, onClose, motionClass = '' })
 
   const menuItems = [
     { path: '/', label: 'Dashboard', icon: FiHome, motion: 'home' },
+    { path: '/evaluation', label: 'Evaluation', icon: FiActivity, motion: 'evaluation' },
     { path: '/projects', label: 'Projects', icon: FiFileText, motion: 'projects' },
     { path: '/transactions', label: 'Transactions', icon: FiRepeat, motion: 'transactions' },
     { path: '/expenses', label: 'Expenses', icon: FiTrendingDown, match: 'expenses-all', motion: 'expenses' },

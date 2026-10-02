@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../contexts/AuthContext';
 import { createProject, editProject, fetchProjects, removeProject } from '../store/projects/projectsSlice';
+import { fetchTransactions } from '../store/transactions/transactionsSlice';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
 import FilterBar from '../components/FilterBar';
@@ -19,7 +20,8 @@ import { prepareProjectForFirestore } from '../utils/project';
 import { EMPTY_PROJECT_FORM, projectToFormValues } from '../utils/formValues';
 import { projectMatchesStatusInRange } from '../utils/transactionsEligibility';
 import { matchesSelectedBroker } from '../utils/brokerFilter';
-import { addMonthsLocalYmd } from '../utils/date';
+import { addMonthsLocalYmd, getPreviousYearMonth, parseYearMonth } from '../utils/date';
+import { getProjectPayoutProgress } from '../utils/projectPayoutProgress';
 
 const ProjectFormModal = lazy(() => import('../components/ProjectFormModal'));
 
@@ -29,17 +31,23 @@ const Projects = () => {
   const dispatch = useDispatch();
   const { user } = useAuth();
   const projects = useSelector((state) => state.projects.items);
+  const transactions = useSelector((state) => state.transactions.items);
   const isLoading = useSelector((state) => state.projects.isLoading);
   const error = useSelector((state) => state.projects.error);
 
   const dateFilter = useDateFilter({ defaultMode: 'yearly' });
-  const { effectiveDateFrom: dateFrom, effectiveDateTo: dateTo } = dateFilter;
+  const { effectiveDateFrom: dateFrom, effectiveDateTo: dateTo, dateMode, selectedMonth } = dateFilter;
   const [selectedBroker, setSelectedBroker] = useState('');
   const [selectedProjectType, setSelectedProjectType] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [initialValues, setInitialValues] = useState(EMPTY_PROJECT_FORM);
+
+  const progressMonthKey = useMemo(() => {
+    if (dateMode === 'month' && parseYearMonth(selectedMonth)) return selectedMonth;
+    return getPreviousYearMonth();
+  }, [dateMode, selectedMonth]);
 
   const filteredProjects = useMemo(() => {
     let list = (projects || []).filter((p) =>
@@ -60,12 +68,28 @@ const Projects = () => {
     [filteredProjects]
   );
 
+  const payoutProgressById = useMemo(() => {
+    const map = {};
+    (approvedForTable || []).forEach((p) => {
+      if (!p?.id) return;
+      map[p.id] = {
+        month: getProjectPayoutProgress(p, transactions, {
+          mode: 'month',
+          monthKey: progressMonthKey
+        }),
+        all: getProjectPayoutProgress(p, transactions, { mode: 'all' })
+      };
+    });
+    return map;
+  }, [approvedForTable, transactions, progressMonthKey]);
+
   useEffect(() => {
     document.title = 'Projects | FinHub';
   }, []);
 
   useEffect(() => {
     dispatch(fetchProjects());
+    dispatch(fetchTransactions());
   }, [dispatch]);
 
   const clientOptions = useClientOptions(projects);
@@ -157,6 +181,7 @@ const Projects = () => {
         isLoading={isLoading}
         title="Project Details"
         hideFilters={['client', 'projectType']}
+        payoutProgressById={payoutProgressById}
       />
 
       {isModalOpen ? (
@@ -180,4 +205,3 @@ const Projects = () => {
 };
 
 export default Projects;
-
