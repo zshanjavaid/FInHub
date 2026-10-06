@@ -218,7 +218,9 @@ export const buildProjectInsights = ({
       b.projectCount += 1;
       b.extensionCount += r.extensionsInRangeCount;
     });
-    return [...map.values()].sort((a, b) => b.extensionCount - a.extensionCount || a.lead.localeCompare(b.lead));
+    return [...map.values()]
+      .filter((b) => b.extensionCount > 0)
+      .sort((a, b) => b.extensionCount - a.extensionCount || a.lead.localeCompare(b.lead));
   })();
 
   return {

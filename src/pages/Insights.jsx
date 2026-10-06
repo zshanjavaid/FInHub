@@ -125,6 +125,45 @@ const InsightRankCard = ({
 
 const PersonProjectsTable = ({ person, roleLabel, privacyHidden }) => {
   if (!person) return null;
+
+  const summaryStats = [
+    {
+      key: 'projects',
+      label: 'Projects',
+      value: privacyHidden ? '····' : String(person.projectCount ?? 0),
+      tone: 'primary'
+    },
+    {
+      key: 'avg',
+      label: 'Avg life',
+      value: privacyHidden ? '····' : formatMonths(person.avgDurationMonths),
+      tone: 'slate'
+    },
+    {
+      key: 'ext',
+      label: 'Extensions',
+      value: privacyHidden ? '····' : String(person.extensionCount ?? 0),
+      tone: 'sky'
+    },
+    {
+      key: 'reason',
+      label: 'Top reason',
+      value: privacyHidden
+        ? '····'
+        : person.topCompletedReason && person.topCompletedReason !== '—'
+          ? person.topCompletedReason
+          : '—',
+      tone: 'amber'
+    }
+  ];
+
+  const toneClass = {
+    primary: 'border-l-primary-600 text-primary-900',
+    slate: 'border-l-slate-400 text-slate-800',
+    sky: 'border-l-sky-500 text-sky-900',
+    amber: 'border-l-amber-500 text-amber-950'
+  };
+
   return (
     <div className={`${chartCardClass} overflow-hidden`}>
       <div className={chartCardHeaderClass}>
@@ -137,51 +176,90 @@ const PersonProjectsTable = ({ person, roleLabel, privacyHidden }) => {
               {privacyHidden ? maskSensitiveText(person.name) : person.name}
               <span className="text-slate-400 font-semibold"> · {roleLabel}</span>
             </h3>
-            <p className={chartCardSubtitleClass}>
-              {person.projectCount} projects · avg {formatMonths(person.avgDurationMonths)} ·{' '}
-              {person.extensionCount} extensions · top reason {person.topCompletedReason}
-            </p>
+            <p className={chartCardSubtitleClass}>Projects in the current filter range</p>
           </div>
         </div>
       </div>
-      <div className="px-3.5 pb-4 sm:px-4 overflow-x-auto">
-        <table className="w-full min-w-[36rem] text-left text-xs sm:text-sm">
+
+      <div className="px-3.5 pt-3 sm:px-5 sm:pt-4 bg-slate-50/70 border-t border-slate-100">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
+          {summaryStats.map((stat) => (
+            <div
+              key={stat.key}
+              className={`rounded-xl bg-white border border-slate-200/80 border-l-[3px] px-3 py-2.5 min-w-0 ${toneClass[stat.tone]}`}
+            >
+              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">
+                {stat.label}
+              </p>
+              <p className="mt-1 text-sm sm:text-base font-bold tabular-nums font-mono truncate" title={stat.value}>
+                {stat.value}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="px-3.5 py-3 sm:px-5 sm:py-4 overflow-x-auto">
+        <table className="w-full min-w-[52rem] text-left text-xs sm:text-sm">
           <thead>
             <tr className="text-[10px] sm:text-xs font-light text-slate-500 uppercase tracking-[0.12em]">
               <th className="py-2 pr-3">Project</th>
               <th className="py-2 pr-3">Lead</th>
               <th className="py-2 pr-3">PM</th>
+              <th className="py-2 pr-3">Start</th>
+              <th className="py-2 pr-3">End</th>
               <th className="py-2 pr-3">Duration</th>
               <th className="py-2 pr-3">Extensions</th>
-              <th className="py-2">Status</th>
+              <th className="py-2 pr-3">Status</th>
+              <th className="py-2">Reason</th>
             </tr>
           </thead>
           <tbody>
-            {person.projects.map((p) => (
-              <tr key={p.id || `${p.name}-${p.start}`} className="border-t border-slate-100 text-slate-700">
-                <td className="py-2.5 pr-3 font-medium">
-                  {privacyHidden ? maskSensitiveText(p.name) : p.name}
-                </td>
-                <td className="py-2.5 pr-3">{privacyHidden ? '····' : p.lead}</td>
-                <td className="py-2.5 pr-3">{privacyHidden ? '····' : p.projectManager}</td>
-                <td className="py-2.5 pr-3 tabular-nums">{formatMonths(p.durationMonths)}</td>
-                <td className="py-2.5 pr-3 tabular-nums">{p.extensionCount}</td>
-                <td className="py-2.5">
-                  {p.isActive ? (
-                    'Active'
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 flex-wrap">
-                      <span>Completed</span>
-                      {p.completedReason ? (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/80">
-                          {privacyHidden ? '····' : p.completedReason}
-                        </span>
-                      ) : null}
+            {person.projects.map((p) => {
+              const reason = String(p.completedReason || '').trim();
+              return (
+                <tr key={p.id || `${p.name}-${p.start}`} className="border-t border-slate-100 text-slate-700">
+                  <td className="py-2.5 pr-3 font-medium max-w-[10rem] truncate" title={p.name}>
+                    {privacyHidden ? maskSensitiveText(p.name) : p.name}
+                  </td>
+                  <td className="py-2.5 pr-3">{privacyHidden ? '····' : p.lead}</td>
+                  <td className="py-2.5 pr-3">{privacyHidden ? '····' : p.projectManager}</td>
+                  <td className="py-2.5 pr-3 tabular-nums whitespace-nowrap">
+                    {privacyHidden ? '····' : p.start || '—'}
+                  </td>
+                  <td className="py-2.5 pr-3 tabular-nums whitespace-nowrap">
+                    {privacyHidden ? '····' : p.end || '—'}
+                  </td>
+                  <td className="py-2.5 pr-3 tabular-nums whitespace-nowrap">
+                    {formatMonths(p.durationMonths)}
+                  </td>
+                  <td className="py-2.5 pr-3 tabular-nums">{p.extensionCount}</td>
+                  <td className="py-2.5 pr-3">
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                        p.isActive
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {p.isActive ? 'Active' : 'Completed'}
                     </span>
-                  )}
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="py-2.5">
+                    {!p.isActive && reason ? (
+                      <span
+                        className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/80 max-w-[11rem] truncate"
+                        title={reason}
+                      >
+                        {privacyHidden ? '····' : reason}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
