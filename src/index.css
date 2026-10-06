@@ -223,6 +223,14 @@ svg.fh-icon-live--allocation {
   animation: fh-icon-allocation 2.4s ease-in-out infinite;
 }
 
+svg.fh-icon-live--evaluation {
+  animation: fh-icon-fund 2s ease-in-out infinite;
+}
+
+svg.fh-icon-live--insights {
+  animation: fh-icon-allocation 2.4s ease-in-out infinite;
+}
+
 svg.fh-icon-live--logout {
   animation: fh-icon-logout 2s ease-in-out infinite;
 }
@@ -421,6 +429,10 @@ svg.fh-icon-live--logout {
   transition:
     transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
     height 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.finhub-nav-indicator--snap {
+  transition: none;
 }
 
 /* ——— FinHub buttons — fill hover ——— */

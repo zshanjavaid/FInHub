@@ -10,6 +10,7 @@ import Loader from './components/Loader';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Evaluation = lazy(() => import('./pages/Evaluation'));
+const Insights = lazy(() => import('./pages/Insights'));
 const Projects = lazy(() => import('./pages/Projects'));
 const Transactions = lazy(() => import('./pages/Transactions'));
 const Expenses = lazy(() => import('./pages/Expenses'));
@@ -99,6 +100,7 @@ function AppRoutes() {
         <Route path="/" element={<MainLayout />}>
           <Route index element={<Dashboard />} />
           <Route path="evaluation" element={<Evaluation />} />
+          <Route path="insights" element={<Insights />} />
           <Route path="projects" element={<Projects />} />
           <Route path="transactions" element={<Transactions />} />
           <Route path="expenses" element={<Expenses />} />

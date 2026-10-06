@@ -19,3 +19,24 @@ export const sidebarBadgeClass =
 
 export const sidebarLogoutClass =
   'flex items-center gap-3 px-2.5 py-2.5 w-full rounded-xl text-[13px] font-light text-teal-100/55 hover:bg-rose-500/12 hover:text-rose-200 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/35';
+
+/** Smooth expand/collapse wrapper for submenu. */
+export const sidebarSubmenuCollapseClass =
+  'grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]';
+
+export const sidebarSubmenuCollapseOpenClass = 'grid-rows-[1fr]';
+
+export const sidebarSubmenuCollapseClosedClass = 'grid-rows-[0fr]';
+
+/** Minimal nested list — left rule, no heavy box. */
+export const sidebarSubmenuListClass =
+  'ml-5 mr-1 mt-1 mb-2 pl-3 border-l border-white/10 space-y-0.5';
+
+export const sidebarSubmenuLinkBase =
+  'relative z-[1] flex items-center px-2.5 py-1.5 rounded-lg text-[12.5px] font-medium tracking-tight transition-colors duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/35';
+
+export const sidebarSubmenuLinkActive =
+  'text-white font-semibold bg-white/[0.08]';
+
+export const sidebarSubmenuLinkInactive =
+  'text-teal-100/50 hover:text-teal-50 hover:bg-white/[0.04]';

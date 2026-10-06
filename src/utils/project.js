@@ -1,6 +1,8 @@
 import { roundMoney, toNumber } from './number';
 import { prorateFixedAmountForMonth } from './workingDays';
 import { impactFundFromNet } from './transactionNet';
+import { normalizeDateToYYYYMMDD } from './date';
+import { appendContractExtension } from './projectContractExtensions';
 
 /**
  * Brokerage in dollars.
@@ -55,16 +57,41 @@ export const getTaxFormDefaultsFromProject = (project) => {
 };
 
 /** Persist computed taxAmount ($) for reporting; keep taxType + taxValue for the form. */
-export const prepareProjectForFirestore = (values) => {
-  const taxAmount = Number(computeProjectTaxDollars(values).toFixed(2));
-  const out = { ...values, taxAmount };
-  const pc = values.projectCost;
+export const prepareProjectForFirestore = (values, options = {}) => {
+  const { markAsExtension, endDateChangeMode, inactiveReasonOther, ...rest } = values || {};
+  const taxAmount = Number(computeProjectTaxDollars(rest).toFixed(2));
+  const out = { ...rest, taxAmount };
+  const pc = rest.projectCost;
   if (pc === '' || pc == null) {
     out.projectCost = null;
   } else {
     const n = Number(pc);
     out.projectCost = Number.isFinite(n) ? Number(n.toFixed(2)) : null;
   }
+
+  const status = String(out.projectStatus || 'active').trim().toLowerCase();
+  if (status === 'inactive') {
+    const selected = String(out.inactiveReason || '').trim();
+    const other = String(inactiveReasonOther || '').trim();
+    out.inactiveReason = selected === 'Other' ? other || 'Other' : selected;
+  } else {
+    delete out.inactiveReason;
+  }
+
+  const previous = options.previousProject || null;
+  const recordExtension =
+    endDateChangeMode === 'extension' || markAsExtension === true;
+  if (recordExtension && previous) {
+    const from = normalizeDateToYYYYMMDD(previous.contractEnding);
+    const to = normalizeDateToYYYYMMDD(out.contractEnding);
+    if (from && to && from !== to) {
+      out.contractExtensions = appendContractExtension(previous.contractExtensions, {
+        from,
+        to
+      });
+    }
+  }
+
   return out;
 };
 

@@ -262,7 +262,7 @@ const ProjectAllocation = () => {
           borderClassName="border-t-primary-600"
         />
         <StatCard
-          label="If Inactive"
+          label="If Completed"
           value={formatMoney(allocatedSum)}
           icon={<FiPieChart className="w-5 h-5" />}
           valueClassName="text-amber-600"
@@ -283,7 +283,7 @@ const ProjectAllocation = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
         <DropZone
-          label={`Active projects (${leftItems.length}) — drag right to see expense if inactive`}
+          label={`Active projects (${leftItems.length}) — drag right to see expense if completed`}
           onDragOver={(e) => handleDragOver(e, 'left')}
           onDrop={handleDropLeft}
           onDragLeave={handleDragLeave}
@@ -298,14 +298,14 @@ const ProjectAllocation = () => {
               onDragEnd={handleDragEnd}
               moveButton={{
                 icon: <FiArrowRight className="w-4 h-4" />,
-                title: 'Move to If inactive',
+                title: 'Move to If completed',
                 onClick: moveToInactive
               }}
             />
           ))}
         </DropZone>
         <DropZone
-          label={`If inactive — expense (${rightItems.length}) · ${formatMoney(allocatedSum)}`}
+          label={`If completed — expense (${rightItems.length}) · ${formatMoney(allocatedSum)}`}
           onDragOver={(e) => handleDragOver(e, 'right')}
           onDrop={handleDropRight}
           onDragLeave={handleDragLeave}

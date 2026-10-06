@@ -154,11 +154,40 @@ const FormModal = ({
 
       case 'date':
         return (
-          <ModernDatePicker
-            {...commonProps}
-            icon={field.icon}
-            onChange={(val) => onFieldChange(field.name, val)}
-          />
+          <div className={`relative ${field.className || ''}`}>
+            <ModernDatePicker
+              {...commonProps}
+              icon={field.icon}
+              onChange={(val) => onFieldChange(field.name, val)}
+            />
+            {typeof field.footer === 'function' ? field.footer(form, onFieldChange) : null}
+          </div>
+        );
+
+      case 'inline-radio':
+        return (
+          <div className={field.className || 'min-w-0'}>
+            {field.label ? (
+              <label className="text-sm font-light text-slate-700 capitalize tracking-[0.12em] block mb-2.5">
+                {field.label}
+              </label>
+            ) : null}
+            <div className="flex flex-wrap gap-x-5 gap-y-2 min-h-[42px] items-center">
+              {(resolveMaybeFn(field.options, form) || []).map((option) => (
+                <label key={option.value} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name={field.name}
+                    value={option.value}
+                    checked={form[field.name] === option.value}
+                    onChange={() => onFieldChange(field.name, option.value)}
+                    className="w-4 h-4 text-primary-600 focus:ring-primary-500 border-slate-300"
+                  />
+                  <span className="text-sm font-medium text-slate-700">{option.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
         );
 
       case 'display':

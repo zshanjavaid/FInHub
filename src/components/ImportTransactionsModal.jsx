@@ -786,7 +786,7 @@ const ImportTransactionsModal = ({
               <div className="p-3.5 sm:p-4 space-y-2.5 relative isolate">
                 <p className="text-xs text-slate-500">
                   Pick Broker · Project for each CSV description, or choose Skip to leave those rows
-                  out of this import. Inactive and freelance projects from selected brokers are
+                  out of this import. Completed and freelance projects from selected brokers are
                   included. Pending projects must be approved first.
                 </p>
                 {csvProjectNames.map((name, idx) => {
@@ -857,7 +857,7 @@ const ImportTransactionsModal = ({
                               <FiCheck className="w-3 h-3" />
                               {mappedMatch.project &&
                               getEffectiveProjectStatus(mappedMatch.project) === 'inactive'
-                                ? 'Matched inactive project (ok to import)'
+                                ? 'Matched completed project (ok to import)'
                                 : 'Matched approved project'}
                             </p>
                           ) : displayKind === 'pending' ? (

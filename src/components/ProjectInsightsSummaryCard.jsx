@@ -156,7 +156,7 @@ const ProjectInsightsSummaryCard = ({ projects = [], activityProjects = null }) 
                 className={`text-base sm:text-lg font-bold tabular-nums font-mono leading-none ${
                   privacyHidden ? 'text-slate-400' : 'text-amber-900'
                 }`}
-                title="Projects whose End Date falls in this window (inactive / completed)."
+                title="Projects whose End Date falls in this window (completed)."
               >
                 {privacyHidden ? maskSensitiveText(endedCurr) : endedCurr}
               </span>

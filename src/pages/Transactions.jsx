@@ -28,7 +28,6 @@ import {
   createTransactionsBulk
 } from '../store/transactions/transactionsSlice';
 import { normalizeDateToYYYYMMDD, filterByDateRange, monthSlotsForRange, addIntoMonthSlots, expenseDateValue } from '../utils/date';
-import { shortenChartAxisLabel } from '../utils/chartLabels';
 import { formatMoney, signedMoneyClass } from '../utils/format';
 import { EMPTY_TRANSACTION_FORM, transactionToFormValues } from '../utils/formValues';
 import { toNumber, roundMoney } from '../utils/number';
@@ -252,10 +251,9 @@ const Transactions = () => {
       byProject[label] = (byProject[label] || 0) + transactionNetAfterImpactFund(t);
     });
     const fullLabels = Object.keys(byProject).sort();
-    const labels = fullLabels.map((k) => shortenChartAxisLabel(k));
     const values = fullLabels.map((k) => byProject[k]);
     return {
-      labels,
+      labels: fullLabels,
       fullLabels,
       data: [{ label: 'Amount', values, color: '#0d9488' }]
     };

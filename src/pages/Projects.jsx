@@ -25,7 +25,7 @@ import { getProjectPayoutProgress } from '../utils/projectPayoutProgress';
 
 const ProjectFormModal = lazy(() => import('../components/ProjectFormModal'));
 
-const PROJECT_STATUS_FILTER_LABELS = ['All', 'Active', 'Inactive'];
+const PROJECT_STATUS_FILTER_LABELS = ['All', 'Active', 'Completed'];
 
 const Projects = () => {
   const dispatch = useDispatch();
@@ -112,7 +112,10 @@ const Projects = () => {
   const closeModal = () => setIsModalOpen(false);
 
   const onSubmit = async (values) => {
-    const payload = prepareProjectForFirestore(values);
+    const previousProject = editingProjectId
+      ? (projects || []).find((p) => p.id === editingProjectId) || null
+      : null;
+    const payload = prepareProjectForFirestore(values, { previousProject });
     if (editingProjectId) {
       await dispatch(editProject({ projectId: editingProjectId, projectData: payload })).unwrap();
       setEditingProjectId(null);
@@ -150,7 +153,7 @@ const Projects = () => {
           label="Status"
           value={
             statusFilter === 'inactive'
-              ? 'Inactive'
+              ? 'Completed'
               : statusFilter === 'all'
                 ? 'All'
                 : 'Active'
@@ -160,7 +163,7 @@ const Projects = () => {
               setStatusFilter('active');
               return;
             }
-            if (label === 'Inactive') setStatusFilter('inactive');
+            if (label === 'Completed') setStatusFilter('inactive');
             else if (label === 'All') setStatusFilter('all');
             else setStatusFilter('active');
           }}
@@ -197,6 +200,7 @@ const Projects = () => {
             onSubmit={onSubmit}
             isSaving={isLoading}
             projects={projects}
+            isEditing={Boolean(editingProjectId)}
           />
         </Suspense>
       ) : null}

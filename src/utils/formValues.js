@@ -1,4 +1,5 @@
 import { EXPENSE_TYPE_LABELS, RECURRING_MONTHS_LABELS, formatExpenseTypeLabel } from '../constants/expenseTypes';
+import { inactiveReasonToFormValues } from '../constants/projectInactiveReasons';
 import { getTaxFormDefaultsFromProject } from './project';
 
 export const EMPTY_TRANSACTION_FORM = {
@@ -66,6 +67,8 @@ export const EMPTY_PROJECT_FORM = {
   lead: '',
   projectManager: '',
   contractEnding: '',
+  inactiveReason: '',
+  inactiveReasonOther: '',
   brokerageType: 'percentage',
   brokerageValue: '',
   taxType: 'percentage',
@@ -88,6 +91,7 @@ export const projectToFormValues = (project = {}) => ({
   lead: project.lead || '',
   projectManager: project.projectManager || '',
   contractEnding: project.contractEnding || '',
+  ...inactiveReasonToFormValues(project.inactiveReason),
   brokerageType: project.brokerageType || 'percentage',
   brokerageValue: project.brokerageValue || '',
   ...getTaxFormDefaultsFromProject(project)

@@ -25,6 +25,9 @@ dist.zip
 # Graphify knowledge graph (regenerate with `graphify extract . --code-only`)
 graphify-out/
 
+# Local Cursor rules (graphify.mdc stays tracked)
+.cursor/rules/ponytail.mdc
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

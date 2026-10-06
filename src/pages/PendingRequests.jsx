@@ -281,8 +281,12 @@ const PendingRequests = () => {
 
   const submitEditProject = async (projectData) => {
     if (!editingProjectId) return;
+    const previousProject = (projects || []).find((p) => p.id === editingProjectId) || null;
     await dispatch(
-      editProject({ projectId: editingProjectId, projectData: prepareProjectForFirestore(projectData) })
+      editProject({
+        projectId: editingProjectId,
+        projectData: prepareProjectForFirestore(projectData, { previousProject })
+      })
     ).unwrap();
     setEditingProjectId(null);
   };
@@ -465,6 +469,7 @@ const PendingRequests = () => {
             onSubmit={submitEditProject}
             isSaving={isLoadingP}
             projects={projects}
+            isEditing
           />
         </Suspense>
       ) : null}

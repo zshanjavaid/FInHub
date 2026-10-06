@@ -4,8 +4,9 @@ import { FiUser, FiCalendar, FiDollarSign, FiPercent } from 'react-icons/fi';
 import { getTaxFormDefaultsFromProject } from '../utils/project';
 import { PAYOUT_OCCURRENCE_OPTIONS, PAYOUT_OCCURRENCE_LABEL_BY_VALUE } from '../constants/payoutOccurrences';
 import { LEAD_OPTIONS, PROJECT_MANAGER_OPTIONS } from '../constants/projectAssignments';
+import { PROJECT_INACTIVE_REASON_OPTIONS } from '../constants/projectInactiveReasons';
 import { EMPTY_PROJECT_FORM } from '../utils/formValues';
-import { addMonthsLocalYmd, todayLocalYmd } from '../utils/date';
+import { addMonthsLocalYmd, normalizeDateToYYYYMMDD, todayLocalYmd } from '../utils/date';
 
 const ProjectFormModal = ({
   isOpen,
@@ -16,11 +17,13 @@ const ProjectFormModal = ({
   initialValues = EMPTY_PROJECT_FORM,
   onSubmit,
   isSaving = false,
-  projects = []
+  projects = [],
+  isEditing = false
 }) => {
   const today = todayLocalYmd();
   const contractEndingDefault = addMonthsLocalYmd(6);
   const taxFromInitial = getTaxFormDefaultsFromProject(initialValues);
+  const previousContractEnding = normalizeDateToYYYYMMDD(initialValues?.contractEnding);
   const normalizedInitialValues = {
     ...EMPTY_PROJECT_FORM,
     ...(initialValues || {}),
@@ -36,7 +39,10 @@ const ProjectFormModal = ({
         ? (PAYOUT_OCCURRENCE_LABEL_BY_VALUE[initialValues.payoutOccurrence] ? initialValues.payoutOccurrence : 'biweekly')
         : 'biweekly',
     taxType: taxFromInitial.taxType,
-    taxValue: taxFromInitial.taxValue
+    taxValue: taxFromInitial.taxValue,
+    endDateChangeMode: 'extension',
+    inactiveReason: initialValues?.inactiveReason || '',
+    inactiveReasonOther: initialValues?.inactiveReasonOther || ''
   };
 
   const findLatestProjectByBroker = (brokerName) => {
@@ -67,6 +73,23 @@ const ProjectFormModal = ({
         form.taxType = taxDefaults.taxType;
         form.taxValue = taxDefaults.taxValue;
       }
+    }
+    if (fieldName === 'contractEnding' && isEditing && previousContractEnding) {
+      const next = normalizeDateToYYYYMMDD(value);
+      if (next && next !== previousContractEnding) {
+        form.endDateChangeMode = form.endDateChangeMode || 'extension';
+      } else {
+        form.endDateChangeMode = 'extension';
+      }
+    }
+    if (fieldName === 'projectStatus') {
+      if (String(value || '').trim().toLowerCase() !== 'inactive') {
+        form.inactiveReason = '';
+        form.inactiveReasonOther = '';
+      }
+    }
+    if (fieldName === 'inactiveReason' && String(value || '').trim() !== 'Other') {
+      form.inactiveReasonOther = '';
     }
     return form;
   };
@@ -110,9 +133,29 @@ const ProjectFormModal = ({
         label: 'Status',
         options: [
           { value: 'active', label: 'Active' },
-          { value: 'inactive', label: 'Inactive' }
+          { value: 'inactive', label: 'Completed' }
         ],
         hidePlaceholder: true
+      },
+      {
+        type: 'dropdown',
+        name: 'inactiveReason',
+        label: 'Reason for completed',
+        required: true,
+        options: PROJECT_INACTIVE_REASON_OPTIONS,
+        hidePlaceholder: false,
+        placeholder: 'Select reason...',
+        showWhen: (form) => String(form?.projectStatus || '').trim().toLowerCase() === 'inactive'
+      },
+      {
+        type: 'text',
+        name: 'inactiveReasonOther',
+        label: 'Other reason',
+        required: true,
+        placeholder: 'Enter reason...',
+        showWhen: (form) =>
+          String(form?.projectStatus || '').trim().toLowerCase() === 'inactive' &&
+          String(form?.inactiveReason || '').trim() === 'Other'
       },
       {
         type: 'dropdown',
@@ -142,7 +185,41 @@ const ProjectFormModal = ({
         label: 'End Date',
         required: true,
         defaultValue: contractEndingDefault,
-        icon: <FiCalendar className="w-5 h-5 text-gray-400" />
+        icon: <FiCalendar className="w-5 h-5 text-gray-400" />,
+        footer: (form, onChange) => {
+          if (!isEditing || !previousContractEnding) return null;
+          if (normalizeDateToYYYYMMDD(form?.contractEnding) === previousContractEnding) return null;
+          const mode = form.endDateChangeMode === 'update' ? 'update' : 'extension';
+          return (
+            <div className="absolute left-0 top-full z-10 mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-0.5">
+              {[
+                { value: 'extension', label: 'Extension' },
+                { value: 'update', label: 'Update only' }
+              ].map((opt) => (
+                <label
+                  key={opt.value}
+                  className="inline-flex items-center gap-1.5 cursor-pointer select-none"
+                >
+                  <input
+                    type="radio"
+                    name="endDateChangeMode"
+                    value={opt.value}
+                    checked={mode === opt.value}
+                    onChange={() => onChange('endDateChangeMode', opt.value)}
+                    className="h-3.5 w-3.5 shrink-0 cursor-pointer accent-primary-600 text-primary-600 border-primary-300 focus:ring-primary-500 focus:ring-offset-0"
+                  />
+                  <span
+                    className={`text-[10px] font-semibold leading-none ${
+                      mode === opt.value ? 'text-primary-700' : 'text-slate-500'
+                    }`}
+                  >
+                    {opt.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          );
+        }
       },
       {
         type: 'number',
@@ -218,7 +295,7 @@ const ProjectFormModal = ({
         }
       }
     ],
-    [clientOptions, projectTypeOptions, today, contractEndingDefault]
+    [clientOptions, projectTypeOptions, today, contractEndingDefault, isEditing, previousContractEnding]
   );
 
   const handleSubmit = async (values) => {

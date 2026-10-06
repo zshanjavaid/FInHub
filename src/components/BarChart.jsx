@@ -22,32 +22,53 @@ import {
   buildLegendPadding
 } from '../utils/chartTheme';
 import { ensureChartJsRegistered } from '../utils/registerChart';
+import { chartAxisLabelMaxLen, shortenChartAxisLabel } from '../utils/chartLabels';
 
 ensureChartJsRegistered();
 
-const BarChart = ({ data, labels, title = 'Bar Chart', fullLabels = null, headerRight = null }) => {
+const BarChart = ({
+  data,
+  labels,
+  title = 'Bar Chart',
+  fullLabels = null,
+  headerRight = null,
+  horizontal = false,
+  plotClassName = null
+}) => {
   const compact = useCompactChart();
   const privacyHidden = usePrivacyHidden();
-  const tipLabels = fullLabels && fullLabels.length === (labels || []).length ? fullLabels : labels;
+  const tipLabels =
+    fullLabels && fullLabels.length === (labels || []).length ? fullLabels : labels || [];
+
+  const axisLabels = useMemo(() => {
+    const source = labels || [];
+    const maxLen = chartAxisLabelMaxLen(compact, source.length);
+    return source.map((label) => shortenChartAxisLabel(label, maxLen));
+  }, [labels, compact]);
 
   const chartData = useMemo(
     () => ({
-      labels,
+      labels: axisLabels,
       datasets: (data || []).map((dataset) => ({
         label: dataset.label,
         data: dataset.values,
         backgroundColor: dataset.color || themePrimary,
         borderColor: dataset.color || themePrimary,
         borderWidth: 0,
-        borderRadius: { topLeft: 8, topRight: 8 },
-        borderSkipped: false
+        borderRadius: horizontal
+          ? { topRight: 8, bottomRight: 8, topLeft: 4, bottomLeft: 4 }
+          : { topLeft: 8, topRight: 8 },
+        borderSkipped: false,
+        barThickness: horizontal ? (compact ? 14 : 18) : undefined,
+        maxBarThickness: horizontal ? 22 : undefined
       }))
     }),
-    [data, labels]
+    [data, axisLabels, horizontal, compact]
   );
 
   const options = useMemo(
     () => ({
+      indexAxis: horizontal ? 'y' : 'x',
       responsive: true,
       maintainAspectRatio: false,
       layout: {
@@ -55,6 +76,7 @@ const BarChart = ({ data, labels, title = 'Bar Chart', fullLabels = null, header
       },
       plugins: {
         legend: {
+          display: !horizontal,
           position: 'top',
           align: compact ? 'center' : 'end',
           labels: {
@@ -91,33 +113,38 @@ const BarChart = ({ data, labels, title = 'Bar Chart', fullLabels = null, header
         y: {
           beginAtZero: true,
           grid: {
-            color: themeGrid,
+            color: horizontal ? 'transparent' : themeGrid,
             drawBorder: false,
-            lineWidth: 1
+            lineWidth: 1,
+            display: !horizontal
           },
           ticks: {
             color: themeMuted,
             font: buildAxisTickFont(compact),
             padding: compact ? 6 : 12,
-            maxTicksLimit: compact ? 5 : 6
+            maxTicksLimit: horizontal ? undefined : compact ? 5 : 6,
+            autoSkip: !horizontal
           }
         },
         x: {
+          beginAtZero: true,
           grid: {
-            display: false
+            display: horizontal,
+            color: horizontal ? themeGrid : undefined,
+            drawBorder: false
           },
           ticks: {
             color: themeMuted,
             font: buildAxisTickFont(compact),
             padding: compact ? 6 : 12,
-            maxRotation: compact ? 55 : 45,
+            maxRotation: horizontal ? 0 : compact ? 55 : 45,
             autoSkip: true,
             maxTicksLimit: compact ? 6 : undefined
           }
         }
       }
     }),
-    [compact, tipLabels]
+    [compact, tipLabels, horizontal]
   );
 
   return (
@@ -133,7 +160,7 @@ const BarChart = ({ data, labels, title = 'Bar Chart', fullLabels = null, header
         {privacyHidden ? (
           <PrivacyChartPlaceholder />
         ) : (
-          <div className={chartPlotHeightClass}>
+          <div className={plotClassName || chartPlotHeightClass}>
             <Bar data={chartData} options={options} />
           </div>
         )}

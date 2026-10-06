@@ -66,6 +66,7 @@ export const updateProject = async (projectId, projectData) => {
       }
     } else if (nextStatus === 'active') {
       payload.inactiveAt = deleteField();
+      payload.inactiveReason = deleteField();
     }
 
     await updateDoc(ref, payload);
