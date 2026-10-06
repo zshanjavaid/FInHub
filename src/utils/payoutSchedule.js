@@ -1,8 +1,9 @@
 import { addMonths } from 'date-fns';
 import { normalizeDateToYYYYMMDD } from './date';
+import { normalizePayoutOccurrence } from '../constants/payoutOccurrences';
 
 export const payoutShareCount = (project) => {
-  const key = String(project?.payoutOccurrence || 'biweekly').trim().toLowerCase();
+  const key = normalizePayoutOccurrence(project?.payoutOccurrence);
   if (key === 'weekly') return 4;
   if (key === 'monthly') return 1;
   return 2;
@@ -25,7 +26,7 @@ export const buildExpectedTransactionDatesForMonth = (project, monthKey) => {
   if (!Number.isFinite(yy) || !Number.isFinite(mm)) return [];
 
   const lastDay = new Date(yy, mm, 0).getDate();
-  const payoutOccurrence = String(project?.payoutOccurrence || 'biweekly').trim().toLowerCase();
+  const payoutOccurrence = normalizePayoutOccurrence(project?.payoutOccurrence);
   const startYmd = normalizeDateToYYYYMMDD(project?.date);
   const startDay = (() => {
     if (!startYmd) return 1;
@@ -109,7 +110,7 @@ export const countExpectedPayoutsInRange = (project, rangeFrom, rangeTo) => {
   const rangeEnd = re;
   if (rangeStart > rangeEnd) return 0;
 
-  const payoutOccurrence = String(project?.payoutOccurrence || 'biweekly').trim().toLowerCase();
+  const payoutOccurrence = normalizePayoutOccurrence(project?.payoutOccurrence);
 
   if (payoutOccurrence === 'biweekly') {
     // Two pay periods per calendar month: 1–15 and 16–end-of-month.
@@ -194,8 +195,8 @@ export const countExpectedPayoutsInRange = (project, rangeFrom, rangeTo) => {
 };
 
 export const getPayoutOccurrenceLabel = (project, labelByValue) => {
-  const key = String(project?.payoutOccurrence || 'biweekly').trim().toLowerCase();
-  return labelByValue?.[key] || (key === 'weekly' ? 'Weekly' : key === 'monthly' ? 'Monthly' : 'Biweekly');
+  const key = normalizePayoutOccurrence(project?.payoutOccurrence);
+  return labelByValue?.[key] || (key === 'weekly' ? 'Weekly' : key === 'monthly' ? 'Monthly' : 'Semi-Monthly');
 };
 
 const monthKeyToRange = (monthKey) => {

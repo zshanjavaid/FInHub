@@ -44,6 +44,7 @@ This repo has a graphify knowledge graph in `graphify-out/`.
 - Prefer small utils under `src/utils/` for money/date logic; keep pages thin.
 - Forms: use `required` on critical fields via `FormModal` field config.
 - Expense types: builtins in `src/constants/expenseTypes.js`; CSV type detection in `csvExpenseImport.js` (keyword + word match; never auto-force General).
+- Inactive and freelance projects stay selectable for transactions / CSV import (no need to reactivate). Payout cadence label **Semi-Monthly** uses stored value `biweekly`. Import supports multiple brokers; map each CSV description to Broker · Project.
 - Don’t commit unless asked. Don’t edit plan files unless asked.
 - After substantive UI/logic changes, keep copy user-facing and simple.
 

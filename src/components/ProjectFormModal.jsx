@@ -148,14 +148,14 @@ const ProjectFormModal = ({
         type: 'number',
         name: 'totalMonthlyHours',
         label: 'Total Monthly Hours',
-        required: true,
+        required: (form) => String(form?.projectType || '').trim() !== 'Freelance',
         min: 0.01
       },
       {
         type: 'number',
         name: 'hourlyRate',
         label: 'Hourly Rate',
-        required: true,
+        required: (form) => String(form?.projectType || '').trim() !== 'Freelance',
         min: 0.01,
         icon: <FiDollarSign className="w-5 h-5 text-gray-400" />
       },
@@ -225,22 +225,23 @@ const ProjectFormModal = ({
     const client = String(values.client || '').trim();
     const project = String(values.project || '').trim();
     const date = String(values.date || '').trim();
+    const isFreelance = String(values.projectType || '').trim() === 'Freelance';
     const hours = Number(values.totalMonthlyHours);
     const rate = Number(values.hourlyRate);
-    if (
-      !client ||
-      !project ||
-      !date ||
-      values.totalMonthlyHours === '' ||
-      values.totalMonthlyHours == null ||
-      !Number.isFinite(hours) ||
-      hours <= 0 ||
-      values.hourlyRate === '' ||
-      values.hourlyRate == null ||
-      !Number.isFinite(rate) ||
-      rate <= 0
-    ) {
-      return;
+    if (!client || !project || !date) return;
+    if (!isFreelance) {
+      if (
+        values.totalMonthlyHours === '' ||
+        values.totalMonthlyHours == null ||
+        !Number.isFinite(hours) ||
+        hours <= 0 ||
+        values.hourlyRate === '' ||
+        values.hourlyRate == null ||
+        !Number.isFinite(rate) ||
+        rate <= 0
+      ) {
+        return;
+      }
     }
     await onSubmit?.(values);
   };

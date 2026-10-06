@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { FiBarChart2, FiBriefcase, FiCheckCircle } from 'react-icons/fi';
-import { computeRollingWindowStats } from '../utils/projectRollingStats';
+import { ACTIVITY_WINDOW_PRESETS, computeRollingWindowStats } from '../utils/projectRollingStats';
 import { usePrivacyHidden } from '../contexts/PrivacyContext';
 import { maskSensitiveText } from '../privacy/privacyStore';
 import {
@@ -60,38 +60,59 @@ const ProjectNamePills = ({ items, tone = 'primary', emptyLabel = 'None in this 
   );
 };
 
-/** 3-month onboard / ended activity (all approved projects — ignores page filters). */
+/** Project onboard / ended activity with selectable time windows. */
 const ProjectInsightsSummaryCard = ({ projects = [], activityProjects = null }) => {
   const privacyHidden = usePrivacyHidden();
   const activitySource = activityProjects != null ? activityProjects : projects;
+  const [windowId, setWindowId] = useState('3m');
 
-  const { rangeLabel, onboardCurr, endedCurr, onboardProjects, endedProjects } = useMemo(
-    () => computeRollingWindowStats(activitySource),
-    [activitySource]
+  const { rangeLabel, windowLabel, onboardCurr, endedCurr, onboardProjects, endedProjects } = useMemo(
+    () => computeRollingWindowStats(activitySource, windowId),
+    [activitySource, windowId]
   );
 
   return (
     <div className={`${chartCardClass} overflow-hidden`}>
       <div className={chartCardHeaderClass}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 md:gap-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 md:gap-6">
           <div className="flex items-start gap-2.5 sm:gap-3 min-w-0">
             <div className={`${chartCardIconWrapClass} bg-primary-100 text-primary-600`}>
               <FiBarChart2 className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden />
             </div>
             <div className="min-w-0">
-              <h3 className={chartCardTitleClass}>3-month project activity</h3>
+              <h3 className={chartCardTitleClass}>Project activity</h3>
               <p className={chartCardSubtitleClass}>
-                Project names onboarded or ended in the last 3 months (all projects — not affected by filters).
+                Onboarded or ended · {windowLabel} ({rangeLabel}). Excludes freelance — not affected by
+                filters.
               </p>
             </div>
           </div>
-          <div className="sm:text-right shrink-0 w-full sm:w-auto">
-            <p
-              className="text-xs sm:text-sm font-light text-slate-700 tabular-nums tracking-wide"
-              title="Current rolling window"
+          <div className="shrink-0 w-full sm:w-auto">
+            <div
+              className="inline-flex w-full sm:w-auto flex-wrap sm:flex-nowrap items-center rounded-lg bg-slate-100 p-0.5 ring-1 ring-slate-200/70"
+              role="tablist"
+              aria-label="Activity window"
             >
-              {rangeLabel}
-            </p>
+              {ACTIVITY_WINDOW_PRESETS.map((preset) => {
+                const active = windowId === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setWindowId(preset.id)}
+                    className={`flex-1 sm:flex-none px-2 sm:px-2.5 py-1.5 rounded-md text-[11px] sm:text-xs font-semibold leading-none whitespace-nowrap transition-colors ${
+                      active
+                        ? 'bg-white text-primary-700 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

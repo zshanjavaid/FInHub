@@ -139,7 +139,9 @@ const PendingRequests = () => {
   };
 
   const [approvingAll, setApprovingAll] = useState({ t: false, e: false, p: false });
+  const [deletingAll, setDeletingAll] = useState({ t: false, e: false, p: false });
   const [approveAllConfirm, setApproveAllConfirm] = useState(null);
+  const [deleteAllConfirm, setDeleteAllConfirm] = useState(null);
   const [activeTab, setActiveTab] = useState('transactions');
 
   const approvableTransactionIds = pendingTransactions.map((t) => t.id).filter(Boolean);
@@ -157,6 +159,16 @@ const PendingRequests = () => {
       );
     } finally {
       setApprovingAll((prev) => ({ ...prev, t: false }));
+    }
+  };
+
+  const onDeleteAllTransactions = async () => {
+    if (approvableTransactionIds.length === 0) return;
+    setDeletingAll((prev) => ({ ...prev, t: true }));
+    try {
+      await dispatch(removeTransactionsBulk(approvableTransactionIds)).unwrap();
+    } finally {
+      setDeletingAll((prev) => ({ ...prev, t: false }));
     }
   };
 
@@ -183,6 +195,17 @@ const PendingRequests = () => {
       setApprovingAll((prev) => ({ ...prev, e: false }));
     }
   };
+
+  const onDeleteAllExpenses = async () => {
+    if (approvableExpenseIds.length === 0) return;
+    setDeletingAll((prev) => ({ ...prev, e: true }));
+    try {
+      await Promise.all(approvableExpenseIds.map((id) => dispatch(removeExpense(id)).unwrap()));
+    } finally {
+      setDeletingAll((prev) => ({ ...prev, e: false }));
+    }
+  };
+
   const onApproveAllProjects = async () => {
     if (!currentUserId || approvableProjectIds.length === 0) return;
     setApprovingAll((prev) => ({ ...prev, p: true }));
@@ -194,6 +217,16 @@ const PendingRequests = () => {
       );
     } finally {
       setApprovingAll((prev) => ({ ...prev, p: false }));
+    }
+  };
+
+  const onDeleteAllProjects = async () => {
+    if (approvableProjectIds.length === 0) return;
+    setDeletingAll((prev) => ({ ...prev, p: true }));
+    try {
+      await Promise.all(approvableProjectIds.map((id) => dispatch(removeProject(id)).unwrap()));
+    } finally {
+      setDeletingAll((prev) => ({ ...prev, p: false }));
     }
   };
 
@@ -297,16 +330,26 @@ const PendingRequests = () => {
                     <Button
                       variant="danger"
                       onClick={() => setIsResetTxOpen(true)}
-                      disabled={isResettingTx}
+                      disabled={isResettingTx || deletingAll.t}
                       size="sm"
                     >
                       {isResettingTx ? 'Resetting…' : `Reset my auto-generated (${resettablePendingTransactionIds.length})`}
                     </Button>
                   ) : null}
                   {approvableTransactionIds.length > 0 ? (
-                    <Button onClick={() => setApproveAllConfirm('transactions')} disabled={approvingAll.t} size="sm">
-                      {approvingAll.t ? 'Approving…' : `Approve all (${approvableTransactionIds.length})`}
-                    </Button>
+                    <>
+                      <Button
+                        variant="danger"
+                        onClick={() => setDeleteAllConfirm('transactions')}
+                        disabled={deletingAll.t || approvingAll.t}
+                        size="sm"
+                      >
+                        {deletingAll.t ? 'Deleting…' : `Delete all (${approvableTransactionIds.length})`}
+                      </Button>
+                      <Button onClick={() => setApproveAllConfirm('transactions')} disabled={approvingAll.t || deletingAll.t} size="sm">
+                        {approvingAll.t ? 'Approving…' : `Approve all (${approvableTransactionIds.length})`}
+                      </Button>
+                    </>
                   ) : null}
                 </div>
               }
@@ -326,9 +369,19 @@ const PendingRequests = () => {
               emptyDescription="Pending expenses will appear here for review"
               titleActions={
                 approvableExpenseIds.length > 0 ? (
-                  <Button onClick={() => setApproveAllConfirm('expenses')} disabled={approvingAll.e} size="sm">
-                    {approvingAll.e ? 'Approving…' : `Approve all (${approvableExpenseIds.length})`}
-                  </Button>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                    <Button
+                      variant="danger"
+                      onClick={() => setDeleteAllConfirm('expenses')}
+                      disabled={deletingAll.e || approvingAll.e}
+                      size="sm"
+                    >
+                      {deletingAll.e ? 'Deleting…' : `Delete all (${approvableExpenseIds.length})`}
+                    </Button>
+                    <Button onClick={() => setApproveAllConfirm('expenses')} disabled={approvingAll.e || deletingAll.e} size="sm">
+                      {approvingAll.e ? 'Approving…' : `Approve all (${approvableExpenseIds.length})`}
+                    </Button>
+                  </div>
                 ) : null
               }
             />
@@ -346,9 +399,19 @@ const PendingRequests = () => {
               emptyDescription="Pending projects will appear here for review"
               titleActions={
                 approvableProjectIds.length > 0 ? (
-                  <Button onClick={() => setApproveAllConfirm('projects')} disabled={approvingAll.p} size="sm">
-                    {approvingAll.p ? 'Approving…' : `Approve all (${approvableProjectIds.length})`}
-                  </Button>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                    <Button
+                      variant="danger"
+                      onClick={() => setDeleteAllConfirm('projects')}
+                      disabled={deletingAll.p || approvingAll.p}
+                      size="sm"
+                    >
+                      {deletingAll.p ? 'Deleting…' : `Delete all (${approvableProjectIds.length})`}
+                    </Button>
+                    <Button onClick={() => setApproveAllConfirm('projects')} disabled={approvingAll.p || deletingAll.p} size="sm">
+                      {approvingAll.p ? 'Approving…' : `Approve all (${approvableProjectIds.length})`}
+                    </Button>
+                  </div>
                 ) : null
               }
             />
@@ -413,6 +476,31 @@ const PendingRequests = () => {
         title="Reset auto-generated transactions"
         message="Delete your pending auto-generated transactions so you can generate them again with updated rules."
         isDeleting={isResettingTx}
+      />
+
+      <DeleteConfirmModal
+        isOpen={deleteAllConfirm === 'transactions'}
+        onClose={() => setDeleteAllConfirm(null)}
+        onConfirm={onDeleteAllTransactions}
+        title="Delete all pending transactions"
+        message={`Delete all ${approvableTransactionIds.length} pending transactions? This cannot be undone.`}
+        isDeleting={deletingAll.t}
+      />
+      <DeleteConfirmModal
+        isOpen={deleteAllConfirm === 'expenses'}
+        onClose={() => setDeleteAllConfirm(null)}
+        onConfirm={onDeleteAllExpenses}
+        title="Delete all pending expenses"
+        message={`Delete all ${approvableExpenseIds.length} pending expenses? This cannot be undone.`}
+        isDeleting={deletingAll.e}
+      />
+      <DeleteConfirmModal
+        isOpen={deleteAllConfirm === 'projects'}
+        onClose={() => setDeleteAllConfirm(null)}
+        onConfirm={onDeleteAllProjects}
+        title="Delete all pending projects"
+        message={`Delete all ${approvableProjectIds.length} pending projects? This cannot be undone.`}
+        isDeleting={deletingAll.p}
       />
 
       <ApproveAllConfirmModal

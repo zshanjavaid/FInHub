@@ -43,8 +43,7 @@ import PageContainer from '../components/PageContainer';
 import { PAYOUT_OCCURRENCE_LABEL_BY_VALUE } from '../constants/payoutOccurrences';
 import { isFreelanceProject } from '../constants/projectTypes';
 import {
-  isProjectEligibleForAutoGenerateMonth,
-  isProjectEligibleForTransactions
+  isProjectEligibleForAutoGenerateMonth
 } from '../utils/transactionsEligibility';
 import { buildExpectedTransactionDatesForMonth, countExpectedPayoutsInRange, getPayoutOccurrenceLabel, payoutShareCount } from '../utils/payoutSchedule';
 import { computeProjectTaxDollars, computeProjectBrokerageDollars } from '../utils/project';
@@ -272,21 +271,16 @@ const Transactions = () => {
     dispatch(fetchExpenses());
   }, [dispatch]);
 
-  const eligibleProjectsForTx = useMemo(
-    () => (projects || []).filter((p) => isProjectEligibleForTransactions(p, 2)),
-    [projects]
-  );
-
-  const clientOptions = useClientOptions(eligibleProjectsForTx);
+  const clientOptions = useClientOptions(projects);
   const allClientOptions = useClientOptions(projects);
 
   const projectOptions = useMemo(
     () =>
-      buildProjectFilterOptions(eligibleProjectsForTx, {
+      buildProjectFilterOptions(projects || [], {
         selectedBroker,
         valueMode: 'identity'
       }),
-    [eligibleProjectsForTx, selectedBroker]
+    [projects, selectedBroker]
   );
 
   const openAddModal = () => {

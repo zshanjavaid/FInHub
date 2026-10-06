@@ -6,7 +6,6 @@ import { usePrivacyHidden } from '../contexts/PrivacyContext';
 import { normalizeDateToYYYYMMDD, todayLocalYmd } from '../utils/date';
 import { isApproved } from '../constants/app';
 import { PAYOUT_OCCURRENCE_LABEL_BY_VALUE } from '../constants/payoutOccurrences';
-import { isProjectEligibleForTransactions } from '../utils/transactionsEligibility';
 import { countExpectedPayoutsInRange, countExpectedWithCarryover, getPayoutOccurrenceLabel } from '../utils/payoutSchedule';
 import { computeProjectBrokerageDollars } from '../utils/project';
 import { findLatestProjectByBrokerAndProject } from '../utils/projectLookup';
@@ -42,14 +41,9 @@ const TransactionFormModal = ({
     date: (initialValues && initialValues.date) ? initialValues.date : today
   };
 
-  const eligibleProjects = useMemo(
-    () => (projects || []).filter((p) => isProjectEligibleForTransactions(p, 2)),
-    [projects]
-  );
-
   const activeClientOptions = useMemo(
-    () => [...new Set(eligibleProjects.map((p) => p.client).filter(Boolean).map((c) => String(c).trim()))].sort(),
-    [eligibleProjects]
+    () => [...new Set((projects || []).map((p) => p.client).filter(Boolean).map((c) => String(c).trim()))].sort(),
+    [projects]
   );
 
   const uniqueProjectsForBroker = (broker, currentProjects) => {
@@ -64,7 +58,7 @@ const TransactionFormModal = ({
   };
 
   const latestEligibleProject = (broker, projectName) =>
-    findLatestProjectByBrokerAndProject(eligibleProjects, broker, projectName);
+    findLatestProjectByBrokerAndProject(projects, broker, projectName);
 
   /**
    * Fixed (new entries): Mon–Fri prorated month fee from transaction date
@@ -207,7 +201,7 @@ const TransactionFormModal = ({
       name: 'project',
       label: 'Project Name',
       required: true,
-      options: (form) => uniqueProjectsForBroker(form.client, eligibleProjects),
+      options: (form) => uniqueProjectsForBroker(form.client, projects || []),
       placeholder: (form) => form.client ? 'Type or select project...' : 'Select broker first...',
       icon: <FiFileText className="w-5 h-5 text-gray-400" />
     },
@@ -307,7 +301,7 @@ const TransactionFormModal = ({
         );
       }
     }
-  ], [activeClientOptions, eligibleProjects, today, submitError, transactions, editingTransactionId]);
+  ], [activeClientOptions, projects, today, submitError, transactions, editingTransactionId]);
 
   useEffect(() => {
     if (!isOpen) setSubmitError('');

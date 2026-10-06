@@ -111,7 +111,7 @@ const ProjectTable = ({
       label: 'Payout',
       render: (value) => {
         const key = String(value || 'biweekly').trim().toLowerCase();
-        const label = PAYOUT_OCCURRENCE_LABEL_BY_VALUE[key] || 'Biweekly';
+        const label = PAYOUT_OCCURRENCE_LABEL_BY_VALUE[key] || 'Semi-Monthly';
         const colorClass =
           key === 'weekly'
             ? 'bg-indigo-100 text-indigo-800'

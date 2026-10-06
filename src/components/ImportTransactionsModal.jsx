@@ -29,6 +29,21 @@ import {
 } from '../utils/csvTransactionImport';
 import { findLatestProjectByBrokerAndProject } from '../utils/projectLookup';
 import { addMonthsLocalYmd, todayLocalYmd } from '../utils/date';
+import { getEffectiveProjectStatus } from '../utils/transactionsEligibility';
+
+const OPTION_SEP = ' · ';
+const SKIP_MAPPING_LABEL = "Skip — don't import";
+
+const toProjectOptionLabel = (client, project) =>
+  `${String(client || '').trim()}${OPTION_SEP}${String(project || '').trim()}`;
+
+const normalizeBrokerKey = (broker) => String(broker || '').trim().toLowerCase();
+
+const isBrokerSelected = (selectedBrokers = [], broker) => {
+  const key = normalizeBrokerKey(broker);
+  if (!key) return false;
+  return (selectedBrokers || []).some((b) => normalizeBrokerKey(b) === key);
+};
 
 const resolveProjectMatch = (projects, broker, projectName) => {
   if (!broker || !projectName) return { kind: 'missing', project: null };
@@ -37,6 +52,22 @@ const resolveProjectMatch = (projects, broker, projectName) => {
   const any = findLatestProjectByBrokerAndProject(projects, broker, projectName);
   if (any && !isApproved(any)) return { kind: 'pending', project: any };
   return { kind: 'missing', project: null };
+};
+
+const resolveMappedProject = (projects, mapping) => {
+  if (mapping?.skip) {
+    return { kind: 'skip', project: null, client: '', projectName: '' };
+  }
+  if (!mapping?.client || !mapping?.project) {
+    return { kind: 'missing', project: null, client: '', projectName: '' };
+  }
+  const match = resolveProjectMatch(projects, mapping.client, mapping.project);
+  return {
+    kind: match.kind,
+    project: match.project,
+    client: mapping.client,
+    projectName: mapping.project
+  };
 };
 
 const StatChip = ({ label, value, tone = 'neutral' }) => {
@@ -72,8 +103,9 @@ const ImportTransactionsModal = ({
   const [parseError, setParseError] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [rawRows, setRawRows] = useState([]);
-  const [broker, setBroker] = useState('');
+  const [selectedBrokers, setSelectedBrokers] = useState([]);
   const [brokerSource, setBrokerSource] = useState('');
+  const [brokerDraft, setBrokerDraft] = useState('');
   const [projectMap, setProjectMap] = useState({});
   const [askDecisions, setAskDecisions] = useState({});
   const [selectedAskKeys, setSelectedAskKeys] = useState(() => new Set());
@@ -89,8 +121,9 @@ const ImportTransactionsModal = ({
     setParseError('');
     setSubmitError('');
     setRawRows([]);
-    setBroker('');
+    setSelectedBrokers([]);
     setBrokerSource('');
+    setBrokerDraft('');
     setProjectMap({});
     setAskDecisions({});
     setSelectedAskKeys(new Set());
@@ -120,56 +153,127 @@ const ImportTransactionsModal = ({
 
   const approvedProjects = useMemo(() => (projects || []).filter(isApproved), [projects]);
 
+  const projectsForSelectedBrokers = useMemo(
+    () =>
+      approvedProjects.filter((p) => isBrokerSelected(selectedBrokers, p.client)),
+    [approvedProjects, selectedBrokers]
+  );
+
+  const projectSelectOptions = useMemo(() => {
+    const byKey = new Map();
+    projectsForSelectedBrokers.forEach((p) => {
+      const client = String(p.client || '').trim();
+      const project = String(p.project || '').trim();
+      if (!client || !project) return;
+      const key = `${normalizeBrokerKey(client)}|${normalizeMatchText(project)}`;
+      if (!byKey.has(key)) {
+        byKey.set(key, {
+          client,
+          project,
+          label: toProjectOptionLabel(client, project)
+        });
+      }
+    });
+    return [...byKey.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }, [projectsForSelectedBrokers]);
+
+  const projectOptionLabels = useMemo(
+    () => [SKIP_MAPPING_LABEL, ...projectSelectOptions.map((o) => o.label)],
+    [projectSelectOptions]
+  );
+
+  const addBroker = (name) => {
+    const next = String(name || '').trim();
+    if (!next) return;
+    setSelectedBrokers((prev) => {
+      if (prev.some((b) => normalizeBrokerKey(b) === normalizeBrokerKey(next))) return prev;
+      return [...prev, next];
+    });
+    setBrokerSource('manual');
+    setBrokerDraft('');
+  };
+
+  const removeBroker = (name) => {
+    const key = normalizeBrokerKey(name);
+    setSelectedBrokers((prev) => prev.filter((b) => normalizeBrokerKey(b) !== key));
+    setProjectMap((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((mapKey) => {
+        if (normalizeBrokerKey(next[mapKey]?.client) === key) delete next[mapKey];
+      });
+      return next;
+    });
+    setBrokerSource('manual');
+  };
+
   useEffect(() => {
-    if (!broker || !csvProjectNames.length) return;
+    if (!selectedBrokers.length || !csvProjectNames.length) return;
     setProjectMap((prev) => {
       const next = { ...prev };
       let changed = false;
       csvProjectNames.forEach((name) => {
         const key = normalizeMatchText(name);
         const current = next[key];
-        const currentOk = current && resolveProjectMatch(projects, broker, current).kind === 'approved';
+        if (current?.skip) return;
+        const currentOk =
+          current?.client &&
+          current?.project &&
+          isBrokerSelected(selectedBrokers, current.client) &&
+          resolveMappedProject(projects, current).kind === 'approved';
         if (currentOk) return;
 
         const approvedMatch = findMatchingProject({
           description: name,
-          broker,
-          projects: approvedProjects
+          broker: '',
+          projects: projectsForSelectedBrokers
         });
         if (approvedMatch?.project) {
-          next[key] = approvedMatch.project;
+          next[key] = {
+            client: String(approvedMatch.client || '').trim(),
+            project: String(approvedMatch.project || '').trim()
+          };
           changed = true;
           return;
         }
-        const pendingMatch = findMatchingProject({ description: name, broker, projects });
+
+        const pendingPool = (projects || []).filter((p) => isBrokerSelected(selectedBrokers, p.client));
+        const pendingMatch = findMatchingProject({ description: name, broker: '', projects: pendingPool });
         if (pendingMatch?.project && !isApproved(pendingMatch)) {
-          next[key] = pendingMatch.project;
+          next[key] = {
+            client: String(pendingMatch.client || '').trim(),
+            project: String(pendingMatch.project || '').trim()
+          };
           changed = true;
         }
       });
       return changed ? next : prev;
     });
-  }, [broker, csvProjectNames, projects, approvedProjects]);
+  }, [selectedBrokers, csvProjectNames, projects, projectsForSelectedBrokers]);
 
   const previewRows = useMemo(() => {
     return classifiedRows.map((row) => {
       const key = normalizeMatchText(row.description);
-      const mappedProject = projectMap[key] || '';
+      const mapping = projectMap[key] || null;
+      const mappedClient = mapping?.skip ? '' : mapping?.client || '';
+      const mappedProject = mapping?.skip ? '' : mapping?.project || '';
       let decision = row.importStatus;
       let reason = row.reason || '';
 
-      if (decision === 'ask') {
+      if (mapping?.skip) {
+        decision = 'skip';
+        reason = 'Skipped in project mapping';
+      } else if (decision === 'ask') {
         const userChoice = askDecisions[row.rowKey];
         if (userChoice === 'keep_both') decision = 'ready';
         else if (userChoice === 'override') decision = 'override';
         else decision = 'ask';
       }
 
-      const match = resolveProjectMatch(projects, broker, mappedProject);
+      const match = resolveMappedProject(projects, mapping);
       const needsProjectGate = decision === 'ready' || decision === 'override';
 
       if (needsProjectGate) {
-        if (!mappedProject) {
+        if (!mappedClient || !mappedProject) {
           decision = 'needs_project';
           reason = 'Map or create a project for this description';
         } else if (match.kind === 'pending') {
@@ -187,7 +291,7 @@ const ImportTransactionsModal = ({
       const previewTx =
         (decision === 'ready' || decision === 'override') && match.kind === 'approved'
           ? buildImportedTransactionData({
-              client: broker,
+              client: mappedClient,
               project: mappedProject,
               date: row.date,
               amount: row.amount,
@@ -197,14 +301,16 @@ const ImportTransactionsModal = ({
 
       return {
         ...row,
+        mappedClient,
         mappedProject,
+        mapping,
         decision,
         reason,
         previewTx,
         projectRow: match.kind === 'approved' ? match.project : null
       };
     });
-  }, [classifiedRows, projectMap, askDecisions, projects, broker]);
+  }, [classifiedRows, projectMap, askDecisions, projects]);
 
   const counts = useMemo(() => {
     const c = {
@@ -226,13 +332,13 @@ const ImportTransactionsModal = ({
     const groups = new Map();
     previewRows.forEach((row) => {
       if (row.decision !== 'ready' && row.decision !== 'override') return;
-      if (!row.mappedProject || !row.projectRow) return;
+      if (!row.mappedClient || !row.mappedProject || !row.projectRow) return;
       const monthKey = monthKeyFromYmd(row.date);
       if (!monthKey) return;
-      const planKey = `${broker}|${row.mappedProject}|${monthKey}`;
+      const planKey = `${row.mappedClient}|${row.mappedProject}|${monthKey}`;
       const prev = groups.get(planKey) || {
         key: planKey,
-        client: broker,
+        client: row.mappedClient,
         project: row.mappedProject,
         monthKey,
         projectRow: row.projectRow,
@@ -289,7 +395,7 @@ const ImportTransactionsModal = ({
         };
       })
       .filter((x) => x.status === 'new' || x.status === 'exists');
-  }, [previewRows, expenses, broker]);
+  }, [previewRows, expenses]);
 
   const newBrokerageExpenses = useMemo(
     () => brokeragePlan.filter((b) => b.status === 'new'),
@@ -297,7 +403,7 @@ const ImportTransactionsModal = ({
   );
 
   const canImport =
-    Boolean(broker) &&
+    selectedBrokers.length > 0 &&
     (counts.ready > 0 || counts.override > 0) &&
     counts.ask === 0 &&
     counts.needs_project === 0 &&
@@ -328,8 +434,14 @@ const ImportTransactionsModal = ({
         bankDescriptions: parsed.rows.map((r) => r.bankDescription),
         brokerOptions: clientOptions
       });
-      setBroker(guessed.broker || '');
-      setBrokerSource(guessed.source || '');
+      if (guessed.broker) {
+        setSelectedBrokers([guessed.broker]);
+        setBrokerSource(guessed.source || '');
+      } else {
+        setSelectedBrokers([]);
+        setBrokerSource('');
+      }
+      setBrokerDraft('');
     } catch (e) {
       setRawRows([]);
       setParseError(e?.message || 'Failed to read CSV file.');
@@ -349,17 +461,18 @@ const ImportTransactionsModal = ({
   };
 
   const openCreateProject = (csvName) => {
-    if (!broker) {
-      setSubmitError('Select a broker before creating a project.');
+    if (!selectedBrokers.length) {
+      setSubmitError('Select at least one broker before creating a project.');
       return;
     }
+    const preferredBroker = selectedBrokers[0];
     const latest = (projects || [])
-      .filter((p) => (p.client || '').trim().toLowerCase() === broker.trim().toLowerCase())
+      .filter((p) => normalizeBrokerKey(p.client) === normalizeBrokerKey(preferredBroker))
       .sort((a, b) => String(b.createdAt || b.date || '').localeCompare(String(a.createdAt || a.date || '')))[0];
 
     setCreatingForCsvName(csvName);
     setProjectInitialValues({
-      client: broker,
+      client: preferredBroker,
       date: todayLocalYmd(),
       project: csvName,
       projectType: latest?.projectType || 'Full time',
@@ -384,9 +497,15 @@ const ImportTransactionsModal = ({
     const payload = prepareProjectForFirestore(values);
     const projectData = user?.uid ? { ...payload, createdBy: user.uid } : payload;
     await dispatch(createProject(projectData)).unwrap();
-    const key = normalizeMatchText(creatingForCsvName || values.project);
-    if (key) {
-      setProjectMap((prev) => ({ ...prev, [key]: values.project }));
+    const createdClient = String(values.client || '').trim();
+    const createdProject = String(values.project || '').trim();
+    if (createdClient) addBroker(createdClient);
+    const key = normalizeMatchText(creatingForCsvName || createdProject);
+    if (key && createdClient && createdProject) {
+      setProjectMap((prev) => ({
+        ...prev,
+        [key]: { client: createdClient, project: createdProject }
+      }));
     }
     setIsProjectModalOpen(false);
     setCreatingForCsvName('');
@@ -397,10 +516,10 @@ const ImportTransactionsModal = ({
     const overrides = [];
     previewRows.forEach((row) => {
       if (row.decision !== 'ready' && row.decision !== 'override') return;
-      const match = resolveProjectMatch(projects, broker, row.mappedProject);
+      const match = resolveMappedProject(projects, row.mapping);
       if (match.kind !== 'approved') return;
       const data = buildImportedTransactionData({
-        client: broker,
+        client: row.mappedClient,
         project: row.mappedProject,
         date: row.date,
         amount: row.amount,
@@ -468,18 +587,6 @@ const ImportTransactionsModal = ({
       setIsImporting(false);
     }
   };
-
-  const projectOptionsForBroker = useMemo(() => {
-    if (!broker) return [];
-    return [
-      ...new Set(
-        approvedProjects
-          .filter((p) => (p.client || '').trim().toLowerCase() === broker.trim().toLowerCase())
-          .map((p) => (p.project || '').trim())
-          .filter(Boolean)
-      )
-    ].sort((a, b) => a.localeCompare(b));
-  }, [approvedProjects, broker]);
 
   const askRows = useMemo(() => {
     const rows = previewRows.filter((r) => r.importStatus === 'ask');
@@ -573,7 +680,7 @@ const ImportTransactionsModal = ({
           <div className="rounded-xl border border-slate-200/80 bg-white shadow-card relative z-30">
             <div className="px-3.5 py-2.5 sm:px-4 border-b border-slate-100 bg-slate-50/80 flex items-center gap-2 rounded-t-xl">
               <div className="h-1 w-8 rounded-full bg-primary-500" />
-              <p className="text-sm font-bold text-slate-800">CSV file & broker</p>
+              <p className="text-sm font-bold text-slate-800">CSV file & brokers</p>
             </div>
             <div className="p-3.5 sm:p-4 space-y-3 relative z-10">
               <button
@@ -607,22 +714,51 @@ const ImportTransactionsModal = ({
                 className="hidden"
               />
 
-              <SearchableDropdown
-                label="Broker"
-                value={broker}
-                onChange={(v) => {
-                  setBroker(v);
-                  setBrokerSource('manual');
-                  setProjectMap({});
-                }}
-                options={clientOptions}
-                placeholder="Select or type broker..."
-                className="relative z-20"
-              />
-              {brokerSource && broker ? (
+              <div className="space-y-2">
+                <p className="text-xs sm:text-sm font-light text-slate-700 tracking-[0.08em]">
+                  Brokers
+                </p>
+                {selectedBrokers.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedBrokers.map((name) => (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => removeBroker(name)}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-800 hover:bg-primary-100"
+                        title="Remove broker"
+                      >
+                        {name}
+                        <span aria-hidden className="text-primary-500">
+                          ×
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">Add every broker that has projects in this CSV.</p>
+                )}
+                <SearchableDropdown
+                  label="Add broker"
+                  value={brokerDraft}
+                  onChange={(v) => {
+                    setBrokerDraft(v);
+                    const exact = (clientOptions || []).find(
+                      (opt) => String(opt).trim().toLowerCase() === String(v || '').trim().toLowerCase()
+                    );
+                    if (exact) addBroker(exact);
+                  }}
+                  options={(clientOptions || []).filter(
+                    (opt) => !isBrokerSelected(selectedBrokers, opt)
+                  )}
+                  placeholder="Select or type another broker..."
+                  className="relative z-20"
+                />
+              </div>
+              {brokerSource && selectedBrokers.length > 0 ? (
                 <p className="text-xs text-primary-700 flex items-center gap-1.5">
                   <FiCheck className="w-3.5 h-3.5 shrink-0" />
-                  Auto-matched from {brokerSource === 'filename' ? 'file name' : 'bank description'}
+                  Auto-matched from {brokerSource === 'filename' ? 'file name' : 'bank description'} — add more brokers if needed
                 </p>
               ) : null}
             </div>
@@ -641,7 +777,7 @@ const ImportTransactionsModal = ({
             </div>
           ) : null}
 
-          {csvProjectNames.length > 0 && broker ? (
+          {csvProjectNames.length > 0 && selectedBrokers.length > 0 ? (
             <div className="rounded-xl border border-slate-200/80 bg-white shadow-card relative z-20">
               <div className="px-3.5 py-2.5 sm:px-4 border-b border-slate-100 bg-slate-50/80 flex items-center gap-2 rounded-t-xl">
                 <div className="h-1 w-8 rounded-full bg-primary-500" />
@@ -649,20 +785,36 @@ const ImportTransactionsModal = ({
               </div>
               <div className="p-3.5 sm:p-4 space-y-2.5 relative isolate">
                 <p className="text-xs text-slate-500">
-                  Only approved projects can be imported. Pending projects must be approved first.
+                  Pick Broker · Project for each CSV description, or choose Skip to leave those rows
+                  out of this import. Inactive and freelance projects from selected brokers are
+                  included. Pending projects must be approved first.
                 </p>
                 {csvProjectNames.map((name, idx) => {
                   const key = normalizeMatchText(name);
-                  const mapped = projectMap[key] || '';
-                  const mappedMatch = mapped ? resolveProjectMatch(projects, broker, mapped) : { kind: 'missing' };
-                  const autoMatch = !mapped
-                    ? findMatchingProject({ description: name, broker, projects: approvedProjects })
+                  const mapping = projectMap[key] || null;
+                  const isSkipped = Boolean(mapping?.skip);
+                  const mappedLabel = isSkipped
+                    ? SKIP_MAPPING_LABEL
+                    : mapping?.client && mapping?.project
+                      ? toProjectOptionLabel(mapping.client, mapping.project)
+                      : '';
+                  const mappedMatch = mapping
+                    ? resolveMappedProject(projects, mapping)
+                    : { kind: 'missing', project: null };
+                  const autoMatch = !mapping
+                    ? findMatchingProject({
+                        description: name,
+                        broker: '',
+                        projects: projectsForSelectedBrokers
+                      })
                     : null;
-                  const displayKind = mapped
-                    ? mappedMatch.kind
-                    : autoMatch
-                      ? 'approved'
-                      : resolveProjectMatch(projects, broker, name).kind;
+                  const displayKind = isSkipped
+                    ? 'skip'
+                    : mapping
+                      ? mappedMatch.kind
+                      : autoMatch
+                        ? 'approved'
+                        : 'missing';
                   const isDropdownOpen = openMappingKey === key;
                   const stackZ = isDropdownOpen ? 80 : csvProjectNames.length - idx + 5;
                   return (
@@ -672,7 +824,9 @@ const ImportTransactionsModal = ({
                       className={`flex flex-col sm:flex-row sm:items-end gap-2 rounded-xl border p-2.5 sm:p-3 relative ${
                         displayKind === 'pending'
                           ? 'border-amber-200/80 bg-gradient-to-r from-amber-50/90 to-white'
-                          : 'border-slate-200/80 bg-gradient-to-r from-slate-50/80 to-white'
+                          : displayKind === 'skip'
+                            ? 'border-slate-200/80 bg-gradient-to-r from-slate-100/90 to-white'
+                            : 'border-slate-200/80 bg-gradient-to-r from-slate-50/80 to-white'
                       }`}
                     >
                       <div className="flex-1 min-w-0 flex items-start gap-2">
@@ -680,21 +834,31 @@ const ImportTransactionsModal = ({
                           className={`mt-0.5 shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center ${
                             displayKind === 'pending'
                               ? 'bg-amber-50 border-amber-200'
-                              : 'bg-primary-50 border-primary-100'
+                              : displayKind === 'skip'
+                                ? 'bg-slate-100 border-slate-200'
+                                : 'bg-primary-50 border-primary-100'
                           }`}
                         >
                           {displayKind === 'pending' ? (
                             <FiClock className="w-4 h-4 text-amber-600" />
                           ) : (
-                            <FiFileText className="w-4 h-4 text-primary-600" />
+                            <FiFileText
+                              className={`w-4 h-4 ${displayKind === 'skip' ? 'text-slate-500' : 'text-primary-600'}`}
+                            />
                           )}
                         </div>
                         <div className="min-w-0">
                           <p className="text-[10px] uppercase tracking-wide font-bold text-slate-400">CSV Description</p>
                           <p className="text-sm font-semibold text-slate-800 truncate">{name}</p>
-                          {displayKind === 'approved' ? (
+                          {displayKind === 'skip' ? (
+                            <p className="text-[11px] text-slate-500 mt-0.5">Won’t be imported</p>
+                          ) : displayKind === 'approved' ? (
                             <p className="text-[11px] text-primary-700 mt-0.5 flex items-center gap-1">
-                              <FiCheck className="w-3 h-3" /> Matched approved project
+                              <FiCheck className="w-3 h-3" />
+                              {mappedMatch.project &&
+                              getEffectiveProjectStatus(mappedMatch.project) === 'inactive'
+                                ? 'Matched inactive project (ok to import)'
+                                : 'Matched approved project'}
                             </p>
                           ) : displayKind === 'pending' ? (
                             <p className="text-[11px] text-amber-800 mt-0.5 leading-snug">
@@ -707,17 +871,38 @@ const ImportTransactionsModal = ({
                       </div>
                       <div className="flex-1 min-w-0 relative">
                         <SearchableDropdown
-                          label="Project"
-                          value={mapped}
+                          label="Broker · Project"
+                          value={mappedLabel}
                           onChange={(v) => {
-                            const exact = projectOptionsForBroker.find(
-                              (opt) => opt.toLowerCase() === String(v || '').trim().toLowerCase()
+                            const trimmed = String(v || '').trim();
+                            if (trimmed.toLowerCase() === SKIP_MAPPING_LABEL.toLowerCase()) {
+                              setProjectMap((prev) => ({
+                                ...prev,
+                                [key]: { skip: true }
+                              }));
+                              return;
+                            }
+                            const exact = projectSelectOptions.find(
+                              (opt) => opt.label.toLowerCase() === trimmed.toLowerCase()
                             );
-                            setProjectMap((prev) => ({ ...prev, [key]: exact || v }));
+                            if (exact) {
+                              setProjectMap((prev) => ({
+                                ...prev,
+                                [key]: { client: exact.client, project: exact.project }
+                              }));
+                              return;
+                            }
+                            if (!trimmed) {
+                              setProjectMap((prev) => {
+                                const next = { ...prev };
+                                delete next[key];
+                                return next;
+                              });
+                            }
                           }}
                           onOpenChange={(open) => setOpenMappingKey(open ? key : '')}
-                          options={projectOptionsForBroker}
-                          placeholder="Select approved project..."
+                          options={projectOptionLabels}
+                          placeholder="Select broker · project or Skip..."
                         />
                       </div>
                       {displayKind === 'missing' ? (
@@ -824,7 +1009,11 @@ const ImportTransactionsModal = ({
                               {row.mappedProject ? (
                                 <>
                                   <span className="text-slate-400 mx-1.5">·</span>
-                                  <span className="truncate">{row.mappedProject}</span>
+                                  <span className="truncate">
+                                    {row.mappedClient
+                                      ? toProjectOptionLabel(row.mappedClient, row.mappedProject)
+                                      : row.mappedProject}
+                                  </span>
                                 </>
                               ) : null}
                               {decided ? (
@@ -917,7 +1106,7 @@ const ImportTransactionsModal = ({
                           {importPreviewRows.map((row, idx) => (
                             <tr key={row.rowKey} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
                               <td className={`${tableBodyCellClass('text-left')} font-semibold text-slate-800`}>
-                                {broker || '—'}
+                                {row.mappedClient || '—'}
                               </td>
                               <td className={`${tableBodyCellClass('text-left')} max-w-[10rem] truncate`} title={row.mappedProject}>
                                 {row.mappedProject || '—'}

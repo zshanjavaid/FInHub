@@ -3,6 +3,7 @@ import { normalizeDateToYYYYMMDD, todayLocalYmd } from './date';
 import { toNumber, roundMoney } from './number';
 import { computeProjectBrokerageDollars } from './project';
 import { matchesClientProject } from './projectLookup';
+import { getEffectiveProjectStatus } from './transactionsEligibility';
 import { firstWeekdayOnOrAfter } from './workingDays';
 
 /** Normalize text for fuzzy broker / project matching. */
@@ -257,6 +258,7 @@ const scoreProjectMatch = (description, projectName) => {
 
 /**
  * Auto-match CSV Description to the best project name (exact, partial, or highest similarity).
+ * When scores tie, prefer an active project over an inactive one.
  */
 export const findMatchingProject = ({ description, broker, projects = [], minScore = 40 } = {}) => {
   const desc = String(description || '').trim();
@@ -270,16 +272,19 @@ export const findMatchingProject = ({ description, broker, projects = [], minSco
 
   let best = null;
   let bestScore = 0;
+  let bestActive = -1;
   list.forEach((p) => {
     const score = scoreProjectMatch(desc, p.project);
-    if (score > bestScore) {
+    if (score < minScore) return;
+    const active = getEffectiveProjectStatus(p) === 'active' ? 1 : 0;
+    if (score > bestScore || (score === bestScore && active > bestActive)) {
       bestScore = score;
+      bestActive = active;
       best = p;
     }
   });
 
-  if (!best || bestScore < minScore) return null;
-  return best;
+  return best || null;
 };
 
 /**

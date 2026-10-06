@@ -12,7 +12,7 @@ import ProjectTable from '../components/ProjectTable';
 import { useDateFilter } from '../hooks/useDateFilter';
 import { useClientOptions } from '../hooks/useClientOptions';
 import { isApproved } from '../constants/app';
-import { PROJECT_TYPE_OPTIONS, PROJECT_TYPE_LABELS } from '../constants/projectTypes';
+import { PROJECT_TYPE_OPTIONS, PROJECT_TYPE_LABELS, isFreelanceProject } from '../constants/projectTypes';
 import ErrorAlert from '../components/ErrorAlert';
 import PageContainer from '../components/PageContainer';
 import ProjectInsightsSummaryCard from '../components/ProjectInsightsSummaryCard';
@@ -59,7 +59,7 @@ const Projects = () => {
   }, [projects, dateFrom, dateTo, selectedBroker, selectedProjectType, statusFilter]);
 
   const projectsForActivity = useMemo(
-    () => (projects || []).filter(isApproved),
+    () => (projects || []).filter((p) => isApproved(p) && !isFreelanceProject(p)),
     [projects]
   );
 
