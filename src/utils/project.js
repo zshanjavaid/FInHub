@@ -4,6 +4,9 @@ import { impactFundFromNet } from './transactionNet';
 import { normalizeDateToYYYYMMDD } from './date';
 import { appendContractExtension } from './projectContractExtensions';
 
+/** Allocation-only company tax (not used on project forms / live transactions). */
+export const ALLOCATION_COMPANY_TAX_RATE = 0.3;
+
 /**
  * Brokerage in dollars.
  * - Percentage: hours × rate × (value / 100)
@@ -79,17 +82,23 @@ export const prepareProjectForFirestore = (values, options = {}) => {
   }
 
   const previous = options.previousProject || null;
-  const recordExtension =
-    endDateChangeMode === 'extension' || markAsExtension === true;
-  if (recordExtension && previous) {
+  if (previous) {
     const from = normalizeDateToYYYYMMDD(previous.contractEnding);
     const to = normalizeDateToYYYYMMDD(out.contractEnding);
-    if (from && to && from !== to) {
+    const dateChanged = Boolean(from && to && from !== to);
+    if (dateChanged && endDateChangeMode === 'reset') {
+      // Correction: new end date with no extension history.
+      out.contractExtensions = [];
+    } else if (
+      dateChanged &&
+      (endDateChangeMode === 'extension' || markAsExtension === true)
+    ) {
       out.contractExtensions = appendContractExtension(previous.contractExtensions, {
         from,
         to
       });
     }
+    // 'update' (or unchanged date): keep existing contractExtensions as-is.
   }
 
   return out;
@@ -100,8 +109,9 @@ export const getProjectMonthlyAllocationAmount = (p, options = {}) => {
   const rate = toNumber(p.hourlyRate);
   const gross = hours * rate;
   const brokerage = computeProjectBrokerageDollars(p, options);
-  const tax = computeProjectTaxDollars(p);
   const projectCost = toNumber(p.projectCost);
-  const beforeIf = Math.max(0, gross - brokerage - tax - projectCost);
+  const afterProjectCuts = Math.max(0, gross - brokerage - projectCost);
+  const companyTax = afterProjectCuts * ALLOCATION_COMPANY_TAX_RATE;
+  const beforeIf = Math.max(0, afterProjectCuts - companyTax);
   return roundMoney(beforeIf - impactFundFromNet(beforeIf));
 };

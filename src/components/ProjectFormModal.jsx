@@ -1,12 +1,35 @@
 import { useMemo } from 'react';
 import FormModal from './FormModal';
-import { FiUser, FiCalendar, FiDollarSign, FiPercent } from 'react-icons/fi';
+import { FiUser, FiCalendar, FiDollarSign, FiPercent, FiRefreshCw, FiEdit3, FiRotateCcw } from 'react-icons/fi';
 import { getTaxFormDefaultsFromProject } from '../utils/project';
 import { PAYOUT_OCCURRENCE_OPTIONS, PAYOUT_OCCURRENCE_LABEL_BY_VALUE } from '../constants/payoutOccurrences';
-import { LEAD_OPTIONS, PROJECT_MANAGER_OPTIONS } from '../constants/projectAssignments';
+import { LEAD_OPTIONS, PROJECT_MANAGER_OPTIONS, mergeAssignmentNames } from '../constants/projectAssignments';
 import { PROJECT_INACTIVE_REASON_OPTIONS } from '../constants/projectInactiveReasons';
 import { EMPTY_PROJECT_FORM } from '../utils/formValues';
 import { addMonthsLocalYmd, normalizeDateToYYYYMMDD, todayLocalYmd } from '../utils/date';
+import { getContractExtensions } from '../utils/projectContractExtensions';
+
+const END_DATE_CHANGE_OPTIONS = [
+  {
+    value: 'extension',
+    label: 'Extension',
+    hint: 'Record old → new end date in history',
+    icon: FiRefreshCw
+  },
+  {
+    value: 'update',
+    label: 'Update only',
+    hint: 'Change the date; keep existing history',
+    icon: FiEdit3
+  },
+  {
+    value: 'reset',
+    label: 'Clear history',
+    hint: 'Wipe extensions and set this as the new end date',
+    icon: FiRotateCcw,
+    needsHistory: true
+  }
+];
 
 const ProjectFormModal = ({
   isOpen,
@@ -24,6 +47,7 @@ const ProjectFormModal = ({
   const contractEndingDefault = addMonthsLocalYmd(6);
   const taxFromInitial = getTaxFormDefaultsFromProject(initialValues);
   const previousContractEnding = normalizeDateToYYYYMMDD(initialValues?.contractEnding);
+  const existingExtensionCount = getContractExtensions(initialValues).length;
   const normalizedInitialValues = {
     ...EMPTY_PROJECT_FORM,
     ...(initialValues || {}),
@@ -77,7 +101,10 @@ const ProjectFormModal = ({
     if (fieldName === 'contractEnding' && isEditing && previousContractEnding) {
       const next = normalizeDateToYYYYMMDD(value);
       if (next && next !== previousContractEnding) {
-        form.endDateChangeMode = form.endDateChangeMode || 'extension';
+        const mode = form.endDateChangeMode || 'extension';
+        // Clear history option only applies when there is history to clear.
+        form.endDateChangeMode =
+          mode === 'reset' && existingExtensionCount === 0 ? 'extension' : mode;
       } else {
         form.endDateChangeMode = 'extension';
       }
@@ -93,6 +120,15 @@ const ProjectFormModal = ({
     }
     return form;
   };
+
+  const leadOptions = useMemo(
+    () => mergeAssignmentNames(LEAD_OPTIONS, projects, 'lead'),
+    [projects]
+  );
+  const projectManagerOptions = useMemo(
+    () => mergeAssignmentNames(PROJECT_MANAGER_OPTIONS, projects, 'projectManager'),
+    [projects]
+  );
 
   const fields = useMemo(
     () => [
@@ -158,18 +194,18 @@ const ProjectFormModal = ({
           String(form?.inactiveReason || '').trim() === 'Other'
       },
       {
-        type: 'dropdown',
+        type: 'searchable-dropdown',
         name: 'lead',
         label: 'Lead',
-        options: LEAD_OPTIONS,
-        hidePlaceholder: false
+        options: leadOptions,
+        placeholder: 'Type or select Lead...'
       },
       {
-        type: 'dropdown',
+        type: 'searchable-dropdown',
         name: 'projectManager',
         label: 'Project Manager',
-        options: PROJECT_MANAGER_OPTIONS,
-        hidePlaceholder: false
+        options: projectManagerOptions,
+        placeholder: 'Type or select Project Manager...'
       },
       {
         type: 'dropdown',
@@ -185,41 +221,7 @@ const ProjectFormModal = ({
         label: 'End Date',
         required: true,
         defaultValue: contractEndingDefault,
-        icon: <FiCalendar className="w-5 h-5 text-gray-400" />,
-        footer: (form, onChange) => {
-          if (!isEditing || !previousContractEnding) return null;
-          if (normalizeDateToYYYYMMDD(form?.contractEnding) === previousContractEnding) return null;
-          const mode = form.endDateChangeMode === 'update' ? 'update' : 'extension';
-          return (
-            <div className="absolute left-0 top-full z-10 mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-0.5">
-              {[
-                { value: 'extension', label: 'Extension' },
-                { value: 'update', label: 'Update only' }
-              ].map((opt) => (
-                <label
-                  key={opt.value}
-                  className="inline-flex items-center gap-1.5 cursor-pointer select-none"
-                >
-                  <input
-                    type="radio"
-                    name="endDateChangeMode"
-                    value={opt.value}
-                    checked={mode === opt.value}
-                    onChange={() => onChange('endDateChangeMode', opt.value)}
-                    className="h-3.5 w-3.5 shrink-0 cursor-pointer accent-primary-600 text-primary-600 border-primary-300 focus:ring-primary-500 focus:ring-offset-0"
-                  />
-                  <span
-                    className={`text-[10px] font-semibold leading-none ${
-                      mode === opt.value ? 'text-primary-700' : 'text-slate-500'
-                    }`}
-                  >
-                    {opt.label}
-                  </span>
-                </label>
-              ))}
-            </div>
-          );
-        }
+        icon: <FiCalendar className="w-5 h-5 text-gray-400" />
       },
       {
         type: 'number',
@@ -227,6 +229,92 @@ const ProjectFormModal = ({
         label: 'Total Monthly Hours',
         required: (form) => String(form?.projectType || '').trim() !== 'Freelance',
         min: 0.01
+      },
+      {
+        type: 'summary',
+        name: 'endDateChangeMode',
+        fullWidth: true,
+        showWhen: (form) =>
+          isEditing &&
+          Boolean(previousContractEnding) &&
+          normalizeDateToYYYYMMDD(form?.contractEnding) !== previousContractEnding,
+        render: (form, onChange) => {
+          const mode =
+            form.endDateChangeMode === 'update' || form.endDateChangeMode === 'reset'
+              ? form.endDateChangeMode
+              : 'extension';
+          const nextEnd = normalizeDateToYYYYMMDD(form?.contractEnding) || '—';
+          const options = END_DATE_CHANGE_OPTIONS.filter(
+            (opt) => !opt.needsHistory || existingExtensionCount > 0
+          );
+          const selected = options.some((o) => o.value === mode) ? mode : 'extension';
+
+          return (
+            <div className="rounded-xl border border-slate-200 bg-slate-50/90 p-3 sm:p-4 space-y-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-800">End date changed</p>
+                <p className="text-xs font-light text-slate-500 mt-1 leading-relaxed">
+                  Was <span className="font-mono tabular-nums text-slate-700">{previousContractEnding}</span>
+                  {' → '}
+                  <span className="font-mono tabular-nums text-slate-700">{nextEnd}</span>
+                  {existingExtensionCount > 0
+                    ? ` · ${existingExtensionCount} extension${existingExtensionCount === 1 ? '' : 's'} on file`
+                    : ''}
+                </p>
+              </div>
+              <div
+                className={`grid grid-cols-1 gap-2 ${
+                  options.length >= 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'
+                }`}
+                role="radiogroup"
+                aria-label="How to apply the new end date"
+              >
+                {options.map((opt) => {
+                  const Icon = opt.icon;
+                  const active = selected === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => onChange('endDateChangeMode', opt.value)}
+                      className={`text-left rounded-xl border px-3 py-2.5 sm:px-3.5 sm:py-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 ${
+                        active
+                          ? 'bg-white border-primary-300 ring-1 ring-primary-200 shadow-sm'
+                          : 'bg-white/70 border-slate-200 hover:border-slate-300 hover:bg-white'
+                      }`}
+                    >
+                      <span className="flex items-start gap-2.5 min-w-0">
+                        <span
+                          className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                            active
+                              ? 'bg-primary-50 text-primary-700'
+                              : 'bg-slate-100 text-slate-500'
+                          }`}
+                        >
+                          <Icon className="w-4 h-4" aria-hidden />
+                        </span>
+                        <span className="min-w-0">
+                          <span
+                            className={`block text-sm font-semibold leading-tight ${
+                              active ? 'text-primary-800' : 'text-slate-800'
+                            }`}
+                          >
+                            {opt.label}
+                          </span>
+                          <span className="mt-0.5 block text-[11px] font-light text-slate-500 leading-snug">
+                            {opt.hint}
+                          </span>
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        }
       },
       {
         type: 'number',
@@ -295,7 +383,17 @@ const ProjectFormModal = ({
         }
       }
     ],
-    [clientOptions, projectTypeOptions, today, contractEndingDefault, isEditing, previousContractEnding]
+    [
+      clientOptions,
+      projectTypeOptions,
+      today,
+      contractEndingDefault,
+      isEditing,
+      previousContractEnding,
+      existingExtensionCount,
+      leadOptions,
+      projectManagerOptions
+    ]
   );
 
   const handleSubmit = async (values) => {

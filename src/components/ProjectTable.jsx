@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import DataTable from './DataTable';
 import { FiUser } from 'react-icons/fi';
 import { PROJECT_TYPE_COLORS } from '../constants/projectTypes';
+import { inactiveReasonBadgeClass } from '../constants/projectInactiveReasons';
 import { isProjectContractEndingAlert } from '../utils/date';
 import { formatMoney } from '../utils/format';
 import { getPrivacyHidden, maskSensitiveText } from '../privacy/privacyStore';
@@ -207,7 +208,7 @@ const ProjectTable = ({
         if (!reason) return '—';
         return (
           <span
-            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/80 max-w-[12rem] truncate"
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border max-w-[12rem] truncate ${inactiveReasonBadgeClass(reason)}`}
             title={reason}
           >
             {reason}

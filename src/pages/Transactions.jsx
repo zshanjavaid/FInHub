@@ -512,6 +512,11 @@ const Transactions = () => {
     }
   };
 
+  const showMonthlyTrend =
+    monthlyTrendData.labels.length > 0 &&
+    (monthlyTrendData.values.some((v) => v !== 0) || monthlyTrendData.available.some((v) => v !== 0));
+  const showProjectChart = projectChartData.labels.length > 0;
+
   return (
     <PageContainer>
       <PageHeader
@@ -547,14 +552,15 @@ const Transactions = () => {
 
         <ErrorAlert message={error} />
 
-        {(monthlyTrendData.labels.length > 0 &&
-          (monthlyTrendData.values.some((v) => v !== 0) || monthlyTrendData.available.some((v) => v !== 0))) ||
-        projectChartData.labels.length > 0 ? (
+        {showMonthlyTrend || showProjectChart ? (
           <DeferredMount>
             <Suspense fallback={<ChartSkeleton />}>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
-                {monthlyTrendData.labels.length > 0 &&
-                  (monthlyTrendData.values.some((v) => v !== 0) || monthlyTrendData.available.some((v) => v !== 0)) && (
+              <div
+                className={`grid grid-cols-1 gap-4 sm:gap-6 min-w-0 ${
+                  showMonthlyTrend && showProjectChart ? 'lg:grid-cols-2' : ''
+                }`}
+              >
+                {showMonthlyTrend && (
                   monthlyTrendData.isSingleMonth ? (
                     <div className={`${chartCardClass} flex flex-col !overflow-visible`}>
                       <div className={`${chartCardHeaderClass} flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0 overflow-visible relative z-20`}>
@@ -631,7 +637,7 @@ const Transactions = () => {
                     />
                   )
                 )}
-                {projectChartData.labels.length > 0 && (
+                {showProjectChart && (
                   <BarChart
                     data={projectChartData.data}
                     labels={projectChartData.labels}

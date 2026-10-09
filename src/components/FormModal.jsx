@@ -130,7 +130,7 @@ const FormModal = ({
                 {field.label}
               </div>
             )}
-            {field.render ? field.render(form) : null}
+            {field.render ? field.render(form, onFieldChange) : null}
           </div>
         );
 
@@ -289,8 +289,12 @@ const FormModal = ({
           }
         }
       } else {
-        currentRow.push(field);
         const isFullWidth = typeof field.fullWidth === 'function' ? field.fullWidth(form) : !!field.fullWidth;
+        if (isFullWidth && currentRow.length > 0) {
+          rows.push({ type: 'row', fields: currentRow });
+          currentRow = [];
+        }
+        currentRow.push(field);
         if (currentRow.length === maxPerRow || isFullWidth || index === visibleFields.length - 1) {
           rows.push({ type: 'row', fields: currentRow });
           currentRow = [];

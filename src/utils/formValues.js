@@ -91,6 +91,7 @@ export const projectToFormValues = (project = {}) => ({
   lead: project.lead || '',
   projectManager: project.projectManager || '',
   contractEnding: project.contractEnding || '',
+  contractExtensions: Array.isArray(project.contractExtensions) ? project.contractExtensions : [],
   ...inactiveReasonToFormValues(project.inactiveReason),
   brokerageType: project.brokerageType || 'percentage',
   brokerageValue: project.brokerageValue || '',

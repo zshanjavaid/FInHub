@@ -1,7 +1,7 @@
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 import { isApproved } from '../constants/app';
 import { isFreelanceProject } from '../constants/projectTypes';
-import { normalizeDateToYYYYMMDD, todayLocalYmd } from './date';
+import { isProjectContractEndingAlert, normalizeDateToYYYYMMDD, todayLocalYmd } from './date';
 import { getContractExtensions } from './projectContractExtensions';
 import { getEffectiveProjectStatus } from './transactionsEligibility';
 
@@ -151,6 +151,7 @@ export const buildProjectInsights = ({
       const status = getEffectiveProjectStatus(p);
       const completedReason =
         status !== 'active' ? String(p.inactiveReason || '').trim() || 'Unspecified' : '';
+      const contractEnd = normalizeDateToYYYYMMDD(p.contractEnding) || '';
 
       return {
         id: p.id,
@@ -160,13 +161,15 @@ export const buildProjectInsights = ({
         projectManager: personKey(p.projectManager) || '—',
         start,
         end,
+        contractEnd,
         status,
         durationMonths: monthsBetweenYmd(start, end),
         extensionCount: extensions.length,
         extensionsInRangeCount: extensionsInRange.length,
         extensionMonths: extensions.reduce((s, e) => s + monthsBetweenYmd(e.from, e.to), 0),
         completedReason,
-        isActive: status === 'active'
+        isActive: status === 'active',
+        endingSoon: status === 'active' && isProjectContractEndingAlert(p, 2)
       };
     })
     .filter(Boolean);
@@ -190,17 +193,19 @@ export const buildProjectInsights = ({
     .filter((r) => !r.isActive)
     .forEach((r) => {
       const key = r.completedReason || 'Unspecified';
-      if (!reasonMap.has(key)) reasonMap.set(key, { reason: key, count: 0, durations: [] });
+      if (!reasonMap.has(key)) reasonMap.set(key, { reason: key, count: 0, durations: [], projects: [] });
       const bucket = reasonMap.get(key);
       bucket.count += 1;
       bucket.durations.push(r.durationMonths);
+      bucket.projects.push({ id: r.id, name: r.name });
     });
 
   const completedReasons = [...reasonMap.values()]
     .map((b) => ({
       reason: b.reason,
       count: b.count,
-      avgDurationMonths: avg(b.durations)
+      avgDurationMonths: avg(b.durations),
+      projects: b.projects.sort((a, b2) => a.name.localeCompare(b2.name))
     }))
     .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason));
 
@@ -208,20 +213,64 @@ export const buildProjectInsights = ({
     .filter((r) => r.isActive)
     .sort((a, b) => b.durationMonths - a.durationMonths || a.name.localeCompare(b.name));
 
-  const extensionsByLead = (() => {
+  /** Active + ending-soon + in-range extensions, per Lead or PM. */
+  const buildRoleLoad = (roleField) => {
     const map = new Map();
     rows.forEach((r) => {
-      const name = r.lead === '—' ? '' : r.lead;
+      const name = r[roleField] === '—' ? '' : r[roleField];
       if (!name) return;
-      if (!map.has(name)) map.set(name, { lead: name, extensionCount: 0, projectCount: 0 });
+      if (!map.has(name)) {
+        map.set(name, { name, activeCount: 0, endingSoonCount: 0, extensionCount: 0 });
+      }
       const b = map.get(name);
-      b.projectCount += 1;
+      if (r.isActive) {
+        b.activeCount += 1;
+        if (r.endingSoon) b.endingSoonCount += 1;
+      }
       b.extensionCount += r.extensionsInRangeCount;
     });
     return [...map.values()]
-      .filter((b) => b.extensionCount > 0)
-      .sort((a, b) => b.extensionCount - a.extensionCount || a.lead.localeCompare(b.lead));
-  })();
+      .filter((b) => b.activeCount > 0 || b.extensionCount > 0)
+      .sort(
+        (a, b) =>
+          b.activeCount - a.activeCount ||
+          b.extensionCount - a.extensionCount ||
+          a.name.localeCompare(b.name)
+      );
+  };
+
+  const loadByLead = buildRoleLoad('lead');
+  const loadByPm = buildRoleLoad('projectManager');
+
+  const endingSoon = rows
+    .filter((r) => r.endingSoon)
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      lead: r.lead,
+      contractEnd: r.contractEnd,
+      monthsLeft: r.contractEnd ? monthsBetweenYmd(asOfYmd, r.contractEnd) : null
+    }))
+    .sort((a, b) => {
+      const ae = a.contractEnd || '9999';
+      const be = b.contractEnd || '9999';
+      return ae.localeCompare(be) || a.name.localeCompare(b.name);
+    });
+
+  const neverExtendedRows = rows.filter((r) => r.extensionCount === 0);
+  const extendedRows = rows.filter((r) => r.extensionCount > 0);
+  const extensionSplit = {
+    neverExtendedCount: neverExtendedRows.length,
+    neverExtendedAvgLifeMonths: avg(neverExtendedRows.map((r) => r.durationMonths)),
+    extendedCount: extendedRows.length,
+    extendedAvgLifeMonths: avg(extendedRows.map((r) => r.durationMonths)),
+    pctNeverExtended: rows.length
+      ? Math.round((neverExtendedRows.length / rows.length) * 1000) / 10
+      : null,
+    pctExtended: rows.length
+      ? Math.round((extendedRows.length / rows.length) * 1000) / 10
+      : null
+  };
 
   return {
     rows,
@@ -230,6 +279,7 @@ export const buildProjectInsights = ({
       projectCount: rows.length,
       activeCount: activeTimeline.length,
       completedCount: rows.filter((r) => !r.isActive).length,
+      endingSoonCount: endingSoon.length,
       avgLifeMonths: avg(durations),
       medianLifeMonths: median(durations),
       totalExtensions,
@@ -238,7 +288,10 @@ export const buildProjectInsights = ({
       avgExtensionLengthMonths: avg(extensionLengths)
     },
     completedReasons,
-    extensionsByLead,
+    loadByLead,
+    loadByPm,
+    endingSoon,
+    extensionSplit,
     byLead: buildPersonRollup(rows, 'lead'),
     byProjectManager: buildPersonRollup(rows, 'projectManager')
   };
