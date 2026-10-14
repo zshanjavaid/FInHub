@@ -20,7 +20,7 @@ import { prepareProjectForFirestore } from '../utils/project';
 import { EMPTY_PROJECT_FORM, projectToFormValues } from '../utils/formValues';
 import { projectMatchesStatusInRange } from '../utils/transactionsEligibility';
 import { matchesSelectedBroker } from '../utils/brokerFilter';
-import { addMonthsLocalYmd, getPreviousYearMonth, parseYearMonth } from '../utils/date';
+import { addMonthsLocalYmd, getCurrentYearMonth, parseYearMonth } from '../utils/date';
 import { getProjectPayoutProgress } from '../utils/projectPayoutProgress';
 
 const ProjectFormModal = lazy(() => import('../components/ProjectFormModal'));
@@ -46,7 +46,7 @@ const Projects = () => {
 
   const progressMonthKey = useMemo(() => {
     if (dateMode === 'month' && parseYearMonth(selectedMonth)) return selectedMonth;
-    return getPreviousYearMonth();
+    return getCurrentYearMonth();
   }, [dateMode, selectedMonth]);
 
   const filteredProjects = useMemo(() => {

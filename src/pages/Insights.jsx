@@ -12,6 +12,7 @@ import PageHeader from '../components/PageHeader';
 import PageContainer from '../components/PageContainer';
 import FilterBar from '../components/FilterBar';
 import SearchableDropdown from '../components/SearchableDropdown';
+import DropdownField from '../components/DropdownField';
 import StatCard from '../components/StatCard';
 import ErrorAlert from '../components/ErrorAlert';
 import Tabs from '../components/Tabs';
@@ -28,11 +29,23 @@ const BarChart = lazy(() => import('../components/BarChart'));
 
 const formatMonths = (value) => {
   if (value == null || !Number.isFinite(value)) return '—';
-  if (value >= 12) {
-    const years = Math.round((value / 12) * 10) / 10;
-    return `${value} mo · ~${years} yr`;
-  }
   return `${value} mo`;
+};
+
+const buildDurationChart = (timeline, color, privacyHidden) => {
+  const fullNames = timeline.map((r) =>
+    privacyHidden ? maskSensitiveText(r.name) : r.name
+  );
+  const fullLabels = timeline.map((r, i) =>
+    privacyHidden
+      ? fullNames[i]
+      : `${r.name} · ${r.start} → ${r.contractEnd || r.end} · Lead ${r.lead}`
+  );
+  return {
+    labels: fullNames,
+    fullLabels,
+    data: [{ label: 'Months', values: timeline.map((r) => r.durationMonths), color }]
+  };
 };
 
 const CompletedReasonsCard = ({ reasons = [], privacyHidden }) => {
@@ -388,11 +401,12 @@ const Insights = () => {
   const dispatch = useDispatch();
   const projects = useSelector((state) => state.projects.items);
   const error = useSelector((state) => state.projects.error);
-  const dateFilter = useDateFilter({ defaultMode: 'month' });
+  const dateFilter = useDateFilter({ defaultMode: 'yearly' });
   const { effectiveDateFrom: dateFrom, effectiveDateTo: dateTo } = dateFilter;
   const [selectedLead, setSelectedLead] = useState('');
   const [selectedPm, setSelectedPm] = useState('');
   const [tabId, setTabId] = useState('at-risk');
+  const [durationScope, setDurationScope] = useState('active');
 
   useEffect(() => {
     document.title = 'Insights | FinHub';
@@ -417,6 +431,7 @@ const Insights = () => {
   const {
     summary,
     activeTimeline,
+    completedTimeline,
     completedReasons,
     loadByLead,
     loadByPm,
@@ -426,27 +441,16 @@ const Insights = () => {
     byProjectManager
   } = insights;
 
-  const durationChart = useMemo(() => {
-    const fullNames = activeTimeline.map((r) =>
-      privacyHidden ? maskSensitiveText(r.name) : r.name
-    );
-    const fullLabels = activeTimeline.map((r, i) =>
-      privacyHidden
-        ? fullNames[i]
-        : `${r.name} · ${r.start} → ${r.contractEnd || r.end} · Lead ${r.lead}`
-    );
-    return {
-      labels: fullNames,
-      fullLabels,
-      data: [
-        {
-          label: 'Months',
-          values: activeTimeline.map((r) => r.durationMonths),
-          color: '#0d9488'
-        }
-      ]
-    };
-  }, [activeTimeline, privacyHidden]);
+  const durationTimeline = durationScope === 'completed' ? completedTimeline : activeTimeline;
+  const durationChart = useMemo(
+    () =>
+      buildDurationChart(
+        durationTimeline,
+        durationScope === 'completed' ? '#64748b' : '#0d9488',
+        privacyHidden
+      ),
+    [durationTimeline, durationScope, privacyHidden]
+  );
 
   const selectedLeadPerson = useMemo(
     () => (selectedLead ? byLead.find((p) => p.name === selectedLead) : null),
@@ -478,6 +482,24 @@ const Insights = () => {
       { id: 'extensions', label: 'Extensions', shortLabel: 'Extend' }
     ],
     [summary.endingSoonCount]
+  );
+
+  const durationScopeSelect = (
+    <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+      <p className="text-xs font-light text-slate-500">Freelance excluded</p>
+      <DropdownField
+        label="Project status"
+        hideLabel
+        hidePlaceholder
+        value={durationScope}
+        onChange={(e) => setDurationScope(e.target.value)}
+        className="w-[12.5rem] sm:w-[13.5rem]"
+        options={[
+          { value: 'active', label: 'Active projects' },
+          { value: 'completed', label: 'Completed projects' }
+        ]}
+      />
+    </div>
   );
 
   return (
@@ -566,19 +588,27 @@ const Insights = () => {
             <DeferredMount fallback={<ChartSkeleton />}>
               <Suspense fallback={<ChartSkeleton />}>
                 <div className="min-w-0">
-                  {activeTimeline.length ? (
+                  {durationTimeline.length ? (
                     <BarChart
-                      title="How long active projects have been open"
+                      title="Project Duration"
                       labels={durationChart.labels}
                       fullLabels={durationChart.fullLabels}
                       data={durationChart.data}
-                      headerRight={
-                        <p className="text-xs text-slate-500 font-medium">Freelance excluded</p>
-                      }
+                      headerRight={durationScopeSelect}
                     />
                   ) : (
-                    <div className={`${chartCardClass} p-6 text-sm text-slate-500`}>
-                      No active projects in this view.
+                    <div className={`${chartCardClass} overflow-hidden`}>
+                      <div
+                        className={`${chartCardHeaderClass} flex flex-wrap sm:flex-nowrap items-center gap-2.5 sm:gap-3 min-w-0`}
+                      >
+                        <h3 className={`${chartCardTitleClass} min-w-0 flex-1`}>Project Duration</h3>
+                        <div className="w-full sm:w-auto shrink-0 ml-auto">{durationScopeSelect}</div>
+                      </div>
+                      <p className="px-4 py-6 sm:px-6 text-sm text-slate-500">
+                        {durationScope === 'completed'
+                          ? 'No completed projects in this view.'
+                          : 'No active projects in this view.'}
+                      </p>
                     </div>
                   )}
                 </div>

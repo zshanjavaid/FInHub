@@ -6,6 +6,7 @@ export const PROJECT_INACTIVE_REASON_OPTIONS = [
   { value: 'Team Sacked', label: 'Team Sacked' },
   { value: 'IP Leak', label: 'IP Leak' },
   { value: 'Ended Before', label: 'Ended Before' },
+  { value: 'Contract Completed', label: 'Contract Completed' },
   { value: 'Other', label: 'Other' }
 ];
 
@@ -20,6 +21,7 @@ export const PROJECT_INACTIVE_REASON_BADGE_CLASS = {
   'Team Sacked': 'bg-red-50 text-red-800 border-red-200/80',
   'IP Leak': 'bg-violet-50 text-violet-800 border-violet-200/80',
   'Ended Before': 'bg-stone-100 text-stone-800 border-stone-200/80',
+  'Contract Completed': 'bg-emerald-50 text-emerald-800 border-emerald-200/80',
   Other: 'bg-slate-100 text-slate-700 border-slate-200/80',
   Unspecified: 'bg-amber-50 text-amber-800 border-amber-200/80'
 };

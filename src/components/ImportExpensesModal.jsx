@@ -20,10 +20,14 @@ import {
   matchExpenseTypeByNameWords
 } from '../utils/csvExpenseImport';
 
+/** Same wording as transaction import project mapping. */
+const SKIP_TYPE_LABEL = "Skip — don't import";
+
 const StatChip = ({ label, value, tone = 'neutral' }) => {
   const tones = {
     neutral: 'bg-slate-100 text-slate-700 border-slate-200',
     success: 'bg-primary-50 text-primary-800 border-primary-200',
+    muted: 'bg-white text-slate-500 border-slate-200',
     warn: 'bg-amber-50 text-amber-900 border-amber-200',
     danger: 'bg-rose-50 text-rose-800 border-rose-200'
   };
@@ -65,18 +69,28 @@ const ImportExpensesModal = ({ isOpen, onClose, user = null, expenses = [] }) =>
     const fromPreview = [];
     rows.forEach((r) => {
       const label = String(r.expenseTypeLabel || '').trim();
-      if (label && !fromCatalog.includes(label) && !fromPreview.includes(label)) {
+      if (
+        label &&
+        label.toLowerCase() !== SKIP_TYPE_LABEL.toLowerCase() &&
+        !fromCatalog.includes(label) &&
+        !fromPreview.includes(label)
+      ) {
         fromPreview.push(label);
       }
     });
-    return [...fromCatalog, ...fromPreview];
+    return [SKIP_TYPE_LABEL, ...fromCatalog, ...fromPreview];
   }, [expenses, rows]);
 
   const counts = useMemo(() => {
     let ready = 0;
     let needsType = 0;
     let invalid = 0;
+    let skip = 0;
     rows.forEach((r) => {
+      if (r.skipped) {
+        skip += 1;
+        return;
+      }
       if (isExpenseImportRowReady(r)) ready += 1;
       else if (
         !String(r.expenseType || r.expenseTypeLabel || '').trim() &&
@@ -87,7 +101,7 @@ const ImportExpensesModal = ({ isOpen, onClose, user = null, expenses = [] }) =>
         needsType += 1;
       } else invalid += 1;
     });
-    return { ready, needsType, invalid, total: rows.length };
+    return { ready, needsType, invalid, skip, total: rows.length };
   }, [rows]);
 
   const canImport = counts.ready > 0 && counts.needsType === 0 && counts.invalid === 0;
@@ -127,23 +141,43 @@ const ImportExpensesModal = ({ isOpen, onClose, user = null, expenses = [] }) =>
   };
 
   const setRowType = (rowKey, input) => {
+    const trimmed = String(input || '').trim();
+    if (trimmed.toLowerCase() === SKIP_TYPE_LABEL.toLowerCase()) {
+      setRows((prev) =>
+        prev.map((r) =>
+          r.rowKey === rowKey
+            ? {
+                ...r,
+                skipped: true,
+                expenseType: '',
+                expenseTypeLabel: '',
+                typeMatched: false
+              }
+            : r
+        )
+      );
+      return;
+    }
+
     const { value, label } = resolveExpenseTypeInput(input);
     setRows((prev) =>
       prev.map((r) => {
         if (r.rowKey === rowKey) {
           return {
             ...r,
+            skipped: false,
             expenseType: value,
             expenseTypeLabel: label,
             typeMatched: Boolean(value)
           };
         }
         // If this row still needs a type and its name matches the typed category, auto-fill.
-        if (value && !String(r.expenseType || '').trim()) {
+        if (value && !r.skipped && !String(r.expenseType || '').trim()) {
           const hit = matchExpenseTypeByNameWords(r.expenseName, [{ value, label }]);
           if (hit === value) {
             return {
               ...r,
+              skipped: false,
               expenseType: value,
               expenseTypeLabel: label,
               typeMatched: true
@@ -252,6 +286,7 @@ const ImportExpensesModal = ({ isOpen, onClose, user = null, expenses = [] }) =>
             <div className="flex flex-wrap gap-2">
               <StatChip label="Rows" value={counts.total} />
               <StatChip label="Ready" value={counts.ready} tone="success" />
+              <StatChip label="Skip" value={counts.skip} tone="muted" />
               <StatChip label="Need type" value={counts.needsType} tone="warn" />
               <StatChip label="Invalid" value={counts.invalid} tone="danger" />
             </div>
@@ -270,22 +305,31 @@ const ImportExpensesModal = ({ isOpen, onClose, user = null, expenses = [] }) =>
                   </thead>
                   <tbody>
                     {rows.map((row) => {
+                      const skipped = Boolean(row.skipped);
                       const ready = isExpenseImportRowReady(row);
                       return (
-                        <tr key={row.rowKey} className={!ready ? 'bg-amber-50/40' : undefined}>
+                        <tr
+                          key={row.rowKey}
+                          className={
+                            skipped ? 'bg-slate-50/80' : !ready ? 'bg-amber-50/40' : undefined
+                          }
+                        >
                           <td className={`${tableBodyCellClass('text-left')} whitespace-nowrap tabular-nums`}>
                             {row.date || '—'}
                           </td>
                           <td className={`${tableBodyCellClass('text-left')}`}>
                             <span className="font-medium text-slate-800">{row.expenseName || '—'}</span>
+                            {skipped ? (
+                              <span className="mt-0.5 block text-[11px] text-slate-500">Won’t be imported</span>
+                            ) : null}
                           </td>
                           <td className={`${tableBodyCellClass('text-left')} min-w-[10rem]`}>
                             <SearchableDropdown
                               label=""
-                              value={row.expenseTypeLabel || ''}
+                              value={skipped ? SKIP_TYPE_LABEL : row.expenseTypeLabel || ''}
                               onChange={(label) => setRowType(row.rowKey, label)}
                               options={typeLabelOptions}
-                              placeholder="Select or type new…"
+                              placeholder="Select, type new, or Skip…"
                               layout="full"
                               className="min-w-[9.5rem]"
                             />

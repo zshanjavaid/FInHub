@@ -213,6 +213,10 @@ export const buildProjectInsights = ({
     .filter((r) => r.isActive)
     .sort((a, b) => b.durationMonths - a.durationMonths || a.name.localeCompare(b.name));
 
+  const completedTimeline = rows
+    .filter((r) => !r.isActive)
+    .sort((a, b) => b.durationMonths - a.durationMonths || a.name.localeCompare(b.name));
+
   /** Active + ending-soon + in-range extensions, per Lead or PM. */
   const buildRoleLoad = (roleField) => {
     const map = new Map();
@@ -275,6 +279,7 @@ export const buildProjectInsights = ({
   return {
     rows,
     activeTimeline,
+    completedTimeline,
     summary: {
       projectCount: rows.length,
       activeCount: activeTimeline.length,

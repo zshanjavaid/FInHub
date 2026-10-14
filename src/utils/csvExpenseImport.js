@@ -188,9 +188,15 @@ export const parseMercuryExpenseCsv = (text, { expenses = [], labelByValue = {} 
   for (let r = 1; r < matrix.length; r += 1) {
     const cols = matrix[r];
     const description = get(cols, 'description');
-    const amount = parseAmount(get(cols, 'amount'));
+    // Mercury marks spend as negative; FinHub expenses store positive amounts.
+    const rawAmount = parseAmount(get(cols, 'amount'));
+    const amount = Number.isFinite(rawAmount) ? Math.abs(rawAmount) : NaN;
     const status = get(cols, 'status');
-    const timestamp = get(cols, 'timestamp') || get(cols, 'date (utc)') || get(cols, 'date');
+    const timestamp =
+      get(cols, 'timestamp') ||
+      get(cols, 'date (utc)') ||
+      get(cols, 'date (asia/karachi)') ||
+      get(cols, 'date');
     const date = parseMercuryTimestampToYmd(timestamp);
     const note = get(cols, 'note');
     const bankDescription = get(cols, 'bank description');
@@ -228,13 +234,13 @@ export const buildImportedExpenseData = (row, { createdBy = null } = {}) => ({
   expenseName: String(row.expenseName || '').trim(),
   date: String(row.date || '').trim(),
   expenseType: slugifyExpenseType(row.expenseType || row.expenseTypeLabel),
-  amount: Number(row.amount) || 0,
+  amount: Math.abs(Number(row.amount) || 0),
   comment: String(row.comment || '').trim(),
   createdBy
 });
 
 export const isExpenseImportRowReady = (row) => {
-  if (!row) return false;
+  if (!row || row.skipped) return false;
   if (!String(row.expenseName || '').trim()) return false;
   if (!String(row.date || '').trim()) return false;
   if (!Number.isFinite(Number(row.amount)) || Number(row.amount) <= 0) return false;
