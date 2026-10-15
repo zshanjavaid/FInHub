@@ -24,14 +24,14 @@ const Modal = ({ isOpen, onClose, title, children, footer = null, panelClassName
       role="presentation"
     >
       <PopIn
-        className={`fh-modal-panel bg-white w-full min-w-0 ${panelClassName} max-h-[92dvh] sm:max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-modal border border-slate-200/80`}
+        className={`fh-modal-panel bg-white w-full min-w-0 ${panelClassName} max-h-[92dvh] sm:max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-modal ring-1 ring-slate-900/[0.06]`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
       >
         <div className="flex items-center gap-3 px-4 py-3.5 sm:px-6 sm:py-4 shrink-0 bg-primary-800 border-b border-primary-900/20">
-          <h2 id={titleId} className="text-lg sm:text-xl font-semibold text-white tracking-tight flex-1 min-w-0 break-words">
+          <h2 id={titleId} className="text-lg sm:text-xl font-semibold text-white tracking-[-0.02em] flex-1 min-w-0 break-words text-balance">
             {title}
           </h2>
           <button

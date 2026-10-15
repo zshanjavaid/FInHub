@@ -51,6 +51,9 @@ const MainLayout = () => {
     <PrivacyProvider>
       <ScrollRootProvider value={scrollRoot}>
         <div className="relative flex h-screen overflow-hidden bg-transparent">
+          <a href="#fh-main" className="fh-skip-link">
+            Skip to content
+          </a>
           {!isDesktop && isSidebarOpen ? (
             <OverlayButton
               className="fixed inset-0 z-40 bg-slate-900/55 backdrop-blur-[2px] lg:hidden"
@@ -69,7 +72,7 @@ const MainLayout = () => {
               isDesktop && isSidebarOpen ? 'lg:ml-64' : ''
             }`}
           >
-            <header className="relative z-30 bg-white border-b border-primary-600/15">
+            <header className="relative z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/70 supports-[backdrop-filter]:bg-white/80">
               <div className="w-full max-w-[1800px] mx-auto px-4 sm:px-6 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3">
                 <Link
                   to="/"
@@ -98,8 +101,10 @@ const MainLayout = () => {
               </div>
             </header>
             <main
+              id="fh-main"
               ref={mainRef}
-              className="fh-scroll-root relative z-[1] overflow-auto flex-1 min-h-0 w-full min-w-0"
+              tabIndex={-1}
+              className="fh-scroll-root relative z-[1] overflow-auto flex-1 min-h-0 w-full min-w-0 outline-none"
             >
               <div className="w-full min-w-0 max-w-[1800px] mx-auto">
                 <Outlet />

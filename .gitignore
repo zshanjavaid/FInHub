@@ -28,6 +28,15 @@ graphify-out/
 # Local Cursor rules (graphify.mdc stays tracked)
 .cursor/rules/ponytail.mdc
 
+# Agent skill installs & design tooling (reinstall locally; keep DESIGN.md tracked)
+.impeccable/
+.codex/
+skills-lock.json
+.agents/skills/impeccable/
+.cursor/skills/impeccable/
+.cursor/agents/
+.cursor/hooks.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -36,11 +36,18 @@ const StatCard = ({
         className: 'bg-slate-100 text-slate-500'
       }))
     : chips;
+  const accentBarClass = String(borderClassName || '').includes('red')
+    ? 'bg-red-500'
+    : String(borderClassName || '').includes('amber')
+      ? 'bg-amber-500'
+      : 'bg-primary-600';
 
   return (
-    <div
-      className={`relative bg-white rounded-2xl shadow-card overflow-hidden border border-slate-200/80 border-t-[3px] min-w-0 isolate ${borderClassName}`}
-    >
+    <div className="relative bg-white rounded-2xl shadow-card overflow-hidden ring-1 ring-slate-900/[0.04] min-w-0 isolate">
+      <span
+        className={`pointer-events-none absolute inset-x-0 top-0 h-0.5 rounded-t-2xl ${accentBarClass}`}
+        aria-hidden
+      />
       {(actions || calculation) ? (
         <div className="absolute top-3 right-3 z-10 flex shrink-0 items-center gap-1">
           {actions}
@@ -57,7 +64,7 @@ const StatCard = ({
                 {icon}
               </span>
             )}
-            <p className="text-[10px] sm:text-[11px] font-light text-slate-500 uppercase tracking-[0.18em] leading-snug">
+            <p className="text-[11px] sm:text-xs font-medium text-slate-500 tracking-wide leading-snug">
               {label}
             </p>
           </div>

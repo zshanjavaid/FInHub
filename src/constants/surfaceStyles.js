@@ -1,6 +1,7 @@
 /** Shared surface chrome — elevated white panels. */
 
 export const surfaceCardClass =
-  'bg-white rounded-2xl border border-slate-200/80 shadow-card isolate';
+  'bg-white rounded-2xl shadow-card ring-1 ring-slate-900/[0.04] isolate';
 
-export const surfaceCardAccentClass = 'border-t-[3px] border-t-primary-600';
+/** Top teal rail via `.fh-surface-accent` (see index.css). */
+export const surfaceCardAccentClass = 'fh-surface-accent';

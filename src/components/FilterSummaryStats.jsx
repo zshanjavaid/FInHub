@@ -9,22 +9,22 @@ import { formatMoney, formatMoneyCompact } from '../utils/format';
  */
 const TONE = {
   neutral: {
-    border: 'border-t-slate-400',
+    accent: 'bg-slate-400',
     value: 'text-slate-800',
     chip: 'border-slate-200 bg-slate-50 text-slate-800'
   },
   primary: {
-    border: 'border-t-primary-600',
+    accent: 'bg-primary-600',
     value: 'text-primary-700',
     chip: 'border-primary-200 bg-primary-50 text-primary-800'
   },
   warn: {
-    border: 'border-t-amber-500',
+    accent: 'bg-amber-500',
     value: 'text-amber-800',
     chip: 'border-amber-200 bg-amber-50 text-amber-900'
   },
   info: {
-    border: 'border-t-sky-500',
+    accent: 'bg-sky-500',
     value: 'text-sky-800',
     chip: 'border-sky-200 bg-sky-50 text-sky-900'
   }
@@ -132,10 +132,14 @@ const FilterSummaryStats = ({ items = [], className = '', variant = 'inline' }) 
         return (
           <div
             key={item.key || item.label}
-            className={`bg-white rounded-2xl shadow-card border border-slate-200/80 border-t-[3px] min-w-0 overflow-hidden ${tone.border}`}
+            className="relative bg-white rounded-2xl shadow-card ring-1 ring-slate-900/[0.04] min-w-0 overflow-hidden"
           >
+            <span
+              className={`pointer-events-none absolute inset-x-0 top-0 h-0.5 rounded-t-2xl ${tone.accent}`}
+              aria-hidden
+            />
             <div className="px-3.5 py-3 sm:px-4 sm:py-3.5">
-              <p className="text-[10px] sm:text-[11px] font-light text-slate-500 uppercase tracking-[0.16em]">
+              <p className="text-[11px] sm:text-xs font-medium text-slate-500 tracking-wide">
                 {item.label}
               </p>
               <p

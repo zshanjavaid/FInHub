@@ -4,21 +4,21 @@ const PageHeader = ({ title, subtitle = null, actions = null, meta = null, class
   >
     <div className="min-w-0 flex-1">
       {/* Visible on first paint — do not wrap in opacity-0 motion (hurts LCP). */}
-      <h1 className="text-4xl sm:text-5xl md:text-[3.25rem] font-extrabold text-slate-900 tracking-tight leading-[0.95]">
+      <h1 className="text-4xl sm:text-5xl md:text-[3.25rem] font-extrabold text-slate-900 tracking-[-0.03em] leading-[0.95] text-balance">
         {title}
       </h1>
       <div className="mt-3 flex items-center gap-2" aria-hidden>
         <span className="h-0.5 w-8 rounded-full bg-primary-600" />
-        <span className="h-px flex-1 max-w-[4rem] bg-slate-200" />
+        <span className="h-px flex-1 max-w-[4rem] bg-slate-200/90" />
       </div>
       {subtitle ? (
-        <div className="mt-4 max-w-prose text-sm sm:text-base font-light text-slate-500 leading-relaxed">
+        <div className="mt-4 max-w-prose text-sm sm:text-base font-normal text-slate-500 leading-relaxed text-pretty">
           {subtitle}
         </div>
       ) : null}
     </div>
     {(meta || actions) && (
-      <div className="flex flex-col gap-2 w-full md:w-auto md:items-end md:shrink-0 min-w-0 pb-0.5">
+      <div className="flex flex-col gap-2.5 w-full md:w-auto md:items-end md:shrink-0 min-w-0 pb-0.5">
         {meta ? <div className="md:text-right max-w-full min-w-0">{meta}</div> : null}
         {actions ? (
           <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 w-full md:w-auto md:justify-end [&_button]:w-full sm:[&_button]:w-auto [&_.flex]:flex-col [&_.flex]:sm:flex-row [&_.flex]:gap-2 [&_.flex]:sm:gap-3 [&_.flex]:w-full [&_.flex]:sm:w-auto">

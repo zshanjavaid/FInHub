@@ -42,12 +42,9 @@
     pointer-events: none;
     background-color: var(--fh-surface);
     background-image:
-      linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(15, 23, 42, 0.024) 1px, transparent 1px),
-      radial-gradient(ellipse 90% 60% at 100% -10%, rgba(13, 148, 136, 0.07), transparent 55%),
-      radial-gradient(ellipse 70% 50% at -5% 100%, rgba(15, 23, 42, 0.04), transparent 50%),
-      linear-gradient(165deg, var(--fh-surface-2) 0%, var(--fh-surface) 45%, var(--fh-surface-3) 100%);
-    background-size: 32px 32px, 32px 32px, auto, auto, auto;
+      radial-gradient(ellipse 90% 55% at 100% -8%, rgba(13, 148, 136, 0.08), transparent 55%),
+      radial-gradient(ellipse 70% 50% at -8% 105%, rgba(15, 23, 42, 0.045), transparent 52%),
+      linear-gradient(165deg, var(--fh-surface-2) 0%, var(--fh-surface) 48%, var(--fh-surface-3) 100%);
   }
 
   #root {
@@ -61,17 +58,72 @@
     overscroll-behavior: contain;
     background-color: var(--fh-surface);
     background-image:
-      linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(15, 23, 42, 0.024) 1px, transparent 1px),
-      radial-gradient(ellipse 90% 60% at 100% -10%, rgba(13, 148, 136, 0.07), transparent 55%),
-      radial-gradient(ellipse 70% 50% at -5% 100%, rgba(15, 23, 42, 0.04), transparent 50%),
-      linear-gradient(165deg, var(--fh-surface-2) 0%, var(--fh-surface) 45%, var(--fh-surface-3) 100%);
-    background-size: 32px 32px, 32px 32px, auto, auto, auto;
+      radial-gradient(ellipse 90% 55% at 100% -8%, rgba(13, 148, 136, 0.08), transparent 55%),
+      radial-gradient(ellipse 70% 50% at -8% 105%, rgba(15, 23, 42, 0.045), transparent 52%),
+      linear-gradient(165deg, var(--fh-surface-2) 0%, var(--fh-surface) 48%, var(--fh-surface-3) 100%);
+    scrollbar-width: thin;
+    scrollbar-color: rgb(13 148 136 / 0.35) transparent;
+  }
+
+  .fh-scroll-root::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .fh-scroll-root::-webkit-scrollbar-thumb {
+    background-color: rgb(13 148 136 / 0.32);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  .fh-scroll-root::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(15 118 110 / 0.5);
+  }
+
+  .fh-skip-link {
+    position: absolute;
+    left: 1rem;
+    top: 0;
+    z-index: 100;
+    transform: translateY(-120%);
+    padding: 0.5rem 0.875rem;
+    border-radius: 0.75rem;
+    background: var(--fh-primary-700);
+    color: #fff;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform 0.18s var(--fh-ease);
+  }
+
+  .fh-skip-link:focus {
+    transform: translateY(0.75rem);
+    outline: 2px solid var(--fh-primary-300);
+    outline-offset: 2px;
   }
 
   ::selection {
     background-color: rgba(13, 148, 136, 0.18);
     color: var(--fh-primary-800);
+  }
+
+  /* Teal accent rail on rounded cards — avoids thick border-radius clash. */
+  .fh-surface-accent {
+    position: relative;
+  }
+
+  .fh-surface-accent::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    z-index: 1;
+    height: 2px;
+    border-radius: 1rem 1rem 0 0;
+    background-color: var(--fh-primary-600);
+    pointer-events: none;
   }
 }
 
@@ -448,13 +500,20 @@ svg.fh-icon-live--logout {
   -webkit-tap-highlight-color: transparent;
   -webkit-appearance: none;
   appearance: none;
+  transition: transform 0.15s var(--fh-ease);
 }
 
-.finhub-btn:focus,
-.finhub-btn:focus-visible,
-.finhub-btn:active {
-  outline: none !important;
-  box-shadow: none !important;
+.finhub-btn:focus {
+  outline: none;
+}
+
+.finhub-btn:focus-visible {
+  outline: 2px solid rgb(13 148 136 / 0.55);
+  outline-offset: 2px;
+}
+
+.finhub-btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .finhub-btn-primary {

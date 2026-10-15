@@ -6,13 +6,13 @@ export const sidebarShellClass =
 export const sidebarSectionBorderClass = 'border-white/[0.08]';
 
 export const sidebarNavLinkBase =
-  'group relative z-[1] flex items-center gap-3 pl-2.5 pr-3 py-2.5 rounded-xl text-[13px] font-light tracking-tight transition-[color] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/35';
+  'group relative z-[1] flex items-center gap-3 pl-2.5 pr-3 py-2.5 rounded-xl text-[13px] font-medium tracking-tight transition-[color,background-color] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/35';
 
 export const sidebarNavLinkActive =
-  'text-white font-extrabold';
+  'text-white font-semibold bg-white/[0.08]';
 
 export const sidebarNavLinkInactive =
-  'text-teal-100/60 hover:text-white';
+  'text-teal-100/65 hover:text-white hover:bg-white/[0.04]';
 
 export const sidebarBadgeClass =
   'min-w-[1.25rem] h-5 px-1.5 inline-flex items-center justify-center text-[10px] font-bold rounded-md bg-amber-400/15 text-amber-200 ring-1 ring-inset ring-amber-300/25 tabular-nums font-mono';

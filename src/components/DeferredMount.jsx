@@ -2,9 +2,10 @@ import { useInViewOnce } from '../hooks/useInViewOnce';
 
 const ChartSkeleton = ({ className = '' }) => (
   <div
-    className={`w-full min-w-0 rounded-2xl border border-slate-200/80 bg-white shadow-card overflow-hidden border-t-[3px] border-t-primary-600 ${className}`}
+    className={`relative w-full min-w-0 rounded-2xl bg-white shadow-card ring-1 ring-slate-900/[0.04] overflow-hidden ${className}`}
     aria-hidden
   >
+    <span className="pointer-events-none absolute inset-x-0 top-0 h-0.5 rounded-t-2xl bg-primary-600" />
     <div className="px-4 py-4 sm:px-5 sm:py-5 border-b border-slate-100">
       <div className="h-5 w-40 rounded-md bg-slate-100" />
       <div className="mt-2 h-3 w-64 max-w-full rounded-md bg-slate-50" />
