@@ -1,10 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { FiUploadCloud, FiFileText, FiCheck, FiAlertTriangle, FiClock } from 'react-icons/fi';
+import { FiFileText, FiCheck, FiClock } from 'react-icons/fi';
 import Modal, { modalActionsClass, modalScrollTableWrapClass, modalScrollTableInnerClass } from './Modal';
 import Button from './Button';
 import SearchableDropdown from './SearchableDropdown';
 import ProjectFormModal from './ProjectFormModal';
+import {
+  SKIP_IMPORT_LABEL,
+  ImportCsvStatChip,
+  ImportCsvSection,
+  ImportCsvAlert,
+  ImportCsvDropzone,
+  ImportCsvAskDuplicates,
+  ImportCsvEmptyState,
+  ImportCsvMappingRow
+} from './importCsv/ImportCsvShared';
 import { tableElementClass, tableHeadCellClass, tableBodyCellClass } from '../constants/tableStyles';
 import { formatMoney } from '../utils/format';
 import { usePrivacyHidden } from '../contexts/PrivacyContext';
@@ -32,7 +42,7 @@ import { addMonthsLocalYmd, todayLocalYmd } from '../utils/date';
 import { getEffectiveProjectStatus } from '../utils/transactionsEligibility';
 
 const OPTION_SEP = ' · ';
-const SKIP_MAPPING_LABEL = "Skip — don't import";
+const SKIP_MAPPING_LABEL = SKIP_IMPORT_LABEL;
 
 const toProjectOptionLabel = (client, project) =>
   `${String(client || '').trim()}${OPTION_SEP}${String(project || '').trim()}`;
@@ -68,22 +78,6 @@ const resolveMappedProject = (projects, mapping) => {
     client: mapping.client,
     projectName: mapping.project
   };
-};
-
-const StatChip = ({ label, value, tone = 'neutral' }) => {
-  const tones = {
-    neutral: 'bg-slate-100 text-slate-700 border-slate-200',
-    success: 'bg-primary-50 text-primary-800 border-primary-200',
-    muted: 'bg-white text-slate-500 border-slate-200',
-    warn: 'bg-amber-50 text-amber-900 border-amber-200',
-    danger: 'bg-rose-50 text-rose-800 border-rose-200'
-  };
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] sm:text-xs font-bold tabular-nums ${tones[tone] || tones.neutral}`}>
-      <span className="opacity-70 font-semibold">{label}</span>
-      {value}
-    </span>
-  );
 };
 
 const ImportTransactionsModal = ({
@@ -677,35 +671,19 @@ const ImportTransactionsModal = ({
         }
       >
         <div className="space-y-4 min-w-0">
-          <div className="rounded-xl border border-slate-200/80 bg-white shadow-card relative z-30">
-            <div className="px-3.5 py-2.5 sm:px-4 border-b border-slate-100 bg-slate-50/80 flex items-center gap-2 rounded-t-xl">
-              <div className="h-1 w-8 rounded-full bg-primary-500" />
-              <p className="text-sm font-bold text-slate-800">CSV file & brokers</p>
-            </div>
+          <ImportCsvSection title="CSV file & brokers" className="relative z-30">
             <div className="p-3.5 sm:p-4 space-y-3 relative z-10">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
+              <ImportCsvDropzone
+                fileName={fileName}
+                isDragging={isDragging}
+                onBrowse={() => fileInputRef.current?.click()}
                 onDragOver={(e) => {
                   e.preventDefault();
                   setIsDragging(true);
                 }}
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={onDrop}
-                className={`w-full rounded-xl border-2 border-dashed px-4 py-6 sm:py-7 text-center transition-colors ${
-                  isDragging
-                    ? 'border-primary-500 bg-primary-50'
-                    : 'border-slate-200 bg-slate-50/50 hover:border-primary-300 hover:bg-primary-50/40'
-                }`}
-              >
-                <FiUploadCloud className={`w-8 h-8 mx-auto mb-2 ${isDragging ? 'text-primary-600' : 'text-primary-500'}`} />
-                <p className="text-sm font-semibold text-slate-800">
-                  {fileName ? 'Replace CSV file' : 'Drop Mercury CSV here or click to browse'}
-                </p>
-                <p className="text-xs text-slate-500 mt-1">
-                  {fileName || 'Same export format as bank CSV downloads'}
-                </p>
-              </button>
+              />
               <input
                 ref={fileInputRef}
                 type="file"
@@ -762,32 +740,17 @@ const ImportTransactionsModal = ({
                 </p>
               ) : null}
             </div>
-          </div>
+          </ImportCsvSection>
 
-          {parseError ? (
-            <div className="rounded-xl border border-rose-200/80 bg-rose-50/80 px-4 py-3 text-sm text-rose-900 shadow-card flex gap-2">
-              <FiAlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-              <p className="font-semibold">{parseError}</p>
-            </div>
-          ) : null}
-          {submitError ? (
-            <div className="rounded-xl border border-rose-200/80 bg-rose-50/80 px-4 py-3 text-sm text-rose-900 shadow-card flex gap-2">
-              <FiAlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-              <p className="font-semibold">{submitError}</p>
-            </div>
-          ) : null}
+          <ImportCsvAlert message={parseError} />
+          <ImportCsvAlert message={submitError} />
 
           {csvProjectNames.length > 0 && selectedBrokers.length > 0 ? (
-            <div className="rounded-xl border border-slate-200/80 bg-white shadow-card relative z-20">
-              <div className="px-3.5 py-2.5 sm:px-4 border-b border-slate-100 bg-slate-50/80 flex items-center gap-2 rounded-t-xl">
-                <div className="h-1 w-8 rounded-full bg-primary-500" />
-                <p className="text-sm font-bold text-slate-800">Project mapping</p>
-              </div>
-              <div className="p-3.5 sm:p-4 space-y-2.5 relative isolate">
-                <p className="text-xs text-slate-500">
-                  Pick Broker · Project for each CSV description, or choose Skip to leave those rows
-                  out of this import. Completed and freelance projects from selected brokers are
-                  included. Pending projects must be approved first.
+            <ImportCsvSection title="Project mapping" className="relative z-20">
+              <div className="p-2.5 sm:p-3 space-y-1 relative isolate">
+                <p className="text-[11px] text-slate-500 leading-snug pb-0.5">
+                  Map each CSV description to Broker · Project, or Skip. Completed / freelance
+                  projects are ok; pending ones need approval first.
                 </p>
                 {csvProjectNames.map((name, idx) => {
                   const key = normalizeMatchText(name);
@@ -815,63 +778,53 @@ const ImportTransactionsModal = ({
                       : autoMatch
                         ? 'approved'
                         : 'missing';
+                  const tone =
+                    displayKind === 'pending' || displayKind === 'missing'
+                      ? 'warn'
+                      : displayKind === 'skip'
+                        ? 'skip'
+                        : 'neutral';
                   const isDropdownOpen = openMappingKey === key;
                   const stackZ = isDropdownOpen ? 80 : csvProjectNames.length - idx + 5;
                   return (
-                    <div
+                    <ImportCsvMappingRow
                       key={key}
-                      style={{ zIndex: stackZ }}
-                      className={`flex flex-col sm:flex-row sm:items-end gap-2 rounded-xl border p-2.5 sm:p-3 relative ${
-                        displayKind === 'pending'
-                          ? 'border-amber-200/80 bg-gradient-to-r from-amber-50/90 to-white'
-                          : displayKind === 'skip'
-                            ? 'border-slate-200/80 bg-gradient-to-r from-slate-100/90 to-white'
-                            : 'border-slate-200/80 bg-gradient-to-r from-slate-50/80 to-white'
-                      }`}
+                      title={name}
+                      tone={tone}
+                      stackZ={stackZ}
+                      icon={
+                        displayKind === 'pending' ? (
+                          <FiClock className="w-3.5 h-3.5 text-amber-600" />
+                        ) : (
+                          <FiFileText
+                            className={`w-3.5 h-3.5 ${
+                              displayKind === 'skip' ? 'text-slate-500' : 'text-primary-600'
+                            }`}
+                          />
+                        )
+                      }
+                      statusNode={
+                        displayKind === 'skip' ? (
+                          <span className="text-[10px] font-semibold text-slate-500">Skip</span>
+                        ) : displayKind === 'approved' ? (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-primary-700">
+                            <FiCheck className="w-3 h-3" />
+                            {mappedMatch.project &&
+                            getEffectiveProjectStatus(mappedMatch.project) === 'inactive'
+                              ? 'Completed'
+                              : 'Matched'}
+                          </span>
+                        ) : displayKind === 'pending' ? (
+                          <span className="text-[10px] font-semibold text-amber-800">Pending</span>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-amber-700">Needs map</span>
+                        )
+                      }
                     >
-                      <div className="flex-1 min-w-0 flex items-start gap-2">
-                        <div
-                          className={`mt-0.5 shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center ${
-                            displayKind === 'pending'
-                              ? 'bg-amber-50 border-amber-200'
-                              : displayKind === 'skip'
-                                ? 'bg-slate-100 border-slate-200'
-                                : 'bg-primary-50 border-primary-100'
-                          }`}
-                        >
-                          {displayKind === 'pending' ? (
-                            <FiClock className="w-4 h-4 text-amber-600" />
-                          ) : (
-                            <FiFileText
-                              className={`w-4 h-4 ${displayKind === 'skip' ? 'text-slate-500' : 'text-primary-600'}`}
-                            />
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[10px] uppercase tracking-wide font-bold text-slate-400">CSV Description</p>
-                          <p className="text-sm font-semibold text-slate-800 truncate">{name}</p>
-                          {displayKind === 'skip' ? (
-                            <p className="text-[11px] text-slate-500 mt-0.5">Won’t be imported</p>
-                          ) : displayKind === 'approved' ? (
-                            <p className="text-[11px] text-primary-700 mt-0.5 flex items-center gap-1">
-                              <FiCheck className="w-3 h-3" />
-                              {mappedMatch.project &&
-                              getEffectiveProjectStatus(mappedMatch.project) === 'inactive'
-                                ? 'Matched completed project (ok to import)'
-                                : 'Matched approved project'}
-                            </p>
-                          ) : displayKind === 'pending' ? (
-                            <p className="text-[11px] text-amber-800 mt-0.5 leading-snug">
-                              Pending approval — approve this project before importing
-                            </p>
-                          ) : (
-                            <p className="text-[11px] text-amber-700 mt-0.5">Needs mapping or create</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0 relative">
+                      <div className="sm:w-[min(100%,18rem)] sm:shrink-0 min-w-0 relative">
                         <SearchableDropdown
-                          label="Broker · Project"
+                          label=""
+                          layout="filter"
                           value={mappedLabel}
                           onChange={(v) => {
                             const trimmed = String(v || '').trim();
@@ -902,7 +855,7 @@ const ImportTransactionsModal = ({
                           }}
                           onOpenChange={(open) => setOpenMappingKey(open ? key : '')}
                           options={projectOptionLabels}
-                          placeholder="Select broker · project or Skip..."
+                          placeholder="Broker · Project or Skip..."
                         />
                       </div>
                       {displayKind === 'missing' ? (
@@ -912,146 +865,55 @@ const ImportTransactionsModal = ({
                           className="shrink-0"
                           onClick={() => openCreateProject(name)}
                         >
-                          Create project
+                          Create
                         </Button>
                       ) : null}
-                    </div>
+                    </ImportCsvMappingRow>
                   );
                 })}
               </div>
-            </div>
+            </ImportCsvSection>
           ) : null}
 
           {previewRows.length > 0 ? (
             <>
               <div className="flex flex-wrap gap-1.5">
-                <StatChip label="New" value={counts.ready} tone="success" />
-                <StatChip label="Override" value={counts.override} tone="warn" />
-                <StatChip label="Skip" value={counts.skip} tone="muted" />
-                <StatChip label="Decide" value={counts.ask} tone="warn" />
+                <ImportCsvStatChip label="New" value={counts.ready} tone="success" />
+                <ImportCsvStatChip label="Override" value={counts.override} tone="warn" />
+                <ImportCsvStatChip label="Skip" value={counts.skip} tone="muted" />
+                <ImportCsvStatChip label="Decide" value={counts.ask} tone="info" />
                 {counts.needs_project > 0 ? (
-                  <StatChip label="Need project" value={counts.needs_project} tone="danger" />
+                  <ImportCsvStatChip label="Need project" value={counts.needs_project} tone="danger" />
                 ) : null}
                 {counts.pending_project > 0 ? (
-                  <StatChip label="Pending" value={counts.pending_project} tone="warn" />
+                  <ImportCsvStatChip label="Pending" value={counts.pending_project} tone="warn" />
                 ) : null}
                 {newBrokerageExpenses.length > 0 ? (
-                  <StatChip label="Brokerage" value={newBrokerageExpenses.length} tone="success" />
+                  <ImportCsvStatChip label="Brokerage" value={newBrokerageExpenses.length} tone="success" />
                 ) : null}
               </div>
 
-              {askRows.length > 0 ? (
-                <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 shadow-card overflow-hidden">
-                  <div className="px-3.5 py-2.5 sm:px-4 border-b border-amber-100 flex flex-col sm:flex-row sm:items-center gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="h-1 w-8 rounded-full bg-amber-500 shrink-0" />
-                      <p className="text-sm font-bold text-amber-950">Same date & amount already exists</p>
-                    </div>
-                    {selectedAskKeys.size > 0 ? (
-                      <div className="flex flex-wrap gap-1.5 sm:ml-auto">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => applyAskDecision([...selectedAskKeys], 'override')}
-                        >
-                          Override selected ({selectedAskKeys.size})
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => applyAskDecision([...selectedAskKeys], 'keep_both')}
-                        >
-                          Keep both selected ({selectedAskKeys.size})
-                        </Button>
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="p-3 sm:p-3.5 space-y-2">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-amber-900/80">
-                      <label className="inline-flex items-center gap-2 font-semibold text-amber-950 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={allUndecidedSelected}
-                          onChange={toggleSelectAllAsk}
-                          disabled={undecidedAskKeys.length === 0}
-                          className="rounded border-amber-300 text-primary-600 focus:ring-primary-500"
-                        />
-                        Select all undecided
-                      </label>
-                      <span className="sm:ml-auto">
-                        Override replaces that row. Keep both adds another transaction.
-                      </span>
-                    </div>
-                    {askRows.map((row) => {
-                      const choice = askDecisions[row.rowKey];
-                      const decided = choice === 'override' || choice === 'keep_both';
-                      const checked = selectedAskKeys.has(row.rowKey);
-                      return (
-                        <div
-                          key={row.rowKey}
-                          className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 rounded-xl border px-3 py-2.5 ${
-                            decided
-                              ? 'border-primary-200 bg-primary-50/40'
-                              : 'border-amber-200/70 bg-white'
-                          }`}
-                        >
-                          <label className="flex items-start sm:items-center gap-2 flex-1 min-w-0 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              disabled={decided}
-                              onChange={() => toggleAskSelected(row.rowKey)}
-                              className="mt-0.5 sm:mt-0 rounded border-slate-300 text-primary-600 focus:ring-primary-500 disabled:opacity-40"
-                            />
-                            <span className="min-w-0 text-sm text-slate-700">
-                              <span className="font-semibold text-slate-900">{row.date}</span>
-                              <span className="text-slate-400 mx-1.5">·</span>
-                              <span className="font-semibold tabular-nums">{formatMoney(row.amount)}</span>
-                              {row.mappedProject ? (
-                                <>
-                                  <span className="text-slate-400 mx-1.5">·</span>
-                                  <span className="truncate">
-                                    {row.mappedClient
-                                      ? toProjectOptionLabel(row.mappedClient, row.mappedProject)
-                                      : row.mappedProject}
-                                  </span>
-                                </>
-                              ) : null}
-                              {decided ? (
-                                <span className="ml-2 inline-flex px-1.5 py-0.5 rounded-full border border-primary-200 bg-white text-primary-800 text-[10px] font-bold">
-                                  {choice === 'override' ? 'Override' : 'Keep both'}
-                                </span>
-                              ) : null}
-                            </span>
-                          </label>
-                          <div className="flex flex-wrap gap-1.5 shrink-0 sm:pl-0 pl-6">
-                            <Button
-                              size="sm"
-                              variant={choice === 'override' ? 'primary' : 'secondary'}
-                              onClick={() => applyAskDecision([row.rowKey], 'override')}
-                            >
-                              Override
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant={choice === 'keep_both' ? 'primary' : 'secondary'}
-                              onClick={() => applyAskDecision([row.rowKey], 'keep_both')}
-                            >
-                              Keep both
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
+              <ImportCsvAskDuplicates
+                askRows={askRows}
+                askDecisions={askDecisions}
+                selectedAskKeys={selectedAskKeys}
+                undecidedAskKeys={undecidedAskKeys}
+                allUndecidedSelected={allUndecidedSelected}
+                onToggleSelectAll={toggleSelectAllAsk}
+                onToggleRow={toggleAskSelected}
+                onApplyDecision={applyAskDecision}
+                keepBothNoun="transaction"
+                getRowLabel={(row) =>
+                  row.mappedProject
+                    ? row.mappedClient
+                      ? toProjectOptionLabel(row.mappedClient, row.mappedProject)
+                      : row.mappedProject
+                    : null
+                }
+              />
 
               {brokeragePlan.length > 0 ? (
-                <div className="rounded-xl border border-slate-200/80 bg-white shadow-card overflow-hidden relative z-0">
-                  <div className="px-3.5 py-2.5 sm:px-4 border-b border-slate-100 bg-slate-50/80 flex items-center gap-2">
-                    <div className="h-1 w-8 rounded-full bg-primary-500 shrink-0" />
-                    <p className="text-sm font-bold text-slate-800">Monthly brokerage expenses</p>
-                  </div>
+                <ImportCsvSection title="Monthly brokerage expenses" className="relative z-0">
                   <div className="p-3 sm:p-3.5 space-y-2">
                     <p className="text-xs text-slate-500">
                       One brokerage expense per project per month. Already-added months are left as-is.
@@ -1080,17 +942,14 @@ const ImportTransactionsModal = ({
                       </div>
                     ))}
                   </div>
-                </div>
+                </ImportCsvSection>
               ) : null}
 
               {importPreviewRows.length > 0 ? (
-                <div className="rounded-xl border border-slate-200/80 bg-white shadow-card overflow-hidden relative z-0">
-                  <div className="px-3.5 py-2.5 sm:px-4 border-b border-slate-100 bg-slate-50/80 flex items-center gap-2">
-                    <div className="h-1 w-8 rounded-full bg-primary-500 shrink-0" />
-                    <p className="text-sm font-bold text-slate-800">
-                      Preview ({importPreviewRows.length})
-                    </p>
-                  </div>
+                <ImportCsvSection
+                  title={`Preview (${importPreviewRows.length})`}
+                  className="relative z-0"
+                >
                   <div className={`${modalScrollTableWrapClass} border-0 rounded-none shadow-none`}>
                     <div className={`${modalScrollTableInnerClass} overflow-x-auto`}>
                       <table className={`${tableElementClass} min-w-[32rem]`}>
@@ -1121,22 +980,16 @@ const ImportTransactionsModal = ({
                       </table>
                     </div>
                   </div>
-                </div>
+                </ImportCsvSection>
               ) : (
-                <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-4 py-8 text-center shadow-card">
-                  <p className="text-sm font-semibold text-slate-700">Nothing to import yet</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Resolve project mapping or duplicate decisions above.
-                  </p>
-                </div>
+                <ImportCsvEmptyState
+                  title="Nothing to import yet"
+                  hint="Resolve project mapping or duplicate decisions above."
+                />
               )}
             </>
           ) : (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-4 py-10 text-center shadow-card">
-              <FiUploadCloud className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-slate-700">No CSV loaded yet</p>
-              <p className="text-xs text-slate-500 mt-1">Upload a Mercury export to review a full preview.</p>
-            </div>
+            <ImportCsvEmptyState />
           )}
 
         </div>

@@ -6,6 +6,7 @@ import TextareaField from './TextareaField';
 import DropdownField from './DropdownField';
 import ModernDatePicker from './ModernDatePicker';
 import Button from './Button';
+import Checkbox from './Checkbox';
 
 const resolveMaybeFn = (value, form) => (typeof value === 'function' ? value(form) : value);
 
@@ -222,16 +223,13 @@ const FormModal = ({
 
       case 'checkbox':
         return (
-          <div className={field.className || ''}>
-            <label className="flex items-center gap-2 cursor-pointer mt-5">
-              <input
-                type="checkbox"
-                checked={!!form[field.name]}
-                onChange={(e) => onFieldChange(field.name, e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-              />
-              <span className="text-sm font-light text-slate-700">{field.label}</span>
-            </label>
+          <div className={field.className || 'mt-5'}>
+            <Checkbox
+              checked={!!form[field.name]}
+              onChange={(e) => onFieldChange(field.name, e.target.checked)}
+              label={field.label}
+              disabled={field.disabled}
+            />
           </div>
         );
 

@@ -522,6 +522,119 @@ svg.fh-icon-live--logout {
   opacity: 0.9;
 }
 
+/* ——— FinHub checkbox — solid primary, light check motion ——— */
+@keyframes finhub-check-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.finhub-checkbox {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.finhub-checkbox-input {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.finhub-checkbox-input:disabled {
+  cursor: not-allowed;
+}
+
+.finhub-checkbox-face {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 0.375rem;
+  border: 1.5px solid #cbd5e1;
+  background: #fff;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.85);
+  transition:
+    background-color 0.18s var(--fh-ease),
+    border-color 0.18s var(--fh-ease),
+    box-shadow 0.18s var(--fh-ease),
+    transform 0.12s var(--fh-ease);
+}
+
+.finhub-checkbox-tick {
+  width: 72%;
+  height: 72%;
+  color: #fff;
+  opacity: 0;
+  transform: scale(0.7);
+}
+
+.finhub-checkbox-input:hover:not(:disabled) + .finhub-checkbox-face {
+  border-color: #94a3b8;
+}
+
+.finhub-checkbox-input:focus-visible + .finhub-checkbox-face {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 3px rgb(13 148 136 / 0.2);
+}
+
+.finhub-checkbox-input:active:not(:disabled) + .finhub-checkbox-face {
+  transform: scale(0.92);
+}
+
+.finhub-checkbox-input:checked + .finhub-checkbox-face {
+  background-color: #0d9488;
+  border-color: #0d9488;
+  box-shadow: none;
+}
+
+.finhub-checkbox-input:checked + .finhub-checkbox-face .finhub-checkbox-tick {
+  animation: finhub-check-in 0.22s var(--fh-ease) forwards;
+}
+
+.finhub-checkbox-input:checked:hover:not(:disabled) + .finhub-checkbox-face {
+  background-color: #0f766e;
+  border-color: #0f766e;
+}
+
+.finhub-checkbox-input:checked:focus-visible + .finhub-checkbox-face {
+  box-shadow: 0 0 0 3px rgb(13 148 136 / 0.25);
+}
+
+.finhub-checkbox-input:disabled + .finhub-checkbox-face {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  box-shadow: none;
+}
+
+.finhub-checkbox-input:disabled:checked + .finhub-checkbox-face {
+  background: #99f6e4;
+  border-color: #99f6e4;
+}
+
+.finhub-checkbox-input:disabled:checked + .finhub-checkbox-face .finhub-checkbox-tick {
+  opacity: 1;
+  transform: scale(1);
+  animation: none;
+  color: #0f766e;
+}
+
 /* CSS stand-ins for former Motion.js hover / tap / enter (same distances & easing). */
 @keyframes fh-overlay-in {
   from {
@@ -633,6 +746,17 @@ svg.fh-icon-live--logout {
 
   .finhub-btn:hover:not(:disabled) .finhub-btn-fill {
     transform: translateY(0);
+  }
+
+  .finhub-checkbox-face,
+  .finhub-checkbox-tick {
+    transition: none !important;
+  }
+
+  .finhub-checkbox-input:checked + .finhub-checkbox-face .finhub-checkbox-tick {
+    animation: none !important;
+    opacity: 1;
+    transform: scale(1);
   }
 
   .finhub-nav-indicator {

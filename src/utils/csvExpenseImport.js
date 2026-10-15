@@ -4,11 +4,14 @@ import {
   slugifyExpenseType,
   collectExpenseTypeLabels
 } from '../constants/expenseTypes';
+import { isApproved } from '../constants/app';
+import { expenseDateValue, normalizeDateToYYYYMMDD } from './date';
 import {
   parseCsvText,
   parseAmount,
   parseMercuryTimestampToYmd,
-  normalizeMatchText
+  normalizeMatchText,
+  dupeKey
 } from './csvTransactionImport';
 
 /**
@@ -246,4 +249,74 @@ export const isExpenseImportRowReady = (row) => {
   if (!Number.isFinite(Number(row.amount)) || Number(row.amount) <= 0) return false;
   if (!slugifyExpenseType(row.expenseType || row.expenseTypeLabel)) return false;
   return true;
+};
+
+/**
+ * Classify CSV expense rows vs existing expenses by date+amount (same as transactions).
+ * - Pending match → auto-skip
+ * - Approved match → ask override / keep_both
+ * - No match → ready
+ */
+export const classifyExpenseCsvRowsAgainstExisting = ({
+  csvRows = [],
+  existingExpenses = []
+} = {}) => {
+  const pendingByKey = new Map();
+  const approvedByKey = new Map();
+
+  (existingExpenses || []).forEach((e) => {
+    const date = expenseDateValue(e) || normalizeDateToYYYYMMDD(e?.date);
+    const amount = Math.abs(Number(e?.amount));
+    if (!date || !Number.isFinite(amount) || amount <= 0) return;
+    const key = dupeKey(date, amount);
+    const bucket = isApproved(e) ? approvedByKey : pendingByKey;
+    const arr = bucket.get(key) || [];
+    arr.push(e);
+    bucket.set(key, arr);
+  });
+
+  const usedPending = new Map();
+  const usedApproved = new Map();
+
+  return (csvRows || []).map((row) => {
+    const date = normalizeDateToYYYYMMDD(row.date) || row.date;
+    const amount = Math.abs(Number(row.amount));
+    if (!date || !Number.isFinite(amount) || amount <= 0) {
+      return {
+        ...row,
+        importStatus: 'invalid',
+        reason: 'Missing date or amount',
+        existingMatchId: null
+      };
+    }
+
+    const key = dupeKey(date, amount);
+    const pendingMatches = pendingByKey.get(key) || [];
+    const approvedMatches = approvedByKey.get(key) || [];
+
+    const pendingUsed = usedPending.get(key) || 0;
+    if (pendingUsed < pendingMatches.length) {
+      usedPending.set(key, pendingUsed + 1);
+      return {
+        ...row,
+        importStatus: 'skip',
+        existingMatchId: pendingMatches[pendingUsed]?.id || null,
+        reason: 'Already pending approval'
+      };
+    }
+
+    const approvedUsed = usedApproved.get(key) || 0;
+    if (approvedUsed < approvedMatches.length) {
+      usedApproved.set(key, approvedUsed + 1);
+      const existing = approvedMatches[approvedUsed];
+      return {
+        ...row,
+        importStatus: 'ask',
+        existingMatchId: existing?.id || null,
+        reason: 'Same date and amount already exists'
+      };
+    }
+
+    return { ...row, importStatus: 'ready', reason: '', existingMatchId: null };
+  });
 };
