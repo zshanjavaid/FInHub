@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { FiActivity, FiTrendingUp, FiPercent, FiClock } from 'react-icons/fi';
 import { fetchTransactions } from '../store/transactions/transactionsSlice';
 import { fetchExpenses } from '../store/expenses/expensesSlice';
-import { formatMoney, signedMoneyClass } from '../utils/format';
+import { formatMoney, formatMoneyCompact, signedMoneyClass } from '../utils/format';
 import { buildEvaluationSnapshot } from '../utils/evaluationMetrics';
 import { usePrivacyHidden } from '../contexts/PrivacyContext';
 import PageHeader from '../components/PageHeader';
@@ -272,7 +272,7 @@ const Evaluation = () => {
               </ul>
             </div>
           }
-          value={formatMoney(cashFlow.net.reduce((s, v) => s + v, 0))}
+          value={formatMoneyCompact(cashFlow.net.reduce((s, v) => s + v, 0))}
           icon={<FiActivity className="w-5 h-5" />}
           valueClassName={signedMoneyClass(cashFlow.net.reduce((s, v) => s + v, 0))}
           iconClassName="text-primary-600"
@@ -288,6 +288,7 @@ const Evaluation = () => {
               data={chartSeries}
               labels={cashFlow.labels}
               title="Cash flow"
+              moneyValues
             />
           </div>
         </Suspense>

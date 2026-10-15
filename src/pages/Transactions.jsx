@@ -28,7 +28,7 @@ import {
   createTransactionsBulk
 } from '../store/transactions/transactionsSlice';
 import { normalizeDateToYYYYMMDD, filterByDateRange, monthSlotsForRange, addIntoMonthSlots, expenseDateValue } from '../utils/date';
-import { formatMoney, signedMoneyClass } from '../utils/format';
+import { formatMoneyCompact, signedMoneyClass } from '../utils/format';
 import { EMPTY_TRANSACTION_FORM, transactionToFormValues } from '../utils/formValues';
 import { toNumber, roundMoney } from '../utils/number';
 import { matchesSelectedBroker } from '../utils/brokerFilter';
@@ -595,7 +595,7 @@ const Transactions = () => {
                               Transactions (Net)
                             </p>
                             <p className="mt-2 sm:mt-3 text-2xl sm:text-3xl md:text-4xl font-bold text-primary-700 tabular-nums tracking-tight">
-                              {formatMoney(monthlyTrendData.values[0] || 0)}
+                              {formatMoneyCompact(monthlyTrendData.values[0] || 0)}
                             </p>
                           </div>
                           <div className="text-center min-w-0 border-l border-slate-200/80">
@@ -608,12 +608,13 @@ const Transactions = () => {
                                 'text-slate-800'
                               )}`}
                             >
-                              {formatMoney(monthlyTrendData.available[0] || 0)}
+                              {formatMoneyCompact(monthlyTrendData.available[0] || 0)}
                             </p>
                           </div>
                         </div>
                         <p className="mt-4 text-sm text-slate-500 text-center">
-                          {formatMoney(monthlyTrendData.values[0] || 0)} − {formatMoney(monthlyTrendData.expense[0] || 0)} expenses
+                          {formatMoneyCompact(monthlyTrendData.values[0] || 0)} −{' '}
+                          {formatMoneyCompact(monthlyTrendData.expense[0] || 0)} expenses
                           <span className="text-slate-400"> · </span>
                           {monthlyTrendData.labels[0]}
                         </p>
@@ -643,6 +644,7 @@ const Transactions = () => {
                     labels={projectChartData.labels}
                     fullLabels={projectChartData.fullLabels}
                     title="Transactions by Project"
+                    moneyValues
                   />
                 )}
               </div>

@@ -12,7 +12,7 @@ import { syncMonthlyBrokerageExpense } from '../utils/ensureMonthlyBrokerageExpe
 import { useAuth } from '../contexts/AuthContext';
 import { usePrivacyHidden } from '../contexts/PrivacyContext';
 import { getTargetAmount, setTargetAmount } from '../services/settingsService';
-import { formatMoney, signedMoneyClass } from '../utils/format';
+import { formatMoney, formatMoneyCompact, signedMoneyClass } from '../utils/format';
 import { filterByDateRange, monthSlotsForRange, calendarYearMonthSlots, addIntoMonthSlots, MONTH_NAMES, normalizeDateToYYYYMMDD, expenseDateValue } from '../utils/date';
 import { computeNextMonthEstimatedAmount } from '../utils/nextMonthEstimate';
 import { transactionNetAfterImpactFund, sumTransactionNetAfterImpactFund, transactionImpactFundAmount, IMPACT_FUND_PERCENT_LABEL } from '../utils/transactionNet';
@@ -468,7 +468,7 @@ const Dashboard = () => {
                 </ul>
               </div>
             }
-            value={formatMoney(grossRevenue)}
+            value={formatMoneyCompact(grossRevenue)}
             icon={<FiDollarSign className="w-5 h-5" />}
             valueClassName="text-emerald-700"
             iconClassName="text-emerald-600"
@@ -500,7 +500,7 @@ const Dashboard = () => {
                 </ul>
               </div>
             }
-            value={formatMoney(totalDeductions)}
+            value={formatMoneyCompact(totalDeductions)}
             icon={<FiMinusCircle className="w-5 h-5" />}
             valueClassName="text-violet-700"
             iconClassName="text-violet-600"
@@ -520,7 +520,7 @@ const Dashboard = () => {
                 </ul>
               </div>
             }
-            value={formatMoney(totalExpense)}
+            value={formatMoneyCompact(totalExpense)}
             icon={<FiCreditCard className="w-5 h-5" />}
             valueClassName="text-red-600"
             iconClassName="text-red-500"
@@ -552,7 +552,7 @@ const Dashboard = () => {
                 </ul>
               </div>
             }
-            value={formatMoney(availableAmount)}
+            value={formatMoneyCompact(availableAmount)}
             icon={<FiDollarSign className="w-5 h-5" />}
             valueClassName={signedMoneyClass(availableAmount)}
             iconClassName={availableAmount < 0 ? 'text-red-500' : 'text-primary-600'}
@@ -670,6 +670,7 @@ const Dashboard = () => {
                 data={chartSeries}
                 labels={chartData.labels}
                 title="Monthly Comparison"
+                moneyValues
                 headerRight={
                   <div className="min-w-0">
                     <div className="flex items-center justify-end gap-1">

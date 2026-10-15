@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { formatMoney, signedMoneyClass } from '../utils/format';
+import { formatMoney, formatMoneyCompact, signedMoneyClass } from '../utils/format';
 import { usePrivacyHidden } from '../contexts/PrivacyContext';
 import { fetchTransactions } from '../store/transactions/transactionsSlice';
 import { fetchWithdrawals, createWithdrawal, updateWithdrawal, removeWithdrawal } from '../store/impactFund/impactFundSlice';
@@ -132,7 +132,7 @@ const ImpactFund = () => {
   const statCards = [
     {
       label: 'Total Amount',
-      value: formatMoney(totalContributions),
+      value: formatMoneyCompact(totalContributions),
       Icon: FiDollarSign,
       valueClassName: 'text-primary-600',
       iconClassName: 'text-primary-500',
@@ -140,7 +140,7 @@ const ImpactFund = () => {
     },
     {
       label: 'Withdrawn',
-      value: formatMoney(totalWithdrawn),
+      value: formatMoneyCompact(totalWithdrawn),
       Icon: FiTrendingDown,
       valueClassName: 'text-red-600',
       iconClassName: 'text-red-500',
@@ -148,7 +148,7 @@ const ImpactFund = () => {
     },
     {
       label: 'Remaining',
-      value: formatMoney(allTimeRemaining),
+      value: formatMoneyCompact(allTimeRemaining),
       Icon: FiCreditCard,
       valueClassName: signedMoneyClass(allTimeRemaining, 'text-emerald-600'),
       iconClassName: allTimeRemaining < 0 ? 'text-red-500' : 'text-emerald-500',

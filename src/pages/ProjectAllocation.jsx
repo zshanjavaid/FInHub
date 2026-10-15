@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react
 import { useDispatch, useSelector } from 'react-redux';
 import { FiDollarSign, FiTrendingUp, FiPieChart, FiMenu, FiArrowRight, FiArrowLeft } from 'react-icons/fi';
 import { fetchProjects, createProject } from '../store/projects/projectsSlice';
-import { formatMoney } from '../utils/format';
+import { formatMoney, formatMoneyCompact } from '../utils/format';
 import { usePrivacyHidden } from '../contexts/PrivacyContext';
 import { getProjectMonthlyAllocationAmount, prepareProjectForFirestore } from '../utils/project';
 import { EMPTY_PROJECT_FORM } from '../utils/formValues';
@@ -255,7 +255,7 @@ const ProjectAllocation = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
         <StatCard
           label="Total Monthly Amount"
-          value={formatMoney(totalAmount)}
+          value={formatMoneyCompact(totalAmount)}
           icon={<FiDollarSign className="w-5 h-5" />}
           valueClassName="text-primary-600"
           iconClassName="text-primary-500"
@@ -263,7 +263,7 @@ const ProjectAllocation = () => {
         />
         <StatCard
           label="If Completed"
-          value={formatMoney(allocatedSum)}
+          value={formatMoneyCompact(allocatedSum)}
           icon={<FiPieChart className="w-5 h-5" />}
           valueClassName="text-amber-600"
           iconClassName="text-amber-500"
@@ -271,7 +271,7 @@ const ProjectAllocation = () => {
         />
         <StatCard
           label="Remaining"
-          value={formatMoney(remainingAmount)}
+          value={formatMoneyCompact(remainingAmount)}
           icon={<FiTrendingUp className="w-5 h-5" />}
           valueClassName={remainingAmount >= 0 ? 'text-emerald-600' : 'text-red-600'}
           iconClassName={remainingAmount >= 0 ? 'text-emerald-500' : 'text-red-500'}

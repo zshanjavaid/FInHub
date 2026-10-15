@@ -15,6 +15,23 @@ export const formatMoney = (v) => {
   return getPrivacyHidden() ? maskSensitiveText(formatted) : formatted;
 };
 
+/** Compact money for StatCards: $1.20K / $3.40M. Tables keep formatMoney. */
+export const formatMoneyCompact = (v) => {
+  const n = Number(v);
+  if (!Number.isFinite(n)) {
+    return getPrivacyHidden() ? maskSensitiveText('-') : '-';
+  }
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  let formatted;
+  if (abs >= 1_000_000) formatted = `${sign}$${(abs / 1_000_000).toFixed(2)}M`;
+  else if (abs >= 1_000) formatted = `${sign}$${(abs / 1_000).toFixed(2)}K`;
+  else if (Number.isInteger(abs) || Math.abs(abs % 1) < 1e-9) formatted = `${sign}$${Math.round(abs)}`;
+  else formatted = `${sign}$${abs.toFixed(2)}`;
+
+  return getPrivacyHidden() ? maskSensitiveText(formatted) : formatted;
+};
+
 export const signedMoneyClass = (v, positiveClass = 'text-primary-600') => {
   if (getPrivacyHidden()) return 'text-slate-500';
   const n = Number(v);

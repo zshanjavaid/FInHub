@@ -20,7 +20,7 @@ import {
   buildLegendFont,
   buildLegendPadding
 } from '../utils/chartTheme';
-import { formatMoney } from '../utils/format';
+import { formatMoneyCompact } from '../utils/format';
 import { ensureChartJsRegistered } from '../utils/registerChart';
 
 ensureChartJsRegistered();
@@ -105,7 +105,7 @@ const LineChartChartJS = ({ data, labels, title = 'Line Chart', headerRight = nu
             label: (item) => {
               const name = item.dataset?.label || '';
               const y = item.parsed?.y;
-              return `${name}: ${formatMoney(y)}`;
+              return `${name}: ${formatMoneyCompact(y)}`;
             }
           }
         }
@@ -123,7 +123,8 @@ const LineChartChartJS = ({ data, labels, title = 'Line Chart', headerRight = nu
             color: themeMuted,
             font: buildAxisTickFont(compact),
             padding: compact ? 6 : 12,
-            maxTicksLimit: compact ? 5 : 6
+            maxTicksLimit: compact ? 5 : 6,
+            callback: (v) => formatMoneyCompact(v)
           }
         },
         x: {

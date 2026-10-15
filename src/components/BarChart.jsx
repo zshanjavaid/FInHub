@@ -23,6 +23,7 @@ import {
 } from '../utils/chartTheme';
 import { ensureChartJsRegistered } from '../utils/registerChart';
 import { chartAxisLabelMaxLen, shortenChartAxisLabel } from '../utils/chartLabels';
+import { formatMoneyCompact } from '../utils/format';
 
 ensureChartJsRegistered();
 
@@ -33,7 +34,9 @@ const BarChart = ({
   fullLabels = null,
   headerRight = null,
   horizontal = false,
-  plotClassName = null
+  plotClassName = null,
+  /** When true, value axis + tooltips use $K / $M (not for month-duration charts). */
+  moneyValues = false
 }) => {
   const compact = useCompactChart();
   const privacyHidden = usePrivacyHidden();
@@ -105,7 +108,14 @@ const BarChart = ({
               const idx = items[0]?.dataIndex;
               if (idx == null) return '';
               return tipLabels[idx] || items[0]?.label || '';
-            }
+            },
+            label: moneyValues
+              ? (item) => {
+                  const name = item.dataset?.label || '';
+                  const raw = horizontal ? item.parsed?.x : item.parsed?.y;
+                  return `${name}: ${formatMoneyCompact(raw)}`;
+                }
+              : undefined
           }
         }
       },
@@ -123,7 +133,10 @@ const BarChart = ({
             font: buildAxisTickFont(compact),
             padding: compact ? 6 : 12,
             maxTicksLimit: horizontal ? undefined : compact ? 5 : 6,
-            autoSkip: !horizontal
+            autoSkip: !horizontal,
+            ...(moneyValues && !horizontal
+              ? { callback: (v) => formatMoneyCompact(v) }
+              : {})
           }
         },
         x: {
@@ -139,12 +152,15 @@ const BarChart = ({
             padding: compact ? 6 : 12,
             maxRotation: horizontal ? 0 : compact ? 55 : 45,
             autoSkip: true,
-            maxTicksLimit: compact ? 6 : undefined
+            maxTicksLimit: compact ? 6 : undefined,
+            ...(moneyValues && horizontal
+              ? { callback: (v) => formatMoneyCompact(v) }
+              : {})
           }
         }
       }
     }),
-    [compact, tipLabels, horizontal]
+    [compact, tipLabels, horizontal, moneyValues]
   );
 
   return (
