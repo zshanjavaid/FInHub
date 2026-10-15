@@ -1,5 +1,6 @@
 import { FiFileText } from 'react-icons/fi';
 import DataTable from './DataTable';
+import FilterSummaryStats from './FilterSummaryStats';
 import { formatMoney } from '../utils/format';
 import { EXPENSE_TYPE_LABELS, EXPENSE_TYPE_COLORS, RECURRING_MONTHS_LABELS, formatExpenseTypeLabel } from '../constants/expenseTypes';
 import { compareExpenses } from '../utils/tableSort';
@@ -37,12 +38,6 @@ const formatBrokerageTypeLabel = (meta) => {
   return `Brokerage · ${n}%`;
 };
 
-const sumExpenseAmounts = (rows) =>
-  rows.reduce((s, e) => {
-    const n = Number(e.amount);
-    return s + (Number.isFinite(n) ? n : 0);
-  }, 0);
-
 const ExpenseTable = ({
   expenses,
   onDelete,
@@ -52,6 +47,7 @@ const ExpenseTable = ({
   additionalFilters = null,
   hideFilters = [],
   projects = [],
+  summaryItems = null,
   ...rest
 }) => {
   const projectByKey = latestProjectByIdentity(projects);
@@ -102,6 +98,8 @@ const ExpenseTable = ({
   ];
   const filters = hideFilters.length ? allFilters.filter((f) => !hideFilters.includes(f.key)) : allFilters;
 
+  const hasSummary = Array.isArray(summaryItems) && summaryItems.length > 0;
+
   return (
     <DataTable
       data={expenses}
@@ -113,12 +111,10 @@ const ExpenseTable = ({
       searchConfig={searchConfig}
       filters={filters}
       additionalFilters={additionalFilters}
-      headerSummary={{
-        columnKey: 'amount',
-        label: 'Total',
-        aggregate: sumExpenseAmounts,
-        format: formatMoney
-      }}
+      titleActions={
+        hasSummary ? <FilterSummaryStats variant="inline" items={summaryItems} /> : null
+      }
+      headerSummary={null}
       sortCompare={compareExpenses}
       {...rest}
     />

@@ -6,7 +6,9 @@ import { usePrivacyHidden } from '../contexts/PrivacyContext';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
 import FilterBar from '../components/FilterBar';
-import BrokerProjectFilters from '../components/BrokerProjectFilters';
+import MultiSelectFilter from '../components/MultiSelectFilter';
+import SelectedFilterTags from '../components/SelectedFilterTags';
+import FilterSummaryStats from '../components/FilterSummaryStats';
 import TransactionTable from '../components/TransactionTable';
 import Modal, { modalActionsClass, modalScrollTableWrapClass, modalScrollTableInnerClass } from '../components/Modal';
 import DeferredMount, { ChartSkeleton } from '../components/DeferredMount';
@@ -30,9 +32,14 @@ import {
 import { normalizeDateToYYYYMMDD, filterByDateRange, monthSlotsForRange, addIntoMonthSlots, expenseDateValue } from '../utils/date';
 import { formatMoneyCompact, signedMoneyClass } from '../utils/format';
 import { EMPTY_TRANSACTION_FORM, transactionToFormValues } from '../utils/formValues';
-import { toNumber, roundMoney } from '../utils/number';
-import { matchesSelectedBroker } from '../utils/brokerFilter';
+import { toNumber, roundMoney, normText } from '../utils/number';
 import { transactionNetAfterImpactFund, netFromGrossParts } from '../utils/transactionNet';
+import {
+  applyMultiSelectFilters,
+  removeSelectedValue,
+  sumBySelectedKeys,
+  sumField
+} from '../utils/multiSelectFilter';
 import { transactionHasBrokerageDeduction, isMirroredTransactionBrokerageExpense } from '../utils/availableBalance';
 import { isApproved } from '../constants/app';
 import { useDateFilter } from '../hooks/useDateFilter';
@@ -87,8 +94,8 @@ const Transactions = () => {
 
   const dateFilter = useDateFilter({ defaultToPreviousMonth: false });
   const { effectiveDateFrom: dateFrom, effectiveDateTo: dateTo } = dateFilter;
-  const [selectedBroker, setSelectedBroker] = useState('');
-  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [selectedBrokers, setSelectedBrokers] = useState([]);
+  const [selectedProjectIds, setSelectedProjectIds] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransactionId, setEditingTransactionId] = useState(null);
   const [editingTransaction, setEditingTransaction] = useState(null);
@@ -98,21 +105,24 @@ const Transactions = () => {
   const [generateError, setGenerateError] = useState('');
   const [isImportOpen, setIsImportOpen] = useState(false);
 
+  const projectIdentity = (row) =>
+    `${String(row?.client || '').trim()}|${String(row?.project || '').trim()}`;
+
   const filteredTransactions = useMemo(() => {
-    let list = filterByDateRange(transactions || [], dateFrom, dateTo, (t) => t.date);
-    if (selectedBroker) {
-      list = list.filter((t) => matchesSelectedBroker(t, selectedBroker));
-    }
-    if (selectedProjectId) {
-      const [client, project] = selectedProjectId.split('|');
-      list = list.filter(
-        (t) =>
-          (t.client || '').trim().toLowerCase() === String(client || '').trim().toLowerCase() &&
-          (t.project || '').trim().toLowerCase() === String(project || '').trim().toLowerCase()
-      );
-    }
-    return list;
-  }, [transactions, dateFrom, dateTo, selectedBroker, selectedProjectId]);
+    const dated = filterByDateRange(transactions || [], dateFrom, dateTo, (t) => t.date);
+    return applyMultiSelectFilters(dated, [
+      {
+        selected: selectedBrokers,
+        getValue: (t) => t?.client,
+        normalize: normText
+      },
+      {
+        selected: selectedProjectIds,
+        getValue: projectIdentity,
+        normalize: normText
+      }
+    ]);
+  }, [transactions, dateFrom, dateTo, selectedBrokers, selectedProjectIds]);
 
   const approvedForCharts = useMemo(
     () => (filteredTransactions || []).filter(isApproved),
@@ -125,20 +135,20 @@ const Transactions = () => {
 
   const approvedExpensesForTrend = useMemo(() => {
     let list = (expenses || []).filter(isApproved);
-    if (selectedProjectId) {
-      const [client, project] = selectedProjectId.split('|');
-      const c = String(client || '').trim().toLowerCase();
-      const p = String(project || '').trim().toLowerCase();
-      list = list.filter(
-        (row) =>
-          (row.client || '').trim().toLowerCase() === c &&
-          (row.project || '').trim().toLowerCase() === p
-      );
-    } else if (selectedBroker) {
-      list = list.filter((row) => matchesSelectedBroker(row, selectedBroker));
-    }
+    list = applyMultiSelectFilters(list, [
+      {
+        selected: selectedBrokers,
+        getValue: (row) => row?.client,
+        normalize: normText
+      },
+      {
+        selected: selectedProjectIds,
+        getValue: projectIdentity,
+        normalize: normText
+      }
+    ]);
     return filterByDateRange(list, dateFrom, dateTo, expenseDateValue);
-  }, [expenses, selectedProjectId, selectedBroker, dateFrom, dateTo]);
+  }, [expenses, selectedProjectIds, selectedBrokers, dateFrom, dateTo]);
 
   const monthBuckets = useMemo(() => {
     const range = monthSlotsForRange(dateFrom, dateTo);
@@ -275,11 +285,103 @@ const Transactions = () => {
   const projectOptions = useMemo(
     () =>
       buildProjectFilterOptions(projects || [], {
-        selectedBroker,
+        selectedBrokers,
         valueMode: 'identity'
       }),
-    [projects, selectedBroker]
+    [projects, selectedBrokers]
   );
+
+  const projectLabelByValue = useMemo(() => {
+    const map = new Map();
+    projectOptions.forEach((p) => map.set(normText(p.value), p.label));
+    return map;
+  }, [projectOptions]);
+
+  const onBrokersChange = (next) => {
+    const brokers = next || [];
+    setSelectedBrokers(brokers);
+    if (!brokers.length) return;
+    const brokerKeys = new Set(brokers.map(normText));
+    setSelectedProjectIds((prev) =>
+      (prev || []).filter((id) => {
+        const client = String(id || '').split('|')[0];
+        return brokerKeys.has(normText(client));
+      })
+    );
+  };
+
+  const txnFilterStats = useMemo(() => {
+    const netOf = (t) => transactionNetAfterImpactFund(t);
+    const total = sumField(approvedForTable, netOf);
+    const byBroker = sumBySelectedKeys(approvedForTable, selectedBrokers, (t) => t?.client, {
+      normalize: normText,
+      getAmount: netOf
+    });
+    const byProject = sumBySelectedKeys(approvedForTable, selectedProjectIds, projectIdentity, {
+      normalize: normText,
+      getAmount: netOf
+    }).map((b) => ({
+      ...b,
+      label: projectLabelByValue.get(b.key) || String(b.label || '').replace('|', ' – ')
+    }));
+    return { total, byBroker, byProject };
+  }, [approvedForTable, selectedBrokers, selectedProjectIds, projectLabelByValue]);
+
+  const summaryItems = useMemo(() => {
+    const items = [
+      { key: 'total', label: 'Total', value: txnFilterStats.total, format: 'compact', tone: 'primary' }
+    ];
+    if (txnFilterStats.byBroker.length === 1) {
+      items.push({
+        key: `broker:${txnFilterStats.byBroker[0].key}`,
+        label: txnFilterStats.byBroker[0].label,
+        value: txnFilterStats.byBroker[0].total,
+        format: 'compact',
+        tone: 'warn',
+        hint: 'Selected broker'
+      });
+    }
+    if (txnFilterStats.byProject.length > 0 && txnFilterStats.byProject.length <= 3) {
+      txnFilterStats.byProject.forEach((b) => {
+        items.push({
+          key: `project:${b.key}`,
+          label: b.label,
+          value: b.total,
+          format: 'compact',
+          tone: 'info',
+          hint: 'Selected project'
+        });
+      });
+    }
+    return items;
+  }, [txnFilterStats]);
+
+  const filterTags = useMemo(() => {
+    const tags = [];
+    selectedBrokers.forEach((b) => {
+      tags.push({ id: `broker:${normText(b)}`, label: b, group: 'Broker', kind: 'broker' });
+    });
+    selectedProjectIds.forEach((id) => {
+      const label = projectLabelByValue.get(normText(id)) || id.replace('|', ' – ');
+      tags.push({ id: `project:${normText(id)}`, label, group: 'Project', kind: 'project', value: id });
+    });
+    return tags;
+  }, [selectedBrokers, selectedProjectIds, projectLabelByValue]);
+
+  const onRemoveTag = (tag) => {
+    if (tag.kind === 'broker') {
+      onBrokersChange(removeSelectedValue(selectedBrokers, tag.label, { normalize: normText }));
+    } else if (tag.kind === 'project') {
+      setSelectedProjectIds((prev) =>
+        removeSelectedValue(prev, tag.value || tag.label, { normalize: normText })
+      );
+    }
+  };
+
+  const onClearTags = () => {
+    setSelectedBrokers([]);
+    setSelectedProjectIds([]);
+  };
 
   const openAddModal = () => {
     setEditingTransactionId(null);
@@ -538,15 +640,36 @@ const Transactions = () => {
         }
       />
 
-        <FilterBar dateFilter={dateFilter}>
-          <BrokerProjectFilters
-            brokerOptions={clientOptions}
-            selectedBroker={selectedBroker}
-            onBrokerChange={setSelectedBroker}
-            showProject
-            projectOptions={projectOptions}
-            selectedProjectValue={selectedProjectId}
-            onProjectChange={setSelectedProjectId}
+        <FilterBar
+          dateFilter={dateFilter}
+          stats={<FilterSummaryStats variant="bar" items={summaryItems} />}
+          tags={
+            filterTags.length ? (
+              <SelectedFilterTags
+                tags={filterTags}
+                onRemove={onRemoveTag}
+                onClearAll={onClearTags}
+              />
+            ) : null
+          }
+        >
+          <MultiSelectFilter
+            label="Broker"
+            value={selectedBrokers}
+            onChange={onBrokersChange}
+            options={clientOptions}
+            placeholder="All Brokers"
+            normalize={normText}
+          />
+          <MultiSelectFilter
+            label="Project"
+            value={selectedProjectIds}
+            onChange={setSelectedProjectIds}
+            options={projectOptions}
+            placeholder={
+              selectedBrokers.length ? 'All Projects' : 'All Projects (any broker)'
+            }
+            normalize={normText}
           />
         </FilterBar>
 

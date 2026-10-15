@@ -1,5 +1,6 @@
 import { FiUser, FiFileText } from 'react-icons/fi';
 import DataTable from './DataTable';
+import FilterSummaryStats from './FilterSummaryStats';
 import { formatMoney, signedMoneyClass } from '../utils/format';
 import { toNumber } from '../utils/number';
 import { compareTransactions } from '../utils/tableSort';
@@ -37,6 +38,7 @@ const TransactionTable = ({
   title = 'Transaction Details',
   additionalFilters = null,
   hideFilters = [],
+  summaryItems = null,
   ...rest
 }) => {
   const columns = [
@@ -101,6 +103,8 @@ const TransactionTable = ({
   ];
   const filters = hideFilters.length ? allFilters.filter((f) => !hideFilters.includes(f.key)) : allFilters;
 
+  const hasSummary = Array.isArray(summaryItems) && summaryItems.length > 0;
+
   return (
     <DataTable
       data={transactions}
@@ -112,12 +116,10 @@ const TransactionTable = ({
       searchConfig={searchConfig}
       filters={filters}
       additionalFilters={additionalFilters}
-      headerSummary={{
-        columnKey: 'totalAmount',
-        label: 'Total (net)',
-        aggregate: (rows) => rows.reduce((s, t) => s + transactionNetAfterImpactFund(t), 0),
-        format: formatMoney
-      }}
+      titleActions={
+        hasSummary ? <FilterSummaryStats variant="inline" items={summaryItems} /> : null
+      }
+      headerSummary={null}
       sortCompare={compareTransactions}
       {...rest}
     />

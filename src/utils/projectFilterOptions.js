@@ -2,11 +2,13 @@ import { normText } from './number';
 
 /**
  * Broker-aware project dropdown options.
- * When a broker is already selected, labels are project name only (no "Broker – Project").
+ * When exactly one broker is selected, labels are project name only (no "Broker – Project").
+ * `selectedBrokers` (array) takes precedence over `selectedBroker` (string).
  *
  * @param {object[]} projects
  * @param {object} [options]
  * @param {string} [options.selectedBroker]
+ * @param {string[]} [options.selectedBrokers]
  * @param {'identity'|'id'} [options.valueMode] identity = `client|project`, id = Firestore doc id
  * @param {boolean} [options.requireId] drop rows without id (Dashboard)
  * @returns {{ value: string, label: string }[]}
@@ -14,14 +16,21 @@ import { normText } from './number';
 export function buildProjectFilterOptions(projects = [], options = {}) {
   const {
     selectedBroker = '',
+    selectedBrokers = null,
     valueMode = 'identity',
     requireId = false
   } = options;
 
-  const broker = normText(selectedBroker);
+  const brokerList = Array.isArray(selectedBrokers)
+    ? selectedBrokers.map((b) => String(b || '').trim()).filter(Boolean)
+    : selectedBroker
+      ? [String(selectedBroker).trim()]
+      : [];
+  const brokerKeys = new Set(brokerList.map(normText));
+  const singleBroker = brokerList.length === 1;
   const list = Array.isArray(projects) ? projects : [];
-  const filtered = broker
-    ? list.filter((p) => normText(p?.client) === broker)
+  const filtered = brokerKeys.size
+    ? list.filter((p) => brokerKeys.has(normText(p?.client)))
     : list;
 
   const byKey = new Map();
@@ -39,7 +48,7 @@ export function buildProjectFilterOptions(projects = [], options = {}) {
         : `${client}|${project}`;
     if (byKey.has(value)) continue;
 
-    const label = broker
+    const label = singleBroker
       ? project || (valueMode === 'id' ? String(p.id) : 'Unnamed')
       : [client, project].filter(Boolean).join(' – ') ||
         (valueMode === 'id' ? String(p.id) : 'Unnamed');
